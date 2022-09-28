@@ -1,5 +1,6 @@
-use std::{error::Error, sync::Arc, time::Instant};
+use std::{sync::Arc, time::Instant};
 
+use anyhow::{Context, Result};
 use arrow::{
     array::{Array, BooleanArray, Float64Array, Int64Array, NullArray, StringBuilder},
     datatypes,
@@ -13,12 +14,12 @@ fn main() {
     println!("{}", now.elapsed().as_secs_f32());
 }
 
-fn extract_sheet() -> Result<(), Box<dyn Error>> {
+fn extract_sheet() -> Result<()> {
     let path = format!("{}/TestExcel.xlsx", env!("CARGO_MANIFEST_DIR"));
     let mut workbook: Xlsx<_> = open_workbook(path)?;
     let sheets = workbook.worksheets();
 
-    for (_sheet, data) in sheets {
+    for (sheet, data) in sheets {
         let mut fields = vec![];
         let mut arrays = vec![];
         let height = data.height();
@@ -36,13 +37,19 @@ fn extract_sheet() -> Result<(), Box<dyn Error>> {
                     todo!();
                 }
             };
-            let name = data.get((0, col)).unwrap().get_string().unwrap();
+            let name = data
+                .get((0, col))
+                .with_context(|| format!("could not get name of column {col} in sheet {sheet}"))?
+                .get_string()
+                .with_context(|| {
+                    format!("could not convert data from sheet {sheet} at col {col} to string")
+                })?;
             fields.push(datatypes::Field::new(name, col_type, true));
-            println!("{}", &array.len());
             arrays.push(array);
         }
         let schema = datatypes::Schema::new(fields);
-        let batch = RecordBatch::try_new(Arc::new(schema), arrays).unwrap();
+        let batch = RecordBatch::try_new(Arc::new(schema), arrays)
+            .with_context(|| format!("Could not create record batch for sheet {sheet}"))?;
 
         println!("{:?}", batch);
     }
