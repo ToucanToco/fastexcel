@@ -1,4 +1,8 @@
 /target
 
 bigfile.*
-TestExcel.xlsx
+*.xlsx
+__pycache__
+*.pyc
+*.so
+*.dat
