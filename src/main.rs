@@ -1,17 +1,31 @@
-use std::{sync::Arc, time::Instant};
+use std::{fs::OpenOptions, sync::Arc, time::Instant};
 
 use anyhow::{Context, Result};
 use arrow::{
     array::{Array, BooleanArray, Float64Array, Int64Array, NullArray, StringArray},
-    datatypes,
+    csv, datatypes,
     record_batch::RecordBatch,
 };
 use calamine::{open_workbook, DataType, Range, Reader, Xlsx};
 
 fn main() {
     let now = Instant::now();
-    extract_sheets().unwrap();
+    for (idx, sheet) in extract_sheets().unwrap().iter().enumerate() {
+        dump_table(&format!("sheet{idx}.csv"), sheet).unwrap();
+    }
     println!("{}", now.elapsed().as_secs_f32());
+}
+
+fn dump_table(filename: &str, table: &RecordBatch) -> Result<()> {
+    let file = OpenOptions::new()
+        .write(true)
+        .create(true)
+        .open(filename)
+        .with_context(|| format!("Could not open {filename} for writing"))?;
+    csv::Writer::new(file)
+        .write(table)
+        .with_context(|| "Could not write RecordBatch to {filename}")?;
+    Ok(())
 }
 
 fn extract_sheets() -> Result<Vec<RecordBatch>> {
