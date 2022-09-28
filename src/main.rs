@@ -1,16 +1,15 @@
-use std::{error::Error, time::Instant, sync::Arc};
+use std::{error::Error, sync::Arc, time::Instant};
 
 use arrow::{
-    datatypes, 
-    array::{BooleanArray, Array, StringBuilder, Int64Array, Float64Array, NullArray}, 
-    record_batch::RecordBatch
+    array::{Array, BooleanArray, Float64Array, Int64Array, NullArray, StringBuilder},
+    datatypes,
+    record_batch::RecordBatch,
 };
-use calamine::{open_workbook, Xlsx, Reader, Range, DataType};
+use calamine::{open_workbook, DataType, Range, Reader, Xlsx};
 
-
-fn main()  {
+fn main() {
     let now = Instant::now();
-    extract_sheet();
+    extract_sheet().unwrap();
     println!("{}", now.elapsed().as_secs_f32());
 }
 
@@ -19,7 +18,7 @@ fn extract_sheet() -> Result<(), Box<dyn Error>> {
     let mut workbook: Xlsx<_> = open_workbook(path)?;
     let sheets = workbook.worksheets();
 
-    for (sheet, data) in sheets {
+    for (_sheet, data) in sheets {
         let mut fields = vec![];
         let mut arrays = vec![];
         let height = data.height();
@@ -31,8 +30,11 @@ fn extract_sheet() -> Result<(), Box<dyn Error>> {
                 datatypes::DataType::Int64 => create_int_array(&data, col, height),
                 datatypes::DataType::Float64 => create_float_array(&data, col, height),
                 datatypes::DataType::Utf8 => create_string_array(&data, col, height),
-                datatypes::DataType::Null => Arc::new(NullArray::new(height-1)),
-                d => {println!("{:?}", d); todo!();}
+                datatypes::DataType::Null => Arc::new(NullArray::new(height - 1)),
+                d => {
+                    println!("{:?}", d);
+                    todo!();
+                }
             };
             let name = data.get((0, col)).unwrap().get_string().unwrap();
             fields.push(datatypes::Field::new(name, col_type, true));
@@ -44,7 +46,6 @@ fn extract_sheet() -> Result<(), Box<dyn Error>> {
 
         println!("{:?}", batch);
     }
-
 
     Ok(())
 }
@@ -97,19 +98,19 @@ fn create_string_array(data: &Range<DataType>, col: usize, height: usize) -> Arc
     Arc::new(builder.finish())
 }
 
-fn get_column_type(data: &Range<DataType>, col: usize) ->  datatypes::DataType {
+fn get_column_type(data: &Range<DataType>, col: usize) -> datatypes::DataType {
     if let Some(cell) = data.get((1, col)) {
         if cell.is_int() {
-            return datatypes::DataType::Int64
+            return datatypes::DataType::Int64;
         }
         if cell.is_float() {
-            return datatypes::DataType::Float64
+            return datatypes::DataType::Float64;
         }
         if cell.is_bool() {
-            return datatypes::DataType::Boolean
+            return datatypes::DataType::Boolean;
         }
         if cell.is_string() {
-            return datatypes::DataType::Utf8
+            return datatypes::DataType::Utf8;
         }
     }
     datatypes::DataType::Null
