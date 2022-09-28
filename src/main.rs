@@ -2,7 +2,7 @@ use std::{sync::Arc, time::Instant};
 
 use anyhow::{Context, Result};
 use arrow::{
-    array::{Array, BooleanArray, Float64Array, Int64Array, NullArray, StringBuilder},
+    array::{Array, BooleanArray, Float64Array, Int64Array, NullArray, StringArray},
     datatypes,
     record_batch::RecordBatch,
 };
@@ -10,14 +10,15 @@ use calamine::{open_workbook, DataType, Range, Reader, Xlsx};
 
 fn main() {
     let now = Instant::now();
-    extract_sheet().unwrap();
+    extract_sheets().unwrap();
     println!("{}", now.elapsed().as_secs_f32());
 }
 
-fn extract_sheet() -> Result<()> {
+fn extract_sheets() -> Result<Vec<RecordBatch>> {
     let path = format!("{}/TestExcel.xlsx", env!("CARGO_MANIFEST_DIR"));
     let mut workbook: Xlsx<_> = open_workbook(path)?;
     let sheets = workbook.worksheets();
+    let mut output = Vec::with_capacity(sheets.len());
 
     for (sheet, data) in sheets {
         let mut fields = vec![];
@@ -51,58 +52,34 @@ fn extract_sheet() -> Result<()> {
         let batch = RecordBatch::try_new(Arc::new(schema), arrays)
             .with_context(|| format!("Could not create record batch for sheet {sheet}"))?;
 
-        println!("{:?}", batch);
+        output.push(batch);
     }
 
-    Ok(())
+    Ok(output)
 }
 
 fn create_boolean_array(data: &Range<DataType>, col: usize, height: usize) -> Arc<dyn Array> {
-    let mut builder = BooleanArray::builder(height);
-    for row in 1..height {
-        if let Some(cell) = data.get((row, col)) {
-            builder.append_value(cell.get_bool().unwrap_or(false));
-        } else {
-            builder.append_value(false);
-        }
-    }
-    Arc::new(builder.finish())
+    Arc::new(BooleanArray::from_iter((1..height).map(|row| {
+        data.get((row, col)).and_then(|cell| cell.get_bool())
+    })))
 }
 
 fn create_int_array(data: &Range<DataType>, col: usize, height: usize) -> Arc<dyn Array> {
-    let mut builder = Int64Array::builder(height);
-    for row in 1..height {
-        if let Some(cell) = data.get((row, col)) {
-            builder.append_value(cell.get_int().unwrap_or(0));
-        } else {
-            builder.append_value(0);
-        }
-    }
-    Arc::new(builder.finish())
+    Arc::new(Int64Array::from_iter(
+        (1..height).map(|row| data.get((row, col)).and_then(|cell| cell.get_int())),
+    ))
 }
 
 fn create_float_array(data: &Range<DataType>, col: usize, height: usize) -> Arc<dyn Array> {
-    let mut builder = Float64Array::builder(height);
-    for row in 1..height {
-        if let Some(cell) = data.get((row, col)) {
-            builder.append_value(cell.get_float().unwrap_or(0.0));
-        } else {
-            builder.append_value(0.0)
-        }
-    }
-    Arc::new(builder.finish())
+    Arc::new(Float64Array::from_iter((1..height).map(|row| {
+        data.get((row, col)).and_then(|cell| cell.get_float())
+    })))
 }
 
 fn create_string_array(data: &Range<DataType>, col: usize, height: usize) -> Arc<dyn Array> {
-    let mut builder = StringBuilder::new(height);
-    for row in 1..height {
-        if let Some(cell) = data.get((row, col)) {
-            builder.append_value(cell.get_string().unwrap_or(""));
-        } else {
-            builder.append_value("");
-        }
-    }
-    Arc::new(builder.finish())
+    Arc::new(StringArray::from_iter((1..height).map(|row| {
+        data.get((row, col)).and_then(|cell| cell.get_string())
+    })))
 }
 
 fn get_column_type(data: &Range<DataType>, col: usize) -> datatypes::DataType {
