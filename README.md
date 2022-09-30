@@ -1,17 +1,20 @@
 # How to launch
 
-## Rust part
+First, install [`maturin`](https://github.com/PyO3/maturin).
 
-use release mode
+For debug mode, you can just use `maturin develop` and run `python` (or `ipython`) to start a python shell.
 
-```
-cargo run --release
+For prod mode (required for profiling):
+
+```shell
+maturin build --release
+pip install --force-reinstall target/wheels/fastexcel-*.whl
 ```
 
-## Python
+# Dev tips
 
-Use poetry to test
-```
-poetry install
-poetry run python loading_test.py
-```
+* Use `cargo check` to verify that your rust code compiles, no need to go through `maturin` every time
+* `cargo clippy` = 💖
+* Careful with arrow constructors, they tend to allocate a lot
+* [`mprof`](https://github.com/pythonprofilers/memory_profiler) and `time` go a long way for perf checks,
+  no need to go fancy right from the start

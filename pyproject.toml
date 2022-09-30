@@ -1,17 +1,29 @@
-[tool.poetry]
-name = "fastexcel"
-version = "0.1.0"
-description = ""
-authors = ["jGundermann <joris.gundermann@toucantoco.com>"]
-
-[tool.poetry.dependencies]
-python = "^3.10"
-pandas = "^1.4.3"
-pyarrow = "^9.0.0"
-numpy = "^1.23.1"
-
-[tool.poetry.dev-dependencies]
-
 [build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["maturin>=0.13,<0.14"]
+build-backend = "maturin"
+
+[project]
+name = "fastexcel"
+requires-python = ">=3.7"
+classifiers = [
+    "Programming Language :: Rust",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Python :: Implementation :: PyPy",
+]
+dependencies = [
+    "pandas>=1.4.4,<1.5",
+    "pyarrow>=8.0.0,<8.1.0",
+]
+
+[tool.maturin]
+python-source = "python"
+
+[tool.mypy]
+python_version = "3.10"
+follow_imports = "silent"
+ignore_missing_imports = true
+# A few custom options
+show_error_codes = true
+warn_no_return = true
+warn_unused_configs = true
+warn_unused_ignores = true

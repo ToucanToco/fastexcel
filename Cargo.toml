@@ -4,8 +4,20 @@ version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+name = "fastexcel"
+crate-type = ["cdylib"]
 
 [dependencies]
 anyhow = "1.0.65"
-arrow = "19.0.0"
 calamine = "0.18.0"
+pyo3 = { version = "0.17.1", features = ["extension-module", "anyhow"] }
+
+[dependencies.arrow]
+version = "23.0.0"
+# There's a lot of stuff we don't want here, such as serde support
+default-features = false
+features = ["ipc"]
+
+[package.metadata.maturin]
+python-source = "python"

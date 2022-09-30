@@ -1,36 +1,42 @@
-use std::{fs::OpenOptions, sync::Arc, time::Instant};
+use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use arrow::{
     array::{Array, BooleanArray, Float64Array, Int64Array, NullArray, StringArray},
-    csv, datatypes,
+    datatypes, ipc,
     record_batch::RecordBatch,
 };
 use calamine::{open_workbook, DataType, Range, Reader, Xlsx};
 
-fn main() {
-    let now = Instant::now();
-    for (idx, sheet) in extract_sheets().unwrap().iter().enumerate() {
-        dump_table(&format!("sheet{idx}.csv"), sheet).unwrap();
+pub fn record_batch_to_bytes(rb: &RecordBatch) -> Result<Vec<u8>> {
+    let mut writer = ipc::writer::StreamWriter::try_new(Vec::new(), &rb.schema())
+        .with_context(|| "Could not instantiate StreamWriter for RecordBatch")?;
+    writer
+        .write(rb)
+        .with_context(|| "Could not write RecordBatch to writer")?;
+    writer
+        .into_inner()
+        .with_context(|| "Could not complete Arrow stream")
+}
+
+fn alias_for_name(name: &str, fields: &[datatypes::Field]) -> String {
+    fn rec(name: &str, fields: &[datatypes::Field], depth: usize) -> String {
+        let alias = if depth == 0 {
+            name.to_owned()
+        } else {
+            format!("{name}_{depth}")
+        };
+        match fields.iter().any(|f| f.name() == &alias) {
+            true => rec(name, fields, depth + 1),
+            false => alias,
+        }
     }
-    println!("{}", now.elapsed().as_secs_f32());
+
+    rec(name, fields, 0)
 }
 
-fn dump_table(filename: &str, table: &RecordBatch) -> Result<()> {
-    let file = OpenOptions::new()
-        .write(true)
-        .create(true)
-        .open(filename)
-        .with_context(|| format!("Could not open {filename} for writing"))?;
-    csv::Writer::new(file)
-        .write(table)
-        .with_context(|| "Could not write RecordBatch to {filename}")?;
-    Ok(())
-}
-
-fn extract_sheets() -> Result<Vec<RecordBatch>> {
-    let path = format!("{}/TestExcel.xlsx", env!("CARGO_MANIFEST_DIR"));
-    let mut workbook: Xlsx<_> = open_workbook(path)?;
+pub fn extract_sheets(path: &str) -> Result<Vec<RecordBatch>> {
+    let mut workbook: Xlsx<_> = open_workbook(path).with_context(|| "Could not open workbook")?;
     let sheets = workbook.worksheets();
     let mut output = Vec::with_capacity(sheets.len());
 
@@ -47,10 +53,7 @@ fn extract_sheets() -> Result<Vec<RecordBatch>> {
                 datatypes::DataType::Float64 => create_float_array(&data, col, height),
                 datatypes::DataType::Utf8 => create_string_array(&data, col, height),
                 datatypes::DataType::Null => Arc::new(NullArray::new(height - 1)),
-                d => {
-                    println!("{:?}", d);
-                    todo!();
-                }
+                _ => unreachable!(),
             };
             let name = data
                 .get((0, col))
@@ -59,7 +62,11 @@ fn extract_sheets() -> Result<Vec<RecordBatch>> {
                 .with_context(|| {
                     format!("could not convert data from sheet {sheet} at col {col} to string")
                 })?;
-            fields.push(datatypes::Field::new(name, col_type, true));
+            fields.push(datatypes::Field::new(
+                &alias_for_name(name, &fields),
+                col_type,
+                true,
+            ));
             arrays.push(array);
         }
         let schema = datatypes::Schema::new(fields);
@@ -68,7 +75,6 @@ fn extract_sheets() -> Result<Vec<RecordBatch>> {
 
         output.push(batch);
     }
-
     Ok(output)
 }
 
@@ -97,19 +103,22 @@ fn create_string_array(data: &Range<DataType>, col: usize, height: usize) -> Arc
 }
 
 fn get_column_type(data: &Range<DataType>, col: usize) -> datatypes::DataType {
-    if let Some(cell) = data.get((1, col)) {
-        if cell.is_int() {
-            return datatypes::DataType::Int64;
+    // NOTE: Not handling dates here because they aren't really primitive types in Excel: We'd have
+    // to try to cast them, which has a performance cost
+    match data.get((1, col)) {
+        Some(cell) => {
+            if cell.is_int() {
+                datatypes::DataType::Int64
+            } else if cell.is_float() {
+                datatypes::DataType::Float64
+            } else if cell.is_bool() {
+                datatypes::DataType::Boolean
+            } else if cell.is_string() {
+                datatypes::DataType::Utf8
+            } else {
+                datatypes::DataType::Null
+            }
         }
-        if cell.is_float() {
-            return datatypes::DataType::Float64;
-        }
-        if cell.is_bool() {
-            return datatypes::DataType::Boolean;
-        }
-        if cell.is_string() {
-            return datatypes::DataType::Utf8;
-        }
+        None => datatypes::DataType::Null,
     }
-    datatypes::DataType::Null
 }
