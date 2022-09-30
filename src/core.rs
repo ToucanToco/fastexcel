@@ -53,10 +53,7 @@ pub fn extract_sheets(path: &str) -> Result<Vec<RecordBatch>> {
                 datatypes::DataType::Float64 => create_float_array(&data, col, height),
                 datatypes::DataType::Utf8 => create_string_array(&data, col, height),
                 datatypes::DataType::Null => Arc::new(NullArray::new(height - 1)),
-                d => {
-                    println!("{:?}", d);
-                    todo!();
-                }
+                _ => panic!("Unreachable code"),
             };
             let name = data
                 .get((0, col))
@@ -106,19 +103,22 @@ fn create_string_array(data: &Range<DataType>, col: usize, height: usize) -> Arc
 }
 
 fn get_column_type(data: &Range<DataType>, col: usize) -> datatypes::DataType {
-    if let Some(cell) = data.get((1, col)) {
-        if cell.is_int() {
-            return datatypes::DataType::Int64;
+    // NOTE: Not handling dates here because they aren't really primitive types in Excel: We'd have
+    // to try to cast them, which has a performance cost
+    match data.get((1, col)) {
+        Some(cell) => {
+            if cell.is_int() {
+                datatypes::DataType::Int64
+            } else if cell.is_float() {
+                datatypes::DataType::Float64
+            } else if cell.is_bool() {
+                datatypes::DataType::Boolean
+            } else if cell.is_string() {
+                datatypes::DataType::Utf8
+            } else {
+                datatypes::DataType::Null
+            }
         }
-        if cell.is_float() {
-            return datatypes::DataType::Float64;
-        }
-        if cell.is_bool() {
-            return datatypes::DataType::Boolean;
-        }
-        if cell.is_string() {
-            return datatypes::DataType::Utf8;
-        }
+        None => datatypes::DataType::Null,
     }
-    datatypes::DataType::Null
 }
