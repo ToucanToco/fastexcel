@@ -5,7 +5,8 @@ use pyo3::{prelude::*, types::PyBytes};
 
 use crate::core::{extract_sheets, record_batch_to_bytes};
 
-/// Formats the sum of two numbers as string.
+/// Reads an excel file and returns a list of bytes representing. Each bytes objects
+/// represents a sheet of the file as an Arrow RecordBatch, serialized in the IPC format
 #[pyfunction]
 fn read_excel<'p>(py: Python<'p>, path: &str) -> Result<Vec<&'p PyBytes>> {
     // FIXME: Allocating two vecs here, extract_sheets should return an Iterator
