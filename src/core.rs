@@ -53,7 +53,7 @@ pub fn extract_sheets(path: &str) -> Result<Vec<RecordBatch>> {
                 datatypes::DataType::Float64 => create_float_array(&data, col, height),
                 datatypes::DataType::Utf8 => create_string_array(&data, col, height),
                 datatypes::DataType::Null => Arc::new(NullArray::new(height - 1)),
-                _ => panic!("Unreachable code"),
+                _ => unreachable!(),
             };
             let name = data
                 .get((0, col))
