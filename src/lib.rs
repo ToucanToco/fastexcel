@@ -24,9 +24,8 @@ impl PyExcelSheetIterator {
     fn __next__(mut slf: PyRefMut<'_, Self>, py: Python<'_>) -> Result<Option<PyObject>> {
         match slf.it.next() {
             None => Ok(None),
-            Some(sheet) => {
-                record_batch_to_pybytes(py, &sheet?.to_record_batch()?).map(|b| Some(b.into()))
-            }
+            Some(sheet) => record_batch_to_pybytes(py, &RecordBatch::try_from(&sheet?)?)
+                .map(|b| Some(b.into())),
         }
     }
 }

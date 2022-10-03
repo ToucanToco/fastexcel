@@ -42,23 +42,26 @@ pub struct ExcelSheet {
 }
 
 impl ExcelSheet {
-    pub fn try_from_workbook_and_name(
-        wb: &mut Xlsx<io::BufReader<fs::File>>,
-        name: String,
-    ) -> Result<Self> {
-        let data = wb
-            .worksheet_range(&name)
-            .with_context(|| format!("Sheet {name} not found"))?
-            .with_context(|| format!("Error while loading sheet {name}"))?;
-        let schema = arrow_schema_from_range(&data)
-            .with_context(|| format!("Could not create Arrow schema for sheet {name}"))?;
-        Ok(Self { name, schema, data })
+    pub fn name(&self) -> &str {
+        &self.name
     }
 
-    pub fn to_record_batch(&self) -> Result<RecordBatch> {
-        let height = self.data.height();
-        let iter = self
-            .schema
+    pub fn schema(&self) -> &datatypes::Schema {
+        &self.schema
+    }
+
+    pub fn data(&self) -> &Range<DataType> {
+        &self.data
+    }
+}
+
+impl TryFrom<&ExcelSheet> for RecordBatch {
+    type Error = anyhow::Error;
+
+    fn try_from(value: &ExcelSheet) -> Result<Self, Self::Error> {
+        let height = value.data().height();
+        let iter = value
+            .schema()
             .fields()
             .iter()
             .enumerate()
@@ -67,14 +70,16 @@ impl ExcelSheet {
                     field.name(),
                     match field.data_type() {
                         datatypes::DataType::Boolean => {
-                            create_boolean_array(&self.data, col_idx, height)
+                            create_boolean_array(value.data(), col_idx, height)
                         }
-                        datatypes::DataType::Int64 => create_int_array(&self.data, col_idx, height),
+                        datatypes::DataType::Int64 => {
+                            create_int_array(value.data(), col_idx, height)
+                        }
                         datatypes::DataType::Float64 => {
-                            create_float_array(&self.data, col_idx, height)
+                            create_float_array(value.data(), col_idx, height)
                         }
                         datatypes::DataType::Utf8 => {
-                            create_string_array(&self.data, col_idx, height)
+                            create_string_array(value.data(), col_idx, height)
                         }
                         datatypes::DataType::Null => Arc::new(NullArray::new(height - 1)),
                         _ => unreachable!(),
@@ -82,7 +87,7 @@ impl ExcelSheet {
                 )
             });
         RecordBatch::try_from_iter(iter)
-            .with_context(|| format!("Could not convert sheet {} to RecordBatch", &self.name))
+            .with_context(|| format!("Could not convert sheet {} to RecordBatch", value.name()))
     }
 }
 
@@ -109,10 +114,27 @@ fn arrow_schema_from_range(range: &calamine::Range<DataType>) -> Result<datatype
 }
 
 impl ExcelFile {
+    // NOTE: Not implementing TryFrom here, because we're aren't building the file from the passed
+    // string, but rather from the file pointed by it. Semantically, try_from_path is clearer
     pub fn try_from_path(path: &str) -> Result<Self> {
         let workbook: Xlsx<_> =
             open_workbook(path).with_context(|| format!("Could not open workbook at {path}"))?;
         Ok(Self { workbook })
+    }
+
+    pub fn try_new_excel_sheet_from_name(&mut self, name: &str) -> Result<ExcelSheet> {
+        let data = self
+            .workbook
+            .worksheet_range(name)
+            .with_context(|| format!("Sheet {name} not found"))?
+            .with_context(|| format!("Error while loading sheet {name}"))?;
+        let schema = arrow_schema_from_range(&data)
+            .with_context(|| format!("Could not create Arrow schema for sheet {name}"))?;
+        Ok(ExcelSheet {
+            name: name.to_owned(),
+            schema,
+            data,
+        })
     }
 }
 
@@ -131,17 +153,9 @@ impl Iterator for ExcelSheetIterator {
     type Item = Result<ExcelSheet>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        match self.file.workbook.sheet_names().get(self.idx) {
-            Some(name) => {
-                self.idx += 1;
-                let name = name.to_owned();
-                Some(ExcelSheet::try_from_workbook_and_name(
-                    &mut self.file.workbook,
-                    name,
-                ))
-            }
-            None => None,
-        }
+        let name = self.file.workbook.sheet_names().get(self.idx)?.clone();
+        self.idx += 1;
+        Some(self.file.try_new_excel_sheet_from_name(&name))
     }
 }
 
