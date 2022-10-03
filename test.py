@@ -1,19 +1,21 @@
 import argparse
 
-import pandas as pd
-
 import fastexcel
 
-pd.set_option("display.max_columns", 500)
+
+def get_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("file")
+    parser.add_argument("--lazy", action="store_true")
+    return parser.parse_args()
 
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("file")
-    args = parser.parse_args()
-    dfs = fastexcel.load_excel_file(args.file)
-    for df in dfs:
-        print(df.head(5))
+    args = get_args()
+    if args.lazy:
+        dfs = list(fastexcel.load_excel_file_lazy(args.file))
+    else:
+        dfs = fastexcel.load_excel_file(args.file)
 
 
 if __name__ == "__main__":

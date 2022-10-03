@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{fs, io, sync::Arc, vec};
 
 use anyhow::{Context, Result};
 use arrow::{
@@ -33,6 +33,144 @@ fn alias_for_name(name: &str, fields: &[datatypes::Field]) -> String {
     }
 
     rec(name, fields, 0)
+}
+
+pub struct ExcelSheet {
+    name: String,
+    schema: datatypes::Schema,
+    data: calamine::Range<DataType>,
+}
+
+impl ExcelSheet {
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    pub fn schema(&self) -> &datatypes::Schema {
+        &self.schema
+    }
+
+    pub fn data(&self) -> &Range<DataType> {
+        &self.data
+    }
+}
+
+impl TryFrom<&ExcelSheet> for RecordBatch {
+    type Error = anyhow::Error;
+
+    fn try_from(value: &ExcelSheet) -> Result<Self, Self::Error> {
+        let height = value.data().height();
+        let iter = value
+            .schema()
+            .fields()
+            .iter()
+            .enumerate()
+            .map(|(col_idx, field)| {
+                (
+                    field.name(),
+                    match field.data_type() {
+                        datatypes::DataType::Boolean => {
+                            create_boolean_array(value.data(), col_idx, height)
+                        }
+                        datatypes::DataType::Int64 => {
+                            create_int_array(value.data(), col_idx, height)
+                        }
+                        datatypes::DataType::Float64 => {
+                            create_float_array(value.data(), col_idx, height)
+                        }
+                        datatypes::DataType::Utf8 => {
+                            create_string_array(value.data(), col_idx, height)
+                        }
+                        datatypes::DataType::Null => Arc::new(NullArray::new(height - 1)),
+                        _ => unreachable!(),
+                    },
+                )
+            });
+        RecordBatch::try_from_iter(iter)
+            .with_context(|| format!("Could not convert sheet {} to RecordBatch", value.name()))
+    }
+}
+
+pub struct ExcelFile {
+    workbook: Xlsx<io::BufReader<fs::File>>,
+}
+
+fn arrow_schema_from_range(range: &calamine::Range<DataType>) -> Result<datatypes::Schema> {
+    let mut fields = Vec::with_capacity(range.width());
+    for col_idx in 0..range.width() {
+        let col_type = get_column_type(range, col_idx);
+        let name = range
+            .get((0, col_idx))
+            .with_context(|| format!("could not get name of column {col_idx}"))?
+            .get_string()
+            .with_context(|| format!("could not convert data at col {col_idx} to string"))?;
+        fields.push(datatypes::Field::new(
+            &alias_for_name(name, &fields),
+            col_type,
+            true,
+        ));
+    }
+    Ok(datatypes::Schema::new(fields))
+}
+
+impl ExcelFile {
+    // NOTE: Not implementing TryFrom here, because we're aren't building the file from the passed
+    // string, but rather from the file pointed by it. Semantically, try_from_path is clearer
+    pub fn try_from_path(path: &str) -> Result<Self> {
+        let workbook: Xlsx<_> =
+            open_workbook(path).with_context(|| format!("Could not open workbook at {path}"))?;
+        Ok(Self { workbook })
+    }
+
+    pub fn try_new_excel_sheet_from_name(&mut self, name: &str) -> Result<ExcelSheet> {
+        let data = self
+            .workbook
+            .worksheet_range(name)
+            .with_context(|| format!("Sheet {name} not found"))?
+            .with_context(|| format!("Error while loading sheet {name}"))?;
+        let schema = arrow_schema_from_range(&data)
+            .with_context(|| format!("Could not create Arrow schema for sheet {name}"))?;
+        Ok(ExcelSheet {
+            name: name.to_owned(),
+            schema,
+            data,
+        })
+    }
+}
+
+pub struct ExcelSheetIterator {
+    file: ExcelFile,
+    idx: usize,
+}
+
+impl ExcelSheetIterator {
+    pub fn new(file: ExcelFile) -> Self {
+        Self { file, idx: 0 }
+    }
+}
+
+impl Iterator for ExcelSheetIterator {
+    type Item = Result<ExcelSheet>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let name = self.file.workbook.sheet_names().get(self.idx)?.clone();
+        self.idx += 1;
+        Some(self.file.try_new_excel_sheet_from_name(&name))
+    }
+}
+
+impl IntoIterator for ExcelFile {
+    type Item = Result<ExcelSheet>;
+
+    type IntoIter = ExcelSheetIterator;
+
+    fn into_iter(self) -> Self::IntoIter {
+        ExcelSheetIterator::new(self)
+    }
+}
+
+pub fn extract_sheets_iter(path: &str) -> Result<ExcelSheetIterator> {
+    Ok(ExcelFile::try_from_path(path)?.into_iter())
 }
 
 pub fn extract_sheets(path: &str) -> Result<Vec<RecordBatch>> {
