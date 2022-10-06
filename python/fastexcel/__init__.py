@@ -1,12 +1,17 @@
-from typing import Generator
+from typing import TYPE_CHECKING
 
-import pandas as pd
+if TYPE_CHECKING:
+    from typing import Generator
+
+    import pandas as pd
+
+
 import pyarrow as pa
 
 from .fastexcel import read_excel, read_excel_lazy
 
 
-def load_excel_file(path: str) -> Generator[pd.DataFrame, None, None]:
+def load_excel_file(path: str) -> "Generator[pd.DataFrame, None, None]":
     raw_record_batches = read_excel(path)
 
     def iter_():
@@ -17,7 +22,7 @@ def load_excel_file(path: str) -> Generator[pd.DataFrame, None, None]:
     return iter_()
 
 
-def load_excel_file_lazy(path: str) -> Generator[pd.DataFrame, None, None]:
+def load_excel_file_lazy(path: str) -> "Generator[pd.DataFrame, None, None]":
     raw_record_batches = read_excel_lazy(path)
 
     def iter_():
