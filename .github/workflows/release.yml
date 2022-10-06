@@ -47,13 +47,13 @@ jobs:
       uses: actions/download-artifact@v3
       with:
         name: wheels-linux
-        path: wheel-linux
+        path: wheels-linux
 
     - name: Download MacOS wheels
       uses: actions/download-artifact@v3
       with:
         name: wheels-macos
-        path: wheel-macos
+        path: wheels-macos
 
     - name: Publish to PyPI
       uses: messense/maturin-action@v1
@@ -61,7 +61,7 @@ jobs:
         MATURIN_PYPI_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
       with:
         command: upload
-        args: --skip-existing wheels-linux/*.whl wheels-macos/*.whl
+        args: "--skip-existing wheels-linux/*.whl wheels-macos/*.whl"
 
     - name: Release
       uses: softprops/action-gh-release@v1
