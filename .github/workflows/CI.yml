@@ -51,16 +51,6 @@ jobs:
     runs-on: macos-latest
     steps:
     - uses: actions/checkout@v3
-    - name: Install dev dependencies
-      run: |
-        python3.10 -m pip install -r test-requirements.txt
-
-    - name: Lint
-      run: |
-        cargo clippy
-        flake8 python/fastexcel
-        mypy python/fastexcel
-
     - uses: messense/maturin-action@v1
       with:
         command: build
