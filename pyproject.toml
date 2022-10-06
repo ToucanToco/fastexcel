@@ -4,16 +4,20 @@ build-backend = "maturin"
 
 [project]
 name = "fastexcel"
-requires-python = ">=3.7"
+version = "0.1.1"
+requires-python = ">=3.10"
 classifiers = [
     "Programming Language :: Rust",
     "Programming Language :: Python :: Implementation :: CPython",
-    "Programming Language :: Python :: Implementation :: PyPy",
 ]
 dependencies = [
     "pandas>=1.4.4,<1.5",
     "pyarrow>=8.0.0,<8.1.0",
 ]
+
+[project.urls]
+"Source Code" = "https://github.com/ToucanToco/fastexcel"
+Issues = "https://github.com/ToucanToco/fastexcel"
 
 [tool.maturin]
 python-source = "python"
