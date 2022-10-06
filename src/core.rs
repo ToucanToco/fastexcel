@@ -1,4 +1,4 @@
-use std::{fs, io, sync::Arc, vec};
+use std::{sync::Arc, vec};
 
 use anyhow::{Context, Result};
 use arrow::{
@@ -6,7 +6,7 @@ use arrow::{
     datatypes, ipc,
     record_batch::RecordBatch,
 };
-use calamine::{open_workbook, DataType, Range, Reader, Xlsx};
+use calamine::{open_workbook_auto, DataType, Range, Reader, Sheets};
 
 pub fn record_batch_to_bytes(rb: &RecordBatch) -> Result<Vec<u8>> {
     let mut writer = ipc::writer::StreamWriter::try_new(Vec::new(), &rb.schema())
@@ -92,7 +92,7 @@ impl TryFrom<&ExcelSheet> for RecordBatch {
 }
 
 pub struct ExcelFile {
-    workbook: Xlsx<io::BufReader<fs::File>>,
+    sheets: Sheets,
 }
 
 fn arrow_schema_from_range(range: &calamine::Range<DataType>) -> Result<datatypes::Schema> {
@@ -117,14 +117,14 @@ impl ExcelFile {
     // NOTE: Not implementing TryFrom here, because we're aren't building the file from the passed
     // string, but rather from the file pointed by it. Semantically, try_from_path is clearer
     pub fn try_from_path(path: &str) -> Result<Self> {
-        let workbook: Xlsx<_> =
-            open_workbook(path).with_context(|| format!("Could not open workbook at {path}"))?;
-        Ok(Self { workbook })
+        let sheets = open_workbook_auto(path)
+            .with_context(|| format!("Could not open workbook at {path}"))?;
+        Ok(Self { sheets })
     }
 
     pub fn try_new_excel_sheet_from_name(&mut self, name: &str) -> Result<ExcelSheet> {
         let data = self
-            .workbook
+            .sheets
             .worksheet_range(name)
             .with_context(|| format!("Sheet {name} not found"))?
             .with_context(|| format!("Error while loading sheet {name}"))?;
@@ -153,7 +153,7 @@ impl Iterator for ExcelSheetIterator {
     type Item = Result<ExcelSheet>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let name = self.file.workbook.sheet_names().get(self.idx)?.clone();
+        let name = self.file.sheets.sheet_names().get(self.idx)?.clone();
         self.idx += 1;
         Some(self.file.try_new_excel_sheet_from_name(&name))
     }
@@ -174,8 +174,8 @@ pub fn extract_sheets_iter(path: &str) -> Result<ExcelSheetIterator> {
 }
 
 pub fn extract_sheets(path: &str) -> Result<Vec<RecordBatch>> {
-    let mut workbook: Xlsx<_> = open_workbook(path).with_context(|| "Could not open workbook")?;
-    let sheets = workbook.worksheets();
+    let mut sheets = open_workbook_auto(path).with_context(|| "Could not open workbook")?;
+    let sheets = sheets.worksheets();
     let mut output = Vec::with_capacity(sheets.len());
 
     for (sheet, data) in sheets {
