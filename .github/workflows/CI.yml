@@ -16,12 +16,12 @@ jobs:
       with:
         manylinux: auto
         command: build
-        args: --release -o dist --interpreter python3.10
-    - name: Upload wheels
-      uses: actions/upload-artifact@v2
-      with:
-        name: wheels
-        path: dist
+        args: -o dist --interpreter python3.10
+    # - name: Upload wheels
+    #   uses: actions/upload-artifact@v2
+    #   with:
+    #     name: wheels
+    #     path: dist
 
   # windows:
   #   runs-on: windows-latest
@@ -44,12 +44,12 @@ jobs:
     - uses: messense/maturin-action@v1
       with:
         command: build
-        args: --release -o dist --universal2 --interpreter python3.10
-    - name: Upload wheels
-      uses: actions/upload-artifact@v2
-      with:
-        name: wheels
-        path: dist
+        args: -o dist --universal2 --interpreter python3.10
+    # - name: Upload wheels
+    #   uses: actions/upload-artifact@v2
+    #   with:
+    #     name: wheels
+    #     path: dist
 
   # release:
   #   name: Release
