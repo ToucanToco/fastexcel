@@ -18,7 +18,7 @@ jobs:
         command: build
         args: --release -o dist --interpreter python3.10
     - name: Upload wheels
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         name: wheels-linux
         path: dist
@@ -33,7 +33,7 @@ jobs:
         command: build
         args: --release -o dist --universal2 --interpreter python3.10
     - name: Upload wheels
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         name: wheels-macos
         path: dist
