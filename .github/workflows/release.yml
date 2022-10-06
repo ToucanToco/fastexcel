@@ -61,11 +61,11 @@ jobs:
         MATURIN_PYPI_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
       with:
         command: upload
-        args: --skip-existing wheels-linux/dist/*.whl wheels-macos/dist/*.whl
+        args: --skip-existing wheels-linux/*.whl wheels-macos/*.whl
 
     - name: Release
       uses: softprops/action-gh-release@v1
       with:
         files: |
-          wheels-linux/dist/*.whl
-          wheels-macos/dist/*.whl
+          wheels-linux/*.whl
+          wheels-macos/*.whl
