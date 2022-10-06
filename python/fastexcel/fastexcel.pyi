@@ -1,6 +1,5 @@
 from typing import Generator
 
-
 def read_excel_lazy(path: str) -> Generator[bytes, None, None]:
     """Reads an excel file and returns a generator of bytes objects.
 
