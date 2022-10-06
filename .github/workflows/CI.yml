@@ -21,42 +21,44 @@ jobs:
       run: |
         python3.10 -m pip install -r test-requirements.txt
 
-    - name: Lint
+    - name: Set up rust toolchain
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+        override: true
+    - name: Set up rustfmt
+      run: rustup component add rustfmt
+    - name: rustfmt
+      uses: actions-rs/cargo@v1
+      with:
+        command: fmt
+        args: --all -- --check
+    - name: clippy
+      uses: actions-rs/cargo@v1
+      with:
+        command: clippy
+
+    - name: Python lint
       run: |
-        cargo clippy
         flake8 python/fastexcel
+        isort python/fastexcel --check-only --df
+        black python/fastexcel --check --diff
         mypy python/fastexcel
 
-    - uses: messense/maturin-action@v1
+    - name: build (fast)
+      uses: messense/maturin-action@v1
       with:
         manylinux: auto
         command: build
         args: -o dist --interpreter python3.10
-    # - name: Upload wheels
-    #   uses: actions/upload-artifact@v2
-    #   with:
-    #     name: wheels
-    #     path: dist
-
-  # windows:
-  #   runs-on: windows-latest
-  #   steps:
-  #   - uses: actions/checkout@v3
-  #   - uses: messense/maturin-action@v1
-  #     with:
-  #       command: build
-  #       args: --release -o dist --find-interpreter
-  #   - name: Upload wheels
-  #     uses: actions/upload-artifact@v2
-  #     with:
-  #       name: wheels
-  #       path: dist
 
   macos:
     runs-on: macos-latest
     steps:
     - uses: actions/checkout@v3
-    - uses: messense/maturin-action@v1
+    - name: build (fast)
+      uses: messense/maturin-action@v1
       with:
         command: build
         args: -o dist --universal2 --interpreter python3.10
