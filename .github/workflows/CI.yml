@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Python python3.10
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.10"
+
+    - name: Install dev dependencies
+      run: |
+        python3.10 -m pip install -r test-requirements.txt
+
+    - name: Set up rust toolchain
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+        override: true
+    - name: Set up rustfmt
+      run: rustup component add rustfmt
+    - name: rustfmt
+      uses: actions-rs/cargo@v1
+      with:
+        command: fmt
+        args: --all -- --check
+    - name: clippy
+      uses: actions-rs/cargo@v1
+      with:
+        command: clippy
+
+    - name: Python lint
+      run: |
+        flake8 python/fastexcel
+        isort python/fastexcel --check-only --df
+        black python/fastexcel --check --diff
+        mypy python/fastexcel
+
+    - name: build (fast)
+      uses: messense/maturin-action@v1
+      with:
+        manylinux: auto
+        command: build
+        args: -o dist --interpreter python3.10
+
+  macos:
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: build (fast)
+      uses: messense/maturin-action@v1
+      with:
+        command: build
+        args: -o dist --universal2 --interpreter python3.10
