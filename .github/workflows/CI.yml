@@ -16,7 +16,7 @@ jobs:
       with:
         manylinux: auto
         command: build
-        args: --release --sdist -o dist --interpreter python3.10
+        args: --release -o dist --interpreter python3.10
     - name: Upload wheels
       uses: actions/upload-artifact@v2
       with:
