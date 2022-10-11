@@ -1,6 +1,7 @@
 use anyhow::{Context, Result};
 use arrow::{datatypes, ipc::writer::StreamWriter, record_batch::RecordBatch};
 use calamine::Range;
+use pyo3::{types::PyBytes, Python};
 
 pub(crate) fn record_batch_to_bytes(rb: &RecordBatch) -> Result<Vec<u8>> {
     let mut writer = StreamWriter::try_new(Vec::new(), &rb.schema())
@@ -68,4 +69,8 @@ pub(crate) fn arrow_schema_from_range(
         ));
     }
     Ok(datatypes::Schema::new(fields))
+}
+
+pub(crate) fn record_batch_to_pybytes<'p>(py: Python<'p>, rb: &RecordBatch) -> Result<&'p PyBytes> {
+    record_batch_to_bytes(rb).map(|bytes| PyBytes::new(py, bytes.as_slice()))
 }

@@ -7,7 +7,9 @@ use arrow::{
     record_batch::RecordBatch,
 };
 use calamine::{DataType, Range};
-use pyo3::{pyclass, pymethods};
+use pyo3::{pyclass, pymethods, PyObject, Python};
+
+use crate::utils::arrow::record_batch_to_pybytes;
 
 #[pyclass]
 pub struct ExcelSheet {
@@ -96,11 +98,17 @@ impl ExcelSheet {
         &self.name
     }
 
-    pub fn len(&self) -> usize {
+    pub fn width(&self) -> usize {
         self.schema.fields().len()
     }
 
     pub fn height(&self) -> usize {
         self.data.height()
+    }
+
+    pub fn to_arrow(&self, py: Python<'_>) -> Result<PyObject> {
+        let rb = RecordBatch::try_from(self)
+            .with_context(|| format!("Could not create RecordBatch from sheet {}", self.name()))?;
+        record_batch_to_pybytes(py, &rb).map(|pybytes| pybytes.into())
     }
 }
