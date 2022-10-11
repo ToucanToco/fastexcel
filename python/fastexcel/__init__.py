@@ -1,22 +1,16 @@
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Generator
-
     import pandas as pd
 
+    from .fastexcel import ExcelSheet
 
 import pyarrow as pa
 
-from .fastexcel import read_excel
+from .fastexcel import read_excel  # noqa
 
 
-def load_excel_file(path: str) -> "Generator[pd.DataFrame, None, None]":
-    raw_record_batches = read_excel(path)
-
-    def iter_():
-        for raw_record_batch in raw_record_batches:
-            for record_batch in pa.ipc.open_stream(raw_record_batch):
-                yield record_batch.to_pandas()
-
-    return iter_()
+def sheet_to_dataframe(s: "ExcelSheet") -> "pd.DataFrame":
+    """Converts an ExcelSheet to a pandas DataFrame"""
+    # We know for sure that the sheet will yield exactly one RecordBatch
+    return list(pa.ipc.open_stream(s.to_arrow()))[0].to_pandas()

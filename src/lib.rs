@@ -2,17 +2,17 @@ mod core;
 mod types;
 mod utils;
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use pyo3::prelude::*;
+use types::ExcelSheetIterator;
 
-use crate::core::extract_sheets_iter;
-use crate::types::ExcelSheetIterator;
+use crate::core::load_excel_file;
 
-/// Reads an excel file and returns aan iterator of bytes. Each bytes objects represents a sheet of
-/// the file as an Arrow RecordBatch, serialized in the IPC format
+/// Reads an excel file and returns the list of sheet names along with an iterator over its
+/// sheets. Sheets are represented by ExcelSheet objects
 #[pyfunction]
-fn read_excel(path: &str) -> Result<ExcelSheetIterator> {
-    extract_sheets_iter(path).with_context(|| format!("could not load file at {path}"))
+fn read_excel(path: &str) -> Result<(Vec<String>, ExcelSheetIterator)> {
+    load_excel_file(path)
 }
 
 #[pymodule]
