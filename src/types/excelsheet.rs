@@ -111,4 +111,8 @@ impl ExcelSheet {
             .with_context(|| format!("Could not create RecordBatch from sheet {}", self.name()))?;
         record_batch_to_pybytes(py, &rb).map(|pybytes| pybytes.into())
     }
+
+    pub fn __repr__(&self) -> String {
+        format!("ExcelSheet<{}>", self.name())
+    }
 }
