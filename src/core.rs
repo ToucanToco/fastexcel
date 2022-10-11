@@ -1,12 +1,8 @@
-use std::{sync::Arc, vec};
-
 use anyhow::{Context, Result};
-use arrow::{
-    array::{Array, BooleanArray, Float64Array, Int64Array, NullArray, StringArray},
-    datatypes, ipc,
-    record_batch::RecordBatch,
-};
+use arrow::{datatypes, ipc, record_batch::RecordBatch};
 use calamine::{open_workbook_auto, DataType, Range, Reader, Sheets};
+
+use crate::types::ExcelSheet;
 
 pub fn record_batch_to_bytes(rb: &RecordBatch) -> Result<Vec<u8>> {
     let mut writer = ipc::writer::StreamWriter::try_new(Vec::new(), &rb.schema())
@@ -35,64 +31,29 @@ fn alias_for_name(name: &str, fields: &[datatypes::Field]) -> String {
     rec(name, fields, 0)
 }
 
-pub struct ExcelSheet {
-    name: String,
-    schema: datatypes::Schema,
-    data: calamine::Range<DataType>,
-}
-
-impl ExcelSheet {
-    pub fn name(&self) -> &str {
-        &self.name
-    }
-
-    pub fn schema(&self) -> &datatypes::Schema {
-        &self.schema
-    }
-
-    pub fn data(&self) -> &Range<DataType> {
-        &self.data
-    }
-}
-
-impl TryFrom<&ExcelSheet> for RecordBatch {
-    type Error = anyhow::Error;
-
-    fn try_from(value: &ExcelSheet) -> Result<Self, Self::Error> {
-        let height = value.data().height();
-        let iter = value
-            .schema()
-            .fields()
-            .iter()
-            .enumerate()
-            .map(|(col_idx, field)| {
-                (
-                    field.name(),
-                    match field.data_type() {
-                        datatypes::DataType::Boolean => {
-                            create_boolean_array(value.data(), col_idx, height)
-                        }
-                        datatypes::DataType::Int64 => {
-                            create_int_array(value.data(), col_idx, height)
-                        }
-                        datatypes::DataType::Float64 => {
-                            create_float_array(value.data(), col_idx, height)
-                        }
-                        datatypes::DataType::Utf8 => {
-                            create_string_array(value.data(), col_idx, height)
-                        }
-                        datatypes::DataType::Null => Arc::new(NullArray::new(height - 1)),
-                        _ => unreachable!(),
-                    },
-                )
-            });
-        RecordBatch::try_from_iter(iter)
-            .with_context(|| format!("Could not convert sheet {} to RecordBatch", value.name()))
-    }
-}
-
 pub struct ExcelFile {
     sheets: Sheets,
+}
+
+fn get_column_type(data: &Range<DataType>, col: usize) -> datatypes::DataType {
+    // NOTE: Not handling dates here because they aren't really primitive types in Excel: We'd have
+    // to try to cast them, which has a performance cost
+    match data.get((1, col)) {
+        Some(cell) => {
+            if cell.is_int() {
+                datatypes::DataType::Int64
+            } else if cell.is_float() {
+                datatypes::DataType::Float64
+            } else if cell.is_bool() {
+                datatypes::DataType::Boolean
+            } else if cell.is_string() {
+                datatypes::DataType::Utf8
+            } else {
+                datatypes::DataType::Null
+            }
+        }
+        None => datatypes::DataType::Null,
+    }
 }
 
 fn arrow_schema_from_range(range: &calamine::Range<DataType>) -> Result<datatypes::Schema> {
@@ -130,11 +91,7 @@ impl ExcelFile {
             .with_context(|| format!("Error while loading sheet {name}"))?;
         let schema = arrow_schema_from_range(&data)
             .with_context(|| format!("Could not create Arrow schema for sheet {name}"))?;
-        Ok(ExcelSheet {
-            name: name.to_owned(),
-            schema,
-            data,
-        })
+        Ok(ExcelSheet::new(name.to_owned(), schema, data))
     }
 }
 
@@ -144,7 +101,7 @@ pub struct ExcelSheetIterator {
 }
 
 impl ExcelSheetIterator {
-    pub fn new(file: ExcelFile) -> Self {
+    pub(crate) fn new(file: ExcelFile) -> Self {
         Self { file, idx: 0 }
     }
 }
@@ -171,92 +128,4 @@ impl IntoIterator for ExcelFile {
 
 pub fn extract_sheets_iter(path: &str) -> Result<ExcelSheetIterator> {
     Ok(ExcelFile::try_from_path(path)?.into_iter())
-}
-
-pub fn extract_sheets(path: &str) -> Result<Vec<RecordBatch>> {
-    let mut sheets = open_workbook_auto(path).with_context(|| "Could not open workbook")?;
-    let sheets = sheets.worksheets();
-    let mut output = Vec::with_capacity(sheets.len());
-
-    for (sheet, data) in sheets {
-        let mut fields = vec![];
-        let mut arrays = vec![];
-        let height = data.height();
-        let width = data.width();
-        for col in 0..width {
-            let col_type = get_column_type(&data, col);
-            let array = match col_type {
-                datatypes::DataType::Boolean => create_boolean_array(&data, col, height),
-                datatypes::DataType::Int64 => create_int_array(&data, col, height),
-                datatypes::DataType::Float64 => create_float_array(&data, col, height),
-                datatypes::DataType::Utf8 => create_string_array(&data, col, height),
-                datatypes::DataType::Null => Arc::new(NullArray::new(height - 1)),
-                _ => unreachable!(),
-            };
-            let name = data
-                .get((0, col))
-                .with_context(|| format!("could not get name of column {col} in sheet {sheet}"))?
-                .get_string()
-                .with_context(|| {
-                    format!("could not convert data from sheet {sheet} at col {col} to string")
-                })?;
-            fields.push(datatypes::Field::new(
-                &alias_for_name(name, &fields),
-                col_type,
-                true,
-            ));
-            arrays.push(array);
-        }
-        let schema = datatypes::Schema::new(fields);
-        let batch = RecordBatch::try_new(Arc::new(schema), arrays)
-            .with_context(|| format!("Could not create record batch for sheet {sheet}"))?;
-
-        output.push(batch);
-    }
-    Ok(output)
-}
-
-fn create_boolean_array(data: &Range<DataType>, col: usize, height: usize) -> Arc<dyn Array> {
-    Arc::new(BooleanArray::from_iter((1..height).map(|row| {
-        data.get((row, col)).and_then(|cell| cell.get_bool())
-    })))
-}
-
-fn create_int_array(data: &Range<DataType>, col: usize, height: usize) -> Arc<dyn Array> {
-    Arc::new(Int64Array::from_iter(
-        (1..height).map(|row| data.get((row, col)).and_then(|cell| cell.get_int())),
-    ))
-}
-
-fn create_float_array(data: &Range<DataType>, col: usize, height: usize) -> Arc<dyn Array> {
-    Arc::new(Float64Array::from_iter((1..height).map(|row| {
-        data.get((row, col)).and_then(|cell| cell.get_float())
-    })))
-}
-
-fn create_string_array(data: &Range<DataType>, col: usize, height: usize) -> Arc<dyn Array> {
-    Arc::new(StringArray::from_iter((1..height).map(|row| {
-        data.get((row, col)).and_then(|cell| cell.get_string())
-    })))
-}
-
-fn get_column_type(data: &Range<DataType>, col: usize) -> datatypes::DataType {
-    // NOTE: Not handling dates here because they aren't really primitive types in Excel: We'd have
-    // to try to cast them, which has a performance cost
-    match data.get((1, col)) {
-        Some(cell) => {
-            if cell.is_int() {
-                datatypes::DataType::Int64
-            } else if cell.is_float() {
-                datatypes::DataType::Float64
-            } else if cell.is_bool() {
-                datatypes::DataType::Boolean
-            } else if cell.is_string() {
-                datatypes::DataType::Utf8
-            } else {
-                datatypes::DataType::Null
-            }
-        }
-        None => datatypes::DataType::Null,
-    }
 }
