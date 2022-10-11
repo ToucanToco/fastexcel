@@ -1,11 +1,13 @@
 mod core;
 mod types;
+mod utils;
 
 use anyhow::{Context, Result};
 use arrow::record_batch::RecordBatch;
 use pyo3::{prelude::*, types::PyBytes};
 
-use crate::core::{extract_sheets_iter, record_batch_to_bytes, ExcelSheetIterator};
+use crate::core::{extract_sheets_iter, ExcelSheetIterator};
+use crate::utils::arrow::record_batch_to_bytes;
 
 #[pyclass]
 struct PyExcelSheetIterator {
