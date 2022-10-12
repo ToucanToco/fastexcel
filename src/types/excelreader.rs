@@ -6,7 +6,7 @@ use crate::utils::arrow::arrow_schema_from_range;
 
 use super::ExcelSheet;
 
-#[pyclass]
+#[pyclass(name = "_ExcelReader")]
 pub(crate) struct ExcelReader {
     sheets: Sheets,
     #[pyo3(get)]

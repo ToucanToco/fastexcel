@@ -11,9 +11,11 @@ classifiers = [
     "Programming Language :: Python :: Implementation :: CPython",
 ]
 dependencies = [
-    "pandas>=1.4.4,<1.5",
     "pyarrow>=8.0.0,<8.1.0",
 ]
+
+[project.optional-dependencies]
+pandas = ["pandas>=1.4.4,<1.5"]
 
 [project.urls]
 "Source Code" = "https://github.com/ToucanToco/fastexcel"

@@ -1,12 +1,11 @@
-from typing import Generator
-
-class ExcelSheet:
-    """A class representing a single sheet in an Excel File"""
-
+class _ExcelSheet:
+    @property
     def name(self) -> str:
         """The name of the sheet"""
+    @property
     def width(self) -> int:
         """The sheet's width"""
+    @property
     def height(self) -> int:
         """The sheet's height"""
     def to_arrow(self) -> bytes:
@@ -16,16 +15,16 @@ class ExcelSheet:
         `pyarrow.ipc.open_stream`.
         """
 
-class ExcelReader:
+class _ExcelReader:
     """A class representing an open Excel file and allowing to read its sheets"""
 
-    def load_sheet_by_name(self, name: str) -> ExcelSheet:
+    def load_sheet_by_name(self, name: str) -> _ExcelSheet:
         """Loads a sheet by name"""
-    def load_sheet_by_idx(self, idx: int) -> ExcelSheet:
+    def load_sheet_by_idx(self, idx: int) -> _ExcelSheet:
         """Loads a sheet by index"""
     @property
     def sheet_names(self) -> list[str]:
         """The list of sheet names"""
 
-def read_excel(path: str) -> ExcelReader:
+def read_excel(path: str) -> _ExcelReader:
     """Reads an excel file and returns an ExcelReader"""

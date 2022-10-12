@@ -11,11 +11,14 @@ use pyo3::{pyclass, pymethods, PyObject, Python};
 
 use crate::utils::arrow::record_batch_to_pybytes;
 
-#[pyclass]
+#[pyclass(name = "_ExcelSheet")]
 pub struct ExcelSheet {
+    #[pyo3(get)]
     name: String,
     schema: datatypes::Schema,
     data: Range<DataType>,
+    height: Option<usize>,
+    width: Option<usize>,
 }
 
 impl ExcelSheet {
@@ -28,7 +31,13 @@ impl ExcelSheet {
     }
 
     pub(crate) fn new(name: String, schema: datatypes::Schema, data: Range<DataType>) -> Self {
-        ExcelSheet { name, schema, data }
+        ExcelSheet {
+            name,
+            schema,
+            data,
+            height: None,
+            width: None,
+        }
     }
 }
 
@@ -88,31 +97,41 @@ impl TryFrom<&ExcelSheet> for RecordBatch {
                 )
             });
         RecordBatch::try_from_iter(iter)
-            .with_context(|| format!("Could not convert sheet {} to RecordBatch", value.name()))
+            .with_context(|| format!("Could not convert sheet {} to RecordBatch", value.name))
     }
 }
 
 #[pymethods]
 impl ExcelSheet {
-    pub fn name(&self) -> &str {
-        &self.name
+    #[getter]
+    pub fn width(&mut self) -> usize {
+        if let Some(width) = self.width {
+            width
+        } else {
+            let width = self.schema.fields().len();
+            self.width = Some(width);
+            width
+        }
     }
 
-    pub fn width(&self) -> usize {
-        self.schema.fields().len()
-    }
-
-    pub fn height(&self) -> usize {
-        self.data.height()
+    #[getter]
+    pub fn height(&mut self) -> usize {
+        if let Some(height) = self.height {
+            height
+        } else {
+            let height = self.data.height();
+            self.height = Some(height);
+            height
+        }
     }
 
     pub fn to_arrow(&self, py: Python<'_>) -> Result<PyObject> {
         let rb = RecordBatch::try_from(self)
-            .with_context(|| format!("Could not create RecordBatch from sheet {}", self.name()))?;
+            .with_context(|| format!("Could not create RecordBatch from sheet {}", self.name))?;
         record_batch_to_pybytes(py, &rb).map(|pybytes| pybytes.into())
     }
 
     pub fn __repr__(&self) -> String {
-        format!("ExcelSheet<{}>", self.name())
+        format!("ExcelSheet<{}>", self.name)
     }
 }
