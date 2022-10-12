@@ -1,4 +1,4 @@
-pub(crate) mod excelfile;
+pub(crate) mod excelreader;
 pub(crate) mod excelsheet;
-pub(crate) use excelfile::{ExcelFile, ExcelSheetIterator};
+pub(crate) use excelreader::ExcelReader;
 pub(crate) use excelsheet::ExcelSheet;

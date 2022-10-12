@@ -11,7 +11,9 @@ def get_args() -> argparse.Namespace:
 
 def main():
     args = get_args()
-    dfs = list(fastexcel.load_excel_file(args.file))
+    excel_file = fastexcel.read_excel(args.file)
+    for sheet_name in excel_file.sheet_names:
+        fastexcel.sheet_to_dataframe(excel_file.load_sheet_by_name(sheet_name))
 
 
 if __name__ == "__main__":

@@ -16,9 +16,16 @@ class ExcelSheet:
         `pyarrow.ipc.open_stream`.
         """
 
-def read_excel(path: str) -> tuple[list[str], Generator[ExcelSheet, None, None]]:
-    """Reads an excel file and returns a generator of bytes objects.
+class ExcelReader:
+    """A class representing an open Excel file and allowing to read its sheets"""
 
-    Each bytes object represents a sheet of the file as an Arrow RecordBatch,
-    serialized in Arrow's IPC format.
-    """
+    def load_sheet_by_name(self, name: str) -> ExcelSheet:
+        """Loads a sheet by name"""
+    def load_sheet_by_idx(self, idx: int) -> ExcelSheet:
+        """Loads a sheet by index"""
+    @property
+    def sheet_names(self) -> list[str]:
+        """The list of sheet names"""
+
+def read_excel(path: str) -> ExcelReader:
+    """Reads an excel file and returns an ExcelReader"""

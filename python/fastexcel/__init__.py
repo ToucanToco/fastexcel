@@ -1,25 +1,14 @@
-from typing import TYPE_CHECKING, NamedTuple
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Generator
-
     import pandas as pd
 
     from .fastexcel import ExcelSheet
 
 import pyarrow as pa
 
+from .fastexcel import ExcelReader  # noqa
 from .fastexcel import read_excel  # noqa
-
-
-class ExcelFile(NamedTuple):
-    sheet_names: list[str]
-    sheets: "Generator[ExcelSheet, None, None]"
-
-
-def load_excel(path: str) -> ExcelFile:
-    sheet_names, sheets = read_excel(path)
-    return ExcelFile(sheet_names, sheets)
 
 
 def sheet_to_dataframe(s: "ExcelSheet") -> "pd.DataFrame":
