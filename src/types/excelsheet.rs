@@ -12,7 +12,7 @@ use pyo3::{pyclass, pymethods, PyObject, Python};
 use crate::utils::arrow::record_batch_to_pybytes;
 
 #[pyclass(name = "_ExcelSheet")]
-pub struct ExcelSheet {
+pub(crate) struct ExcelSheet {
     #[pyo3(get)]
     name: String,
     schema: datatypes::Schema,
