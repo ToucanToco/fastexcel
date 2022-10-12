@@ -1,15 +1,30 @@
-from typing import Generator
+class _ExcelSheet:
+    @property
+    def name(self) -> str:
+        """The name of the sheet"""
+    @property
+    def width(self) -> int:
+        """The sheet's width"""
+    @property
+    def height(self) -> int:
+        """The sheet's height"""
+    def to_arrow(self) -> bytes:
+        """Converts the sheet to an Arrow RecordBatch.
 
-def read_excel_lazy(path: str) -> Generator[bytes, None, None]:
-    """Reads an excel file and returns a generator of bytes objects.
+        The RecordBatch is serialized to the IPC format. It can be read with
+        `pyarrow.ipc.open_stream`.
+        """
 
-    Each bytes object represents a sheet of the file as an Arrow RecordBatch,
-    serialized in Arrow's IPC format.
-    """
+class _ExcelReader:
+    """A class representing an open Excel file and allowing to read its sheets"""
 
-def read_excel(path: str) -> list[bytes]:
-    """Reads an excel file and returns a list of bytes.
+    def load_sheet_by_name(self, name: str) -> _ExcelSheet:
+        """Loads a sheet by name"""
+    def load_sheet_by_idx(self, idx: int) -> _ExcelSheet:
+        """Loads a sheet by index"""
+    @property
+    def sheet_names(self) -> list[str]:
+        """The list of sheet names"""
 
-    Each bytes object represents a sheet of the file as an Arrow RecordBatch,
-    serialized in Arrow's IPC format.
-    """
+def read_excel(path: str) -> _ExcelReader:
+    """Reads an excel file and returns an ExcelReader"""

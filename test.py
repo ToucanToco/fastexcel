@@ -6,16 +6,14 @@ import fastexcel
 def get_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("file")
-    parser.add_argument("--lazy", action="store_true")
     return parser.parse_args()
 
 
 def main():
     args = get_args()
-    if args.lazy:
-        dfs = list(fastexcel.load_excel_file_lazy(args.file))
-    else:
-        dfs = fastexcel.load_excel_file(args.file)
+    excel_file = fastexcel.read_excel(args.file)
+    for sheet_name in excel_file.sheet_names:
+        excel_file.load_sheet_by_name(sheet_name).to_pandas()
 
 
 if __name__ == "__main__":
