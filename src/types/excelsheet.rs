@@ -119,7 +119,9 @@ impl ExcelSheet {
         if let Some(height) = self.height {
             height
         } else {
-            let height = self.data.height();
+            let data_height = self.data.height();
+            // FIXME: Remove the subtraction once we support sheets without headers
+            let height = if data_height > 0 { data_height - 1 } else { 0 };
             self.height = Some(height);
             height
         }
