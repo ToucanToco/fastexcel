@@ -61,7 +61,7 @@ pub(crate) fn arrow_schema_from_range(
             .get((0, col_idx))
             .with_context(|| format!("could not get name of column {col_idx}"))?
             .get_string()
-            .with_context(|| format!("could not convert data at col {col_idx} to string"))?;
+            .unwrap_or("__NAMELESS__");
         fields.push(datatypes::Field::new(
             &alias_for_name(name, &fields),
             col_type,
