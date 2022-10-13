@@ -21,3 +21,4 @@ features = ["ipc"]
 
 [package.metadata.maturin]
 python-source = "python"
+name = "fastexcel._fastexcel"
