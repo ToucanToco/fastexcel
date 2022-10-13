@@ -6,7 +6,7 @@ flake8	= flake8 python/fastexcel *.py
 isort	= isort python/fastexcel *.py
 black	= black python/fastexcel *.py
 mypy	= mypy python/fastexcel *.py
-pytest	= python -m pytest -vvv -s python/tests
+pytest	= python -m pytest
 ## Rust
 clippy	= cargo clippy
 fmt	= cargo fmt
@@ -37,5 +37,4 @@ prod-install:
 test:
 	$(pytest)
 
-test-ci: dev-install
-	$(pytest)
+test-ci: dev-install test

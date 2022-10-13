@@ -25,6 +25,7 @@ jobs:
     - name: Set up rustfmt
       run: rustup component add rustfmt
 
+    # Maturin requires a venv to be activated, that's why we have to create one here
     - name: Create virtualenv
       run: |
         python -m venv .venv

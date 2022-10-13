@@ -33,3 +33,8 @@ show_error_codes = true
 warn_no_return = true
 warn_unused_configs = true
 warn_unused_ignores = true
+
+[tool.pytest.ini_options]
+testpaths = [
+    "python/tests"
+]
