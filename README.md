@@ -40,6 +40,13 @@ The Makefile provides the `lint` and `format` extras to ease this.
 
 `make test`
 
+### Creating a release
+
+1. Create a PR containing a commit that only updates the version in `Cargo.toml`.
+2. Once it is approved, squash and merge it into main.
+3. Tag the squashed commit, and push it.
+4. The `release` GitHub action will take care of the rest.
+
 ## Dev tips
 
 * Use `cargo check` to verify that your rust code compiles, no need to go through `maturin` every time
