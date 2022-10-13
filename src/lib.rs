@@ -12,7 +12,7 @@ fn read_excel(path: &str) -> Result<ExcelReader> {
 }
 
 #[pymodule]
-fn fastexcel(_py: Python, m: &PyModule) -> PyResult<()> {
+fn _fastexcel(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(read_excel, m)?)?;
     m.add_class::<ExcelSheet>()?;
     m.add_class::<ExcelReader>()?;

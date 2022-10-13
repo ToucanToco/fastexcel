@@ -5,8 +5,8 @@ if TYPE_CHECKING:
 
 import pyarrow as pa
 
-from .fastexcel import _ExcelReader, _ExcelSheet
-from .fastexcel import read_excel as _read_excel
+from ._fastexcel import _ExcelReader, _ExcelSheet
+from ._fastexcel import read_excel as _read_excel
 
 
 class ExcelSheet:
@@ -85,3 +85,6 @@ class ExcelReader:
 
 def read_excel(path: str) -> ExcelReader:
     return ExcelReader(_read_excel(path))
+
+
+__all__ = ("ExcelReader", "ExcelSheet", "read_excel")
