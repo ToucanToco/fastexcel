@@ -9,7 +9,7 @@ use arrow::{
     datatypes::{DataType as ArrowDataType, Schema},
     record_batch::RecordBatch,
 };
-use calamine::{DataType, Range};
+use calamine::{DataType as CalDataType, Range};
 
 use pyo3::{pyclass, pymethods, PyObject, Python};
 
@@ -20,7 +20,7 @@ pub(crate) struct ExcelSheet {
     #[pyo3(get)]
     name: String,
     schema: Schema,
-    data: Range<DataType>,
+    data: Range<CalDataType>,
     height: Option<usize>,
     width: Option<usize>,
 }
@@ -30,11 +30,11 @@ impl ExcelSheet {
         &self.schema
     }
 
-    pub(crate) fn data(&self) -> &Range<DataType> {
+    pub(crate) fn data(&self) -> &Range<CalDataType> {
         &self.data
     }
 
-    pub(crate) fn new(name: String, schema: Schema, data: Range<DataType>) -> Self {
+    pub(crate) fn new(name: String, schema: Schema, data: Range<CalDataType>) -> Self {
         ExcelSheet {
             name,
             schema,
@@ -45,31 +45,31 @@ impl ExcelSheet {
     }
 }
 
-fn create_boolean_array(data: &Range<DataType>, col: usize, height: usize) -> Arc<dyn Array> {
+fn create_boolean_array(data: &Range<CalDataType>, col: usize, height: usize) -> Arc<dyn Array> {
     Arc::new(BooleanArray::from_iter((1..height).map(|row| {
         data.get((row, col)).and_then(|cell| cell.get_bool())
     })))
 }
 
-fn create_int_array(data: &Range<DataType>, col: usize, height: usize) -> Arc<dyn Array> {
+fn create_int_array(data: &Range<CalDataType>, col: usize, height: usize) -> Arc<dyn Array> {
     Arc::new(Int64Array::from_iter(
         (1..height).map(|row| data.get((row, col)).and_then(|cell| cell.get_int())),
     ))
 }
 
-fn create_float_array(data: &Range<DataType>, col: usize, height: usize) -> Arc<dyn Array> {
+fn create_float_array(data: &Range<CalDataType>, col: usize, height: usize) -> Arc<dyn Array> {
     Arc::new(Float64Array::from_iter((1..height).map(|row| {
         data.get((row, col)).and_then(|cell| cell.get_float())
     })))
 }
 
-fn create_string_array(data: &Range<DataType>, col: usize, height: usize) -> Arc<dyn Array> {
+fn create_string_array(data: &Range<CalDataType>, col: usize, height: usize) -> Arc<dyn Array> {
     Arc::new(StringArray::from_iter((1..height).map(|row| {
         data.get((row, col)).and_then(|cell| cell.get_string())
     })))
 }
 
-fn create_date_array(data: &Range<DataType>, col: usize, height: usize) -> Arc<dyn Array> {
+fn create_date_array(data: &Range<CalDataType>, col: usize, height: usize) -> Arc<dyn Array> {
     Arc::new(TimestampMillisecondArray::from_iter((1..height).map(
         |row| {
             data.get((row, col))
