@@ -2,11 +2,15 @@ use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use arrow::{
-    array::{Array, BooleanArray, Float64Array, Int64Array, NullArray, StringArray},
-    datatypes,
+    array::{
+        Array, BooleanArray, Float64Array, Int64Array, NullArray, StringArray,
+        TimestampMillisecondArray,
+    },
+    datatypes::{DataType as ArrowDataType, Schema},
     record_batch::RecordBatch,
 };
 use calamine::{DataType, Range};
+
 use pyo3::{pyclass, pymethods, PyObject, Python};
 
 use crate::utils::arrow::record_batch_to_pybytes;
@@ -15,14 +19,14 @@ use crate::utils::arrow::record_batch_to_pybytes;
 pub(crate) struct ExcelSheet {
     #[pyo3(get)]
     name: String,
-    schema: datatypes::Schema,
+    schema: Schema,
     data: Range<DataType>,
     height: Option<usize>,
     width: Option<usize>,
 }
 
 impl ExcelSheet {
-    pub(crate) fn schema(&self) -> &datatypes::Schema {
+    pub(crate) fn schema(&self) -> &Schema {
         &self.schema
     }
 
@@ -30,7 +34,7 @@ impl ExcelSheet {
         &self.data
     }
 
-    pub(crate) fn new(name: String, schema: datatypes::Schema, data: Range<DataType>) -> Self {
+    pub(crate) fn new(name: String, schema: Schema, data: Range<DataType>) -> Self {
         ExcelSheet {
             name,
             schema,
@@ -65,6 +69,16 @@ fn create_string_array(data: &Range<DataType>, col: usize, height: usize) -> Arc
     })))
 }
 
+fn create_date_array(data: &Range<DataType>, col: usize, height: usize) -> Arc<dyn Array> {
+    Arc::new(TimestampMillisecondArray::from_iter((1..height).map(
+        |row| {
+            data.get((row, col))
+                .and_then(|cell| cell.as_datetime())
+                .map(|dt| dt.timestamp_millis())
+        },
+    )))
+}
+
 impl TryFrom<&ExcelSheet> for RecordBatch {
     type Error = anyhow::Error;
 
@@ -79,19 +93,14 @@ impl TryFrom<&ExcelSheet> for RecordBatch {
                 (
                     field.name(),
                     match field.data_type() {
-                        datatypes::DataType::Boolean => {
+                        ArrowDataType::Boolean => {
                             create_boolean_array(value.data(), col_idx, height)
                         }
-                        datatypes::DataType::Int64 => {
-                            create_int_array(value.data(), col_idx, height)
-                        }
-                        datatypes::DataType::Float64 => {
-                            create_float_array(value.data(), col_idx, height)
-                        }
-                        datatypes::DataType::Utf8 => {
-                            create_string_array(value.data(), col_idx, height)
-                        }
-                        datatypes::DataType::Null => Arc::new(NullArray::new(height - 1)),
+                        ArrowDataType::Int64 => create_int_array(value.data(), col_idx, height),
+                        ArrowDataType::Float64 => create_float_array(value.data(), col_idx, height),
+                        ArrowDataType::Utf8 => create_string_array(value.data(), col_idx, height),
+                        ArrowDataType::Date64 => create_date_array(value.data(), col_idx, height),
+                        ArrowDataType::Null => Arc::new(NullArray::new(height - 1)),
                         _ => unreachable!(),
                     },
                 )
