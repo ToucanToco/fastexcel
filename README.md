@@ -27,7 +27,7 @@ This will also set up [pre-commit](https://pre-commit.com/).
 In order to install the project in dev mode (for local tests for example), use `make dev-install`.
 This will compile the wheel (in debug mode) and install it. It will then be available in your venv.
 
-### Installing the project in dev mode
+### Installing the project in prod mode
 
 This is required for profiling, as dev mdoe wheels are much slower. `make prod-install` will compile the project
 in release mode and install it in your local venv, overriding previous dev installs.
