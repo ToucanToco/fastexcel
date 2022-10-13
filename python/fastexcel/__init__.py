@@ -5,7 +5,7 @@ if TYPE_CHECKING:
 
 import pyarrow as pa
 
-from .fastexcel import _ExcelReader, _ExcelSheet  # noqa
+from .fastexcel import _ExcelReader, _ExcelSheet
 from .fastexcel import read_excel as _read_excel
 
 
@@ -46,6 +46,9 @@ class ExcelSheet:
         # We know for sure that the sheet will yield exactly one RecordBatch
         return list(pa.ipc.open_stream(self.to_arrow()))[0].to_pandas()
 
+    def __repr__(self) -> str:
+        return self._sheet.__repr__()
+
 
 class ExcelReader:
     """A class representing an open Excel file and allowing to read its sheets"""
@@ -75,6 +78,9 @@ class ExcelReader:
             if isinstance(idx_or_name, int)
             else self.load_sheet_by_name(idx_or_name)
         )
+
+    def __repr__(self) -> str:
+        return self._reader.__repr__()
 
 
 def read_excel(path: str) -> ExcelReader:
