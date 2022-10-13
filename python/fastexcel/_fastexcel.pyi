@@ -28,3 +28,5 @@ class _ExcelReader:
 
 def read_excel(path: str) -> _ExcelReader:
     """Reads an excel file and returns an ExcelReader"""
+
+__version__: str
