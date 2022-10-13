@@ -1,7 +1,6 @@
 /target
 
 bigfile.*
-*.xlsx
 __pycache__
 *.pyc
 *.so

@@ -36,6 +36,10 @@ in release mode and install it in your local venv, overriding previous dev insta
 
 The Makefile provides the `lint` and `format` extras to ease this.
 
+## Running the tests
+
+`make test`
+
 ## Dev tips
 
 * Use `cargo check` to verify that your rust code compiles, no need to go through `maturin` every time
