@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use calamine::{open_workbook_auto, DataType, Range, Reader, Sheets};
-use pyo3::{pyclass, pymethods, PyRef, PyRefMut};
+use pyo3::{pyclass, pymethods};
 
 use crate::utils::arrow::arrow_schema_from_range;
 
@@ -82,53 +82,5 @@ impl ExcelReader {
             .with_context(|| format!("Error while loading sheet at idx {idx}"))?;
 
         self.try_new_excel_sheet_from_range(name, range, header_line)
-    }
-}
-
-#[pyclass]
-pub(crate) struct ExcelSheetIterator {
-    file: ExcelReader,
-    idx: usize,
-}
-
-impl ExcelSheetIterator {
-    pub(crate) fn new(file: ExcelReader) -> Self {
-        Self { file, idx: 0 }
-    }
-}
-
-impl Iterator for ExcelSheetIterator {
-    type Item = Result<ExcelSheet>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.idx < self.file.sheet_names.len() {
-            Some(self.file.load_sheet_by_idx(self.idx, None))
-        } else {
-            None
-        }
-    }
-}
-
-impl IntoIterator for ExcelReader {
-    type Item = Result<ExcelSheet>;
-
-    type IntoIter = ExcelSheetIterator;
-
-    fn into_iter(self) -> Self::IntoIter {
-        ExcelSheetIterator::new(self)
-    }
-}
-
-#[pymethods]
-impl ExcelSheetIterator {
-    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
-        slf
-    }
-
-    fn __next__(mut slf: PyRefMut<'_, Self>) -> Result<Option<ExcelSheet>> {
-        match slf.next() {
-            None => Ok(None),
-            Some(sheet) => Ok(Some(sheet?)),
-        }
     }
 }
