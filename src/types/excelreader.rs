@@ -32,10 +32,11 @@ impl ExcelReader {
         &mut self,
         name: String,
         sheet: Range<DataType>,
+        header_line: Option<usize>,
     ) -> Result<ExcelSheet> {
-        let schema = arrow_schema_from_range(&sheet)
+        let schema = arrow_schema_from_range(&sheet, header_line)
             .with_context(|| format!("Could not create Arrow schema for sheet {name}"))?;
-        Ok(ExcelSheet::new(name, schema, sheet))
+        Ok(ExcelSheet::new(name, schema, sheet, header_line))
     }
 }
 
@@ -45,17 +46,25 @@ impl ExcelReader {
         format!("ExcelReader<{}>", &self.path)
     }
 
-    pub fn load_sheet_by_name(&mut self, name: String) -> Result<ExcelSheet> {
+    pub fn load_sheet_by_name(
+        &mut self,
+        name: String,
+        header_line: Option<usize>,
+    ) -> Result<ExcelSheet> {
         let range = self
             .sheets
             .worksheet_range(&name)
             .with_context(|| format!("Sheet {name} not found"))?
             .with_context(|| format!("Error while loading sheet {name}"))?;
 
-        self.try_new_excel_sheet_from_range(name, range)
+        self.try_new_excel_sheet_from_range(name, range, header_line)
     }
 
-    pub fn load_sheet_by_idx(&mut self, idx: usize) -> Result<ExcelSheet> {
+    pub fn load_sheet_by_idx(
+        &mut self,
+        idx: usize,
+        header_line: Option<usize>,
+    ) -> Result<ExcelSheet> {
         let name = self
             .sheet_names
             .get(idx)
@@ -72,7 +81,7 @@ impl ExcelReader {
             .with_context(|| format!("Sheet at idx {idx} not found"))?
             .with_context(|| format!("Error while loading sheet at idx {idx}"))?;
 
-        self.try_new_excel_sheet_from_range(name, range)
+        self.try_new_excel_sheet_from_range(name, range, header_line)
     }
 }
 
@@ -93,7 +102,7 @@ impl Iterator for ExcelSheetIterator {
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.idx < self.file.sheet_names.len() {
-            Some(self.file.load_sheet_by_idx(self.idx))
+            Some(self.file.load_sheet_by_idx(self.idx, None))
         } else {
             None
         }

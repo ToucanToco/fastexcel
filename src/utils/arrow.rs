@@ -18,10 +18,10 @@ pub(crate) fn record_batch_to_bytes(rb: &RecordBatch) -> Result<Vec<u8>> {
         .with_context(|| "Could not complete Arrow stream")
 }
 
-fn get_arrow_column_type(data: &Range<CalDataType>, col: usize) -> ArrowDataType {
+fn get_arrow_column_type(data: &Range<CalDataType>, row: usize, col: usize) -> ArrowDataType {
     // NOTE: Not handling dates here because they aren't really primitive types in Excel: We'd have
     // to try to cast them, which has a performance cost
-    match data.get((1, col)) {
+    match data.get((row, col)) {
         Some(cell) => {
             match cell {
                 CalDataType::Int(_) => ArrowDataType::Int64,
@@ -54,16 +54,27 @@ fn alias_for_name(name: &str, fields: &[Field]) -> String {
     rec(name, fields, 0)
 }
 
-pub(crate) fn arrow_schema_from_range(range: &Range<CalDataType>) -> Result<Schema> {
+pub(crate) fn arrow_schema_from_range(
+    range: &Range<CalDataType>,
+    header_line: Option<usize>,
+) -> Result<Schema> {
     let mut fields = Vec::with_capacity(range.width());
     for col_idx in 0..range.width() {
-        let col_type = get_arrow_column_type(range, col_idx);
-        let name = range
-            .get((0, col_idx))
-            .with_context(|| format!("could not get name of column {col_idx}"))?
-            .get_string()
-            .unwrap_or("__NAMELESS__");
-        fields.push(Field::new(&alias_for_name(name, &fields), col_type, true));
+        let mut row_idx = 1;
+        let mut name = format!("column_{}", col_idx);
+        if let Some(header_line) = header_line {
+            row_idx = header_line + 1;
+
+            name = range
+                .get((header_line, col_idx))
+                .with_context(|| format!("could not get name of column {col_idx}"))?
+                .get_string()
+                .unwrap_or("__NAMELESS__")
+                .to_owned();
+        }
+
+        let col_type = get_arrow_column_type(range, row_idx, col_idx);
+        fields.push(Field::new(&alias_for_name(&name, &fields), col_type, true));
     }
     Ok(Schema::new(fields))
 }

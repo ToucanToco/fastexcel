@@ -78,3 +78,43 @@ def test_multiple_sheets_to_pandas():
             }
         ),
     )
+
+
+def test_sheets_with_header_line_diff_from_zero():
+    excel_reader = fastexcel.read_excel(
+        path_for_fixture("fixture-changing-header-location.xlsx")
+    )
+    assert excel_reader.sheet_names == ["January", "Values"]
+    sheet_by_name = excel_reader.load_sheet("January", 1)
+    sheet_by_idx = excel_reader.load_sheet(0, 1)
+
+    # Metadata
+    assert sheet_by_name.name == sheet_by_idx.name == "January"
+    assert sheet_by_name.height == sheet_by_idx.height == 2
+    assert sheet_by_name.width == sheet_by_idx.width == 2
+
+    expected = DataFrame({"Month": [1.0, 2.0], "Year": [2019.0, 2020.0]})
+
+    assert_frame_equal(sheet_by_name.to_pandas(), expected)
+    assert_frame_equal(sheet_by_idx.to_pandas(), expected)
+
+
+def test_sheets_with_no_header():
+    excel_reader = fastexcel.read_excel(
+        path_for_fixture("fixture-changing-header-location.xlsx")
+    )
+    assert excel_reader.sheet_names == ["January", "Values"]
+    sheet_by_name = excel_reader.load_sheet("Values", None)
+    sheet_by_idx = excel_reader.load_sheet(1, None)
+
+    # Metadata
+    assert sheet_by_name.name == sheet_by_idx.name == "Values"
+    assert sheet_by_name.height == sheet_by_idx.height == 2
+    assert sheet_by_name.width == sheet_by_idx.width == 3
+
+    expected = DataFrame(
+        {"column_0": [1.0, 2.0], "column_1": [3.0, 4.0], "column_2": [5.0, 6.0]}
+    )
+
+    assert_frame_equal(sheet_by_name.to_pandas(), expected)
+    assert_frame_equal(sheet_by_idx.to_pandas(), expected)
