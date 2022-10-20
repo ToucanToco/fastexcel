@@ -15,12 +15,38 @@ use pyo3::{pyclass, pymethods, PyObject, Python};
 
 use crate::utils::arrow::record_batch_to_pybytes;
 
+pub(crate) enum Header {
+    None,
+    At(usize),
+    With(Vec<String>),
+}
+
+impl Header {
+    pub(crate) fn new(header_row: Option<usize>, column_names: Option<Vec<String>>) -> Self {
+        match column_names {
+            Some(headers) => Header::With(headers),
+            None => match header_row {
+                Some(row) => Header::At(row),
+                None => Header::None,
+            },
+        }
+    }
+
+    pub(crate) fn header_offset(&self) -> usize {
+        match self {
+            Header::At(index) => *index + 1,
+            Header::None => 0,
+            Header::With(_) => 0,
+        }
+    }
+}
+
 #[pyclass(name = "_ExcelSheet")]
 pub(crate) struct ExcelSheet {
     #[pyo3(get)]
     name: String,
     schema: Schema,
-    header_line: Option<usize>,
+    header: Header,
     data: Range<CalDataType>,
     height: Option<usize>,
     width: Option<usize>,
@@ -39,12 +65,12 @@ impl ExcelSheet {
         name: String,
         schema: Schema,
         data: Range<CalDataType>,
-        header_line: Option<usize>,
+        header: Header,
     ) -> Self {
         ExcelSheet {
             name,
             schema,
-            header_line,
+            header,
             data,
             height: None,
             width: None,
@@ -173,9 +199,9 @@ impl ExcelSheet {
 
     #[getter]
     pub fn offset(&self) -> usize {
-        // If header_line.is_none() this means there are no headers so index should be 0
-        // If header line is 0 than the dataset start at 1
-        self.header_line.map(|h| h + 1).unwrap_or(0)
+        // actually there is only the header that defines the offset
+        // in future there could be a row_offset
+        self.header.header_offset()
     }
 
     pub fn to_arrow(&self, py: Python<'_>) -> Result<PyObject> {

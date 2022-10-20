@@ -1,3 +1,5 @@
+from typing import List
+
 class _ExcelSheet:
     @property
     def name(self) -> str:
@@ -21,23 +23,42 @@ class _ExcelSheet:
 class _ExcelReader:
     """A class representing an open Excel file and allowing to read its sheets"""
 
-    def load_sheet_by_name(self, name: str, header_line: None | int = 0) -> _ExcelSheet:
+    def load_sheet_by_name(
+        self,
+        name: str,
+        header_row: None | int = 0,
+        column_names: None | List[str] = None,
+    ) -> _ExcelSheet:
         """Loads a sheet by name.
-        Optionaly a header_line can be specified.
-        If None is passed it means that the sheet dont have any header.
-        Otherwise it tries to use the first line as headers name."""
-    def load_sheet_by_idx(self, idx: int, header_line: None | int = 0) -> _ExcelSheet:
-        """Loads a sheet by index.
-        Optionaly a header_line can be specified.
-        If None is passed it means that the sheet dont have any header.
-        Otherwise it tries to use the first line as headers name."""
+        The header_row (row used for the column labels) is by default the first row.
+        but another value for the header line can be specified.
+        If `None` is passed it means that the sheet doesn't have any header.
+        Column names can override headers found in the document.
+        If column_names is used header_row will be ignored"""
+    def load_sheet_by_idx(
+        self,
+        idx: int,
+        header_row: None | int = 0,
+        column_names: None | List[str] = None,
+    ) -> _ExcelSheet:
+        """Loads a sheet by name.
+        The header_row (row used for the column labels) is by default the first row.
+        but another value for the header line can be specified.
+        If `None` is passed it means that the sheet doesn't have any header.
+        Column names can override headers found in the document.
+        If column_names is used header_row will be ignored"""
     def load_sheet(
-        self, idx_or_name: int | str, header_line: None | int = 0
+        self,
+        idx_or_name: int | str,
+        header_row: None | int = 0,
+        column_names: None | List[str] = None,
     ) -> _ExcelSheet:
         """Try's to load a sheet name if a string is passed or a sheet index if a integer is passed.
-        Optionaly a header_line can be specified.
-        If None is passed it means that the sheet dont have any header.
-        Otherwise it tries to use the first line as headers name."""
+        The header_row (row used for the column labels) is by default the first row.
+        but another value for the header line can be specified.
+        If `None` is passed it means that the sheet doesn't have any header.
+        Column names can override headers found in the document.
+        If column_names is used header_row will be ignored"""
     @property
     def sheet_names(self) -> list[str]:
         """The list of sheet names"""

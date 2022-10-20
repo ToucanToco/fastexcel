@@ -7,6 +7,8 @@ use arrow::{
 use calamine::{DataType as CalDataType, Range};
 use pyo3::{types::PyBytes, Python};
 
+use crate::types::excelsheet::Header;
+
 pub(crate) fn record_batch_to_bytes(rb: &RecordBatch) -> Result<Vec<u8>> {
     let mut writer = StreamWriter::try_new(Vec::new(), &rb.schema())
         .with_context(|| "Could not instantiate StreamWriter for RecordBatch")?;
@@ -56,22 +58,62 @@ fn alias_for_name(name: &str, fields: &[Field]) -> String {
 
 pub(crate) fn arrow_schema_from_range(
     range: &Range<CalDataType>,
-    header_line: Option<usize>,
+    header: &Header,
+) -> Result<Schema> {
+    match header {
+        Header::None => arrow_schema_from_range_without_header(range, 0),
+        Header::At(header_row) => arrow_schema_from_range_from_header(range, *header_row),
+        Header::With(col_names) => arrow_schema_from_range_with_named_header(range, col_names),
+    }
+}
+
+fn arrow_schema_from_range_from_header(
+    range: &Range<CalDataType>,
+    header_row: usize,
 ) -> Result<Schema> {
     let mut fields = Vec::with_capacity(range.width());
     for col_idx in 0..range.width() {
-        let mut row_idx = 1;
-        let mut name = format!("column_{}", col_idx);
-        if let Some(header_line) = header_line {
-            row_idx = header_line + 1;
+        let row_idx = header_row + 1;
 
-            name = range
-                .get((header_line, col_idx))
-                .with_context(|| format!("could not get name of column {col_idx}"))?
-                .get_string()
-                .unwrap_or("__NAMELESS__")
-                .to_owned();
-        }
+        let name = range
+            .get((header_row, col_idx))
+            .with_context(|| format!("could not get name of column {col_idx}"))?
+            .get_string()
+            .unwrap_or("__NAMELESS__")
+            .to_owned();
+
+        let col_type = get_arrow_column_type(range, row_idx, col_idx);
+        fields.push(Field::new(&alias_for_name(&name, &fields), col_type, true));
+    }
+    Ok(Schema::new(fields))
+}
+
+fn arrow_schema_from_range_without_header(
+    range: &Range<CalDataType>,
+    offset: usize,
+) -> Result<Schema> {
+    let mut fields = Vec::with_capacity(range.width());
+    for col_idx in 0..range.width() {
+        let row_idx = offset;
+        let name = format!("column_{}", col_idx);
+
+        let col_type = get_arrow_column_type(range, row_idx, col_idx);
+        fields.push(Field::new(&alias_for_name(&name, &fields), col_type, true));
+    }
+    Ok(Schema::new(fields))
+}
+
+fn arrow_schema_from_range_with_named_header(
+    range: &Range<CalDataType>,
+    column_names: &Vec<String>,
+) -> Result<Schema> {
+    let mut fields = Vec::with_capacity(range.width());
+    for col_idx in 0..range.width() {
+        let row_idx = 0;
+        let name = match column_names.get(col_idx) {
+            Some(name) => name.to_owned(),
+            None => format!("column_{}", col_idx),
+        };
 
         let col_type = get_arrow_column_type(range, row_idx, col_idx);
         fields.push(Field::new(&alias_for_name(&name, &fields), col_type, true));

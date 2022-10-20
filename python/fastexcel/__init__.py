@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, List
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -61,24 +61,39 @@ class ExcelReader:
         """The list of sheet names"""
         return self._reader.sheet_names
 
-    def load_sheet_by_name(self, name: str, header_line: None | int = 0) -> ExcelSheet:
+    def load_sheet_by_name(
+        self,
+        name: str,
+        header_row: None | int = 0,
+        column_names: None | List[str] = None,
+    ) -> ExcelSheet:
         """Loads a sheet by name"""
-        return ExcelSheet(self._reader.load_sheet_by_name(name, header_line))
+        return ExcelSheet(
+            self._reader.load_sheet_by_name(name, header_row, column_names)
+        )
 
-    def load_sheet_by_idx(self, idx: int, header_line: None | int = 0) -> ExcelSheet:
+    def load_sheet_by_idx(
+        self,
+        idx: int,
+        header_row: None | int = 0,
+        column_names: None | List[str] = None,
+    ) -> ExcelSheet:
         """Loads a sheet by index"""
         if idx < 0:
             raise ValueError(f"Expected idx to be > 0, got {idx}")
-        return ExcelSheet(self._reader.load_sheet_by_idx(idx, header_line))
+        return ExcelSheet(self._reader.load_sheet_by_idx(idx, header_row, column_names))
 
     def load_sheet(
-        self, idx_or_name: int | str, header_line: None | int = 0
+        self,
+        idx_or_name: int | str,
+        header_row: None | int = 0,
+        column_names: None | List[str] = None,
     ) -> ExcelSheet:
         """Loads a sheet by index"""
         return (
-            self.load_sheet_by_idx(idx_or_name, header_line)
+            self.load_sheet_by_idx(idx_or_name, header_row, column_names)
             if isinstance(idx_or_name, int)
-            else self.load_sheet_by_name(idx_or_name, header_line)
+            else self.load_sheet_by_name(idx_or_name, header_row, column_names)
         )
 
     def __repr__(self) -> str:

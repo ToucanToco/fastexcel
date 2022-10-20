@@ -4,7 +4,7 @@ use pyo3::{pyclass, pymethods};
 
 use crate::utils::arrow::arrow_schema_from_range;
 
-use super::ExcelSheet;
+use super::{excelsheet::Header, ExcelSheet};
 
 #[pyclass(name = "_ExcelReader")]
 pub(crate) struct ExcelReader {
@@ -32,11 +32,11 @@ impl ExcelReader {
         &mut self,
         name: String,
         sheet: Range<DataType>,
-        header_line: Option<usize>,
+        header: Header,
     ) -> Result<ExcelSheet> {
-        let schema = arrow_schema_from_range(&sheet, header_line)
+        let schema = arrow_schema_from_range(&sheet, &header)
             .with_context(|| format!("Could not create Arrow schema for sheet {name}"))?;
-        Ok(ExcelSheet::new(name, schema, sheet, header_line))
+        Ok(ExcelSheet::new(name, schema, sheet, header))
     }
 }
 
@@ -49,7 +49,8 @@ impl ExcelReader {
     pub fn load_sheet_by_name(
         &mut self,
         name: String,
-        header_line: Option<usize>,
+        header_row: Option<usize>,
+        column_names: Option<Vec<String>>,
     ) -> Result<ExcelSheet> {
         let range = self
             .sheets
@@ -57,13 +58,15 @@ impl ExcelReader {
             .with_context(|| format!("Sheet {name} not found"))?
             .with_context(|| format!("Error while loading sheet {name}"))?;
 
-        self.try_new_excel_sheet_from_range(name, range, header_line)
+        let header = Header::new(header_row, column_names);
+        self.try_new_excel_sheet_from_range(name, range, header)
     }
 
     pub fn load_sheet_by_idx(
         &mut self,
         idx: usize,
-        header_line: Option<usize>,
+        header_row: Option<usize>,
+        column_names: Option<Vec<String>>,
     ) -> Result<ExcelSheet> {
         let name = self
             .sheet_names
@@ -81,6 +84,7 @@ impl ExcelReader {
             .with_context(|| format!("Sheet at idx {idx} not found"))?
             .with_context(|| format!("Error while loading sheet at idx {idx}"))?;
 
-        self.try_new_excel_sheet_from_range(name, range, header_line)
+        let header = Header::new(header_row, column_names);
+        self.try_new_excel_sheet_from_range(name, range, header)
     }
 }
