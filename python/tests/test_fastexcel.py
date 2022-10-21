@@ -43,7 +43,7 @@ def test_single_sheet_with_types_to_pandas():
         sheet.to_pandas(),
         DataFrame(
             {
-                "__NAMELESS__": [0.0, 1.0, 2.0],
+                "column_0": [0.0, 1.0, 2.0],
                 "bools": [True, False, True],
                 "dates": [Timestamp("2022-03-02 05:43:04")] * 3,
                 "floats": [12.35, 42.69, 1234567],
@@ -71,9 +71,9 @@ def test_multiple_sheets_to_pandas():
         DataFrame(
             {
                 "col1": [2.0, 3.0],
-                "__NAMELESS__": [1.5, 2.5],
+                "column_1": [1.5, 2.5],
                 "col3": ["hello", "world"],
-                "__NAMELESS___1": [-5.0, -6.0],
+                "column_3": [-5.0, -6.0],
                 "col5": ["a", "b"],
             }
         ),

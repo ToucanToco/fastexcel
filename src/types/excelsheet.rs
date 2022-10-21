@@ -13,7 +13,7 @@ use calamine::{DataType as CalDataType, Range};
 
 use pyo3::{pyclass, pymethods, PyObject, Python};
 
-use crate::utils::arrow::record_batch_to_pybytes;
+use crate::utils::arrow::{arrow_schema_from_column_names_and_range, record_batch_to_pybytes};
 
 pub(crate) enum Header {
     None,
@@ -44,8 +44,7 @@ impl Header {
 #[pyclass(name = "_ExcelSheet")]
 pub(crate) struct ExcelSheet {
     #[pyo3(get)]
-    name: String,
-    schema: Schema,
+    pub(crate) name: String,
     header: Header,
     data: Range<CalDataType>,
     height: Option<usize>,
@@ -53,27 +52,41 @@ pub(crate) struct ExcelSheet {
 }
 
 impl ExcelSheet {
-    pub(crate) fn schema(&self) -> &Schema {
-        &self.schema
-    }
-
     pub(crate) fn data(&self) -> &Range<CalDataType> {
         &self.data
     }
 
-    pub(crate) fn new(
-        name: String,
-        schema: Schema,
-        data: Range<CalDataType>,
-        header: Header,
-    ) -> Self {
+    pub(crate) fn new(name: String, data: Range<CalDataType>, header: Header) -> Self {
         ExcelSheet {
             name,
-            schema,
             header,
             data,
             height: None,
             width: None,
+        }
+    }
+
+    pub(crate) fn column_names(&self) -> Vec<String> {
+        let width = self.data.width();
+        match &self.header {
+            Header::None => (0..width).map(|idx| format!("column_{idx}")).collect(),
+            Header::At(row_idx) => (0..width)
+                .map(|col_idx| {
+                    self.data
+                        .get((*row_idx, col_idx))
+                        .and_then(|data| data.get_string())
+                        .map(ToOwned::to_owned)
+                        .unwrap_or(format!("column_{col_idx}"))
+                })
+                .collect(),
+            Header::With(names) => {
+                let nameless_start_idx = names.len();
+                names
+                    .iter()
+                    .map(ToOwned::to_owned)
+                    .chain((nameless_start_idx..width).map(|col_idx| format!("column_{col_idx}")))
+                    .collect()
+            }
         }
     }
 }
@@ -137,41 +150,49 @@ fn create_date_array(
     )))
 }
 
+impl TryFrom<&ExcelSheet> for Schema {
+    type Error = anyhow::Error;
+
+    fn try_from(value: &ExcelSheet) -> Result<Self, Self::Error> {
+        arrow_schema_from_column_names_and_range(
+            value.data(),
+            &value.column_names(),
+            value.offset(),
+        )
+    }
+}
+
 impl TryFrom<&ExcelSheet> for RecordBatch {
     type Error = anyhow::Error;
 
     fn try_from(value: &ExcelSheet) -> Result<Self, Self::Error> {
         let offset = value.offset();
-        let height = value.data().height();
-        let iter = value
-            .schema()
-            .fields()
-            .iter()
-            .enumerate()
-            .map(|(col_idx, field)| {
-                (
-                    field.name(),
-                    match field.data_type() {
-                        ArrowDataType::Boolean => {
-                            create_boolean_array(value.data(), col_idx, offset, height)
-                        }
-                        ArrowDataType::Int64 => {
-                            create_int_array(value.data(), col_idx, offset, height)
-                        }
-                        ArrowDataType::Float64 => {
-                            create_float_array(value.data(), col_idx, offset, height)
-                        }
-                        ArrowDataType::Utf8 => {
-                            create_string_array(value.data(), col_idx, offset, height)
-                        }
-                        ArrowDataType::Date64 => {
-                            create_date_array(value.data(), col_idx, offset, height)
-                        }
-                        ArrowDataType::Null => Arc::new(NullArray::new(height - offset)),
-                        _ => unreachable!(),
-                    },
-                )
-            });
+        let data = value.data();
+        let height = data.height();
+        let schema = Schema::try_from(value)
+            .with_context(|| format!("Could not build schema for sheet {}", value.name))?;
+        let iter = schema.fields().iter().enumerate().map(|(col_idx, field)| {
+            (
+                field.name(),
+                match field.data_type() {
+                    ArrowDataType::Boolean => {
+                        create_boolean_array(value.data(), col_idx, offset, height)
+                    }
+                    ArrowDataType::Int64 => create_int_array(value.data(), col_idx, offset, height),
+                    ArrowDataType::Float64 => {
+                        create_float_array(value.data(), col_idx, offset, height)
+                    }
+                    ArrowDataType::Utf8 => {
+                        create_string_array(value.data(), col_idx, offset, height)
+                    }
+                    ArrowDataType::Date64 => {
+                        create_date_array(value.data(), col_idx, offset, height)
+                    }
+                    ArrowDataType::Null => Arc::new(NullArray::new(height - offset)),
+                    _ => unreachable!(),
+                },
+            )
+        });
         RecordBatch::try_from_iter(iter)
             .with_context(|| format!("Could not convert sheet {} to RecordBatch", value.name))
     }
