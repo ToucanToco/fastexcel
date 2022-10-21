@@ -1,10 +1,10 @@
 use anyhow::{Context, Result};
 use calamine::{open_workbook_auto, DataType, Range, Reader, Sheets};
-use pyo3::{pyclass, pymethods, PyRef, PyRefMut};
+use pyo3::{pyclass, pymethods};
 
 use crate::utils::arrow::arrow_schema_from_range;
 
-use super::ExcelSheet;
+use super::{excelsheet::Header, ExcelSheet};
 
 #[pyclass(name = "_ExcelReader")]
 pub(crate) struct ExcelReader {
@@ -32,10 +32,11 @@ impl ExcelReader {
         &mut self,
         name: String,
         sheet: Range<DataType>,
+        header: Header,
     ) -> Result<ExcelSheet> {
-        let schema = arrow_schema_from_range(&sheet)
+        let schema = arrow_schema_from_range(&sheet, &header)
             .with_context(|| format!("Could not create Arrow schema for sheet {name}"))?;
-        Ok(ExcelSheet::new(name, schema, sheet))
+        Ok(ExcelSheet::new(name, schema, sheet, header))
     }
 }
 
@@ -45,17 +46,30 @@ impl ExcelReader {
         format!("ExcelReader<{}>", &self.path)
     }
 
-    pub fn load_sheet_by_name(&mut self, name: String) -> Result<ExcelSheet> {
+    #[args(name, "*", header_row = 0, column_names = "None")]
+    pub fn load_sheet_by_name(
+        &mut self,
+        name: String,
+        header_row: Option<usize>,
+        column_names: Option<Vec<String>>,
+    ) -> Result<ExcelSheet> {
         let range = self
             .sheets
             .worksheet_range(&name)
             .with_context(|| format!("Sheet {name} not found"))?
             .with_context(|| format!("Error while loading sheet {name}"))?;
 
-        self.try_new_excel_sheet_from_range(name, range)
+        let header = Header::new(header_row, column_names);
+        self.try_new_excel_sheet_from_range(name, range, header)
     }
 
-    pub fn load_sheet_by_idx(&mut self, idx: usize) -> Result<ExcelSheet> {
+    #[args(idx, "*", header_row = 0, column_names = "None")]
+    pub fn load_sheet_by_idx(
+        &mut self,
+        idx: usize,
+        header_row: Option<usize>,
+        column_names: Option<Vec<String>>,
+    ) -> Result<ExcelSheet> {
         let name = self
             .sheet_names
             .get(idx)
@@ -72,54 +86,7 @@ impl ExcelReader {
             .with_context(|| format!("Sheet at idx {idx} not found"))?
             .with_context(|| format!("Error while loading sheet at idx {idx}"))?;
 
-        self.try_new_excel_sheet_from_range(name, range)
-    }
-}
-
-#[pyclass]
-pub(crate) struct ExcelSheetIterator {
-    file: ExcelReader,
-    idx: usize,
-}
-
-impl ExcelSheetIterator {
-    pub(crate) fn new(file: ExcelReader) -> Self {
-        Self { file, idx: 0 }
-    }
-}
-
-impl Iterator for ExcelSheetIterator {
-    type Item = Result<ExcelSheet>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.idx < self.file.sheet_names.len() {
-            Some(self.file.load_sheet_by_idx(self.idx))
-        } else {
-            None
-        }
-    }
-}
-
-impl IntoIterator for ExcelReader {
-    type Item = Result<ExcelSheet>;
-
-    type IntoIter = ExcelSheetIterator;
-
-    fn into_iter(self) -> Self::IntoIter {
-        ExcelSheetIterator::new(self)
-    }
-}
-
-#[pymethods]
-impl ExcelSheetIterator {
-    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
-        slf
-    }
-
-    fn __next__(mut slf: PyRefMut<'_, Self>) -> Result<Option<ExcelSheet>> {
-        match slf.next() {
-            None => Ok(None),
-            Some(sheet) => Ok(Some(sheet?)),
-        }
+        let header = Header::new(header_row, column_names);
+        self.try_new_excel_sheet_from_range(name, range, header)
     }
 }

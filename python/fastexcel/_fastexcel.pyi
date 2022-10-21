@@ -8,6 +8,9 @@ class _ExcelSheet:
     @property
     def height(self) -> int:
         """The sheet's height"""
+    @property
+    def offset(self) -> int:
+        """The sheet's offset before data starts"""
     def to_arrow(self) -> bytes:
         """Converts the sheet to an Arrow RecordBatch.
 
@@ -18,13 +21,29 @@ class _ExcelSheet:
 class _ExcelReader:
     """A class representing an open Excel file and allowing to read its sheets"""
 
-    def load_sheet_by_name(self, name: str) -> _ExcelSheet:
-        """Loads a sheet by name"""
-    def load_sheet_by_idx(self, idx: int) -> _ExcelSheet:
-        """Loads a sheet by index"""
+    def load_sheet_by_name(
+        self,
+        name: str,
+        *,
+        header_row: int | None = 0,
+        column_names: list[str] | None = None,
+    ) -> _ExcelSheet: ...
+    def load_sheet_by_idx(
+        self,
+        idx: int,
+        *,
+        header_row: int | None = 0,
+        column_names: list[str] | None = None,
+    ) -> _ExcelSheet: ...
+    def load_sheet(
+        self,
+        idx_or_name: int | str,
+        *,
+        header_row: int | None = 0,
+        column_names: list[str] | None = None,
+    ) -> _ExcelSheet: ...
     @property
-    def sheet_names(self) -> list[str]:
-        """The list of sheet names"""
+    def sheet_names(self) -> list[str]: ...
 
 def read_excel(path: str) -> _ExcelReader:
     """Reads an excel file and returns an ExcelReader"""

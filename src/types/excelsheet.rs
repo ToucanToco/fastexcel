@@ -15,11 +15,38 @@ use pyo3::{pyclass, pymethods, PyObject, Python};
 
 use crate::utils::arrow::record_batch_to_pybytes;
 
+pub(crate) enum Header {
+    None,
+    At(usize),
+    With(Vec<String>),
+}
+
+impl Header {
+    pub(crate) fn new(header_row: Option<usize>, column_names: Option<Vec<String>>) -> Self {
+        match column_names {
+            Some(headers) => Header::With(headers),
+            None => match header_row {
+                Some(row) => Header::At(row),
+                None => Header::None,
+            },
+        }
+    }
+
+    pub(crate) fn header_offset(&self) -> usize {
+        match self {
+            Header::At(index) => index + 1,
+            Header::None => 0,
+            Header::With(_) => 0,
+        }
+    }
+}
+
 #[pyclass(name = "_ExcelSheet")]
 pub(crate) struct ExcelSheet {
     #[pyo3(get)]
     name: String,
     schema: Schema,
+    header: Header,
     data: Range<CalDataType>,
     height: Option<usize>,
     width: Option<usize>,
@@ -34,10 +61,16 @@ impl ExcelSheet {
         &self.data
     }
 
-    pub(crate) fn new(name: String, schema: Schema, data: Range<CalDataType>) -> Self {
+    pub(crate) fn new(
+        name: String,
+        schema: Schema,
+        data: Range<CalDataType>,
+        header: Header,
+    ) -> Self {
         ExcelSheet {
             name,
             schema,
+            header,
             data,
             height: None,
             width: None,
@@ -45,32 +78,57 @@ impl ExcelSheet {
     }
 }
 
-fn create_boolean_array(data: &Range<CalDataType>, col: usize, height: usize) -> Arc<dyn Array> {
-    Arc::new(BooleanArray::from_iter((1..height).map(|row| {
+fn create_boolean_array(
+    data: &Range<CalDataType>,
+    col: usize,
+    offset: usize,
+    height: usize,
+) -> Arc<dyn Array> {
+    Arc::new(BooleanArray::from_iter((offset..height).map(|row| {
         data.get((row, col)).and_then(|cell| cell.get_bool())
     })))
 }
 
-fn create_int_array(data: &Range<CalDataType>, col: usize, height: usize) -> Arc<dyn Array> {
+fn create_int_array(
+    data: &Range<CalDataType>,
+    col: usize,
+    offset: usize,
+    height: usize,
+) -> Arc<dyn Array> {
     Arc::new(Int64Array::from_iter(
-        (1..height).map(|row| data.get((row, col)).and_then(|cell| cell.get_int())),
+        (offset..height).map(|row| data.get((row, col)).and_then(|cell| cell.get_int())),
     ))
 }
 
-fn create_float_array(data: &Range<CalDataType>, col: usize, height: usize) -> Arc<dyn Array> {
-    Arc::new(Float64Array::from_iter((1..height).map(|row| {
+fn create_float_array(
+    data: &Range<CalDataType>,
+    col: usize,
+    offset: usize,
+    height: usize,
+) -> Arc<dyn Array> {
+    Arc::new(Float64Array::from_iter((offset..height).map(|row| {
         data.get((row, col)).and_then(|cell| cell.get_float())
     })))
 }
 
-fn create_string_array(data: &Range<CalDataType>, col: usize, height: usize) -> Arc<dyn Array> {
-    Arc::new(StringArray::from_iter((1..height).map(|row| {
+fn create_string_array(
+    data: &Range<CalDataType>,
+    col: usize,
+    offset: usize,
+    height: usize,
+) -> Arc<dyn Array> {
+    Arc::new(StringArray::from_iter((offset..height).map(|row| {
         data.get((row, col)).and_then(|cell| cell.get_string())
     })))
 }
 
-fn create_date_array(data: &Range<CalDataType>, col: usize, height: usize) -> Arc<dyn Array> {
-    Arc::new(TimestampMillisecondArray::from_iter((1..height).map(
+fn create_date_array(
+    data: &Range<CalDataType>,
+    col: usize,
+    offset: usize,
+    height: usize,
+) -> Arc<dyn Array> {
+    Arc::new(TimestampMillisecondArray::from_iter((offset..height).map(
         |row| {
             data.get((row, col))
                 .and_then(|cell| cell.as_datetime())
@@ -83,6 +141,7 @@ impl TryFrom<&ExcelSheet> for RecordBatch {
     type Error = anyhow::Error;
 
     fn try_from(value: &ExcelSheet) -> Result<Self, Self::Error> {
+        let offset = value.offset();
         let height = value.data().height();
         let iter = value
             .schema()
@@ -94,13 +153,21 @@ impl TryFrom<&ExcelSheet> for RecordBatch {
                     field.name(),
                     match field.data_type() {
                         ArrowDataType::Boolean => {
-                            create_boolean_array(value.data(), col_idx, height)
+                            create_boolean_array(value.data(), col_idx, offset, height)
                         }
-                        ArrowDataType::Int64 => create_int_array(value.data(), col_idx, height),
-                        ArrowDataType::Float64 => create_float_array(value.data(), col_idx, height),
-                        ArrowDataType::Utf8 => create_string_array(value.data(), col_idx, height),
-                        ArrowDataType::Date64 => create_date_array(value.data(), col_idx, height),
-                        ArrowDataType::Null => Arc::new(NullArray::new(height - 1)),
+                        ArrowDataType::Int64 => {
+                            create_int_array(value.data(), col_idx, offset, height)
+                        }
+                        ArrowDataType::Float64 => {
+                            create_float_array(value.data(), col_idx, offset, height)
+                        }
+                        ArrowDataType::Utf8 => {
+                            create_string_array(value.data(), col_idx, offset, height)
+                        }
+                        ArrowDataType::Date64 => {
+                            create_date_array(value.data(), col_idx, offset, height)
+                        }
+                        ArrowDataType::Null => Arc::new(NullArray::new(height - offset)),
                         _ => unreachable!(),
                     },
                 )
@@ -114,26 +181,27 @@ impl TryFrom<&ExcelSheet> for RecordBatch {
 impl ExcelSheet {
     #[getter]
     pub fn width(&mut self) -> usize {
-        if let Some(width) = self.width {
-            width
-        } else {
-            let width = self.schema.fields().len();
+        self.width.unwrap_or_else(|| {
+            let width = self.data.width();
             self.width = Some(width);
             width
-        }
+        })
     }
 
     #[getter]
     pub fn height(&mut self) -> usize {
-        if let Some(height) = self.height {
-            height
-        } else {
-            let data_height = self.data.height();
-            // FIXME: Remove the subtraction once we support sheets without headers
-            let height = if data_height > 0 { data_height - 1 } else { 0 };
+        self.height.unwrap_or_else(|| {
+            let height = self.data.height() - self.offset();
             self.height = Some(height);
             height
-        }
+        })
+    }
+
+    #[getter]
+    pub fn offset(&self) -> usize {
+        // actually there is only the header that defines the offset
+        // in future there could be a row_offset
+        self.header.header_offset()
     }
 
     pub fn to_arrow(&self, py: Python<'_>) -> Result<PyObject> {

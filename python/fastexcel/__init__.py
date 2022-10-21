@@ -61,22 +61,70 @@ class ExcelReader:
         """The list of sheet names"""
         return self._reader.sheet_names
 
-    def load_sheet_by_name(self, name: str) -> ExcelSheet:
-        """Loads a sheet by name"""
-        return ExcelSheet(self._reader.load_sheet_by_name(name))
+    def load_sheet_by_name(
+        self,
+        name: str,
+        *,
+        header_row: int | None = 0,
+        column_names: list[str] | None = None,
+    ) -> ExcelSheet:
+        """Loads a sheet by name.
 
-    def load_sheet_by_idx(self, idx: int) -> ExcelSheet:
-        """Loads a sheet by index"""
+        `header_row` is the index of the row containing the column labels, default index is 0.
+        If `None`, the sheet does not have any column labels.
+        `column_names` overrides headers found in the document.
+        If `column_names` is used `header_row` will be ignored.
+        """
+        return ExcelSheet(
+            self._reader.load_sheet_by_name(
+                name, header_row=header_row, column_names=column_names
+            )
+        )
+
+    def load_sheet_by_idx(
+        self,
+        idx: int,
+        *,
+        header_row: int | None = 0,
+        column_names: list[str] | None = None,
+    ) -> ExcelSheet:
+        """Loads a sheet by his index.
+
+        `header_row` is the index of the row containing the column labels, default index is 0.
+        If `None`, the sheet does not have any column labels.
+        `column_names` overrides headers found in the document.
+        If `column_names` is used `header_row` will be ignored.
+        """
         if idx < 0:
             raise ValueError(f"Expected idx to be > 0, got {idx}")
-        return ExcelSheet(self._reader.load_sheet_by_idx(idx))
+        return ExcelSheet(
+            self._reader.load_sheet_by_idx(
+                idx, header_row=header_row, column_names=column_names
+            )
+        )
 
-    def load_sheet(self, idx_or_name: int | str) -> ExcelSheet:
-        """Loads a sheet by index"""
+    def load_sheet(
+        self,
+        idx_or_name: int | str,
+        *,
+        header_row: int | None = 0,
+        column_names: list[str] | None = None,
+    ) -> ExcelSheet:
+        """Loads a sheet by name if a string is passed or by index if an integer is passed.
+
+        `header_row` is the index of the row containing the column labels, default index is 0.
+        If `None`, the sheet does not have any column labels.
+        `column_names` overrides headers found in the document.
+        If `column_names` is used `header_row` will be ignored.
+        """
         return (
-            self.load_sheet_by_idx(idx_or_name)
+            self.load_sheet_by_idx(
+                idx_or_name, header_row=header_row, column_names=column_names
+            )
             if isinstance(idx_or_name, int)
-            else self.load_sheet_by_name(idx_or_name)
+            else self.load_sheet_by_name(
+                idx_or_name, header_row=header_row, column_names=column_names
+            )
         )
 
     def __repr__(self) -> str:

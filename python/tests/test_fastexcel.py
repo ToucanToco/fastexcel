@@ -78,3 +78,108 @@ def test_multiple_sheets_to_pandas():
             }
         ),
     )
+
+
+def test_sheets_with_header_line_diff_from_zero():
+    excel_reader = fastexcel.read_excel(
+        path_for_fixture("fixture-changing-header-location.xlsx")
+    )
+    assert excel_reader.sheet_names == ["Sheet1", "Sheet2", "Sheet3"]
+    sheet_by_name = excel_reader.load_sheet("Sheet1", header_row=1)
+    sheet_by_idx = excel_reader.load_sheet(0, header_row=1)
+
+    # Metadata
+    assert sheet_by_name.name == sheet_by_idx.name == "Sheet1"
+    assert sheet_by_name.height == sheet_by_idx.height == 2
+    assert sheet_by_name.width == sheet_by_idx.width == 2
+
+    expected = DataFrame({"Month": [1.0, 2.0], "Year": [2019.0, 2020.0]})
+
+    assert_frame_equal(sheet_by_name.to_pandas(), expected)
+    assert_frame_equal(sheet_by_idx.to_pandas(), expected)
+
+
+def test_sheets_with_no_header():
+    excel_reader = fastexcel.read_excel(
+        path_for_fixture("fixture-changing-header-location.xlsx")
+    )
+    assert excel_reader.sheet_names == ["Sheet1", "Sheet2", "Sheet3"]
+    sheet_by_name = excel_reader.load_sheet("Sheet2", header_row=None)
+    sheet_by_idx = excel_reader.load_sheet(1, header_row=None)
+
+    # Metadata
+    assert sheet_by_name.name == sheet_by_idx.name == "Sheet2"
+    assert sheet_by_name.height == sheet_by_idx.height == 2
+    assert sheet_by_name.width == sheet_by_idx.width == 3
+
+    expected = DataFrame(
+        {"column_0": [1.0, 2.0], "column_1": [3.0, 4.0], "column_2": [5.0, 6.0]}
+    )
+
+    assert_frame_equal(sheet_by_name.to_pandas(), expected)
+    assert_frame_equal(sheet_by_idx.to_pandas(), expected)
+
+
+def test_sheets_with_empty_rows_before_header():
+    excel_reader = fastexcel.read_excel(
+        path_for_fixture("fixture-changing-header-location.xlsx")
+    )
+    assert excel_reader.sheet_names == ["Sheet1", "Sheet2", "Sheet3"]
+    sheet_by_name = excel_reader.load_sheet("Sheet3")
+    sheet_by_idx = excel_reader.load_sheet(2)
+
+    # Metadata
+    assert sheet_by_name.name == sheet_by_idx.name == "Sheet3"
+    assert sheet_by_name.height == sheet_by_idx.height == 2
+    assert sheet_by_name.width == sheet_by_idx.width == 2
+
+    expected = DataFrame({"Month": [1.0, 2.0], "Year": [2019.0, 2020.0]})
+
+    assert_frame_equal(sheet_by_name.to_pandas(), expected)
+    assert_frame_equal(sheet_by_idx.to_pandas(), expected)
+
+
+def test_sheets_with_custom_headers():
+    excel_reader = fastexcel.read_excel(
+        path_for_fixture("fixture-changing-header-location.xlsx")
+    )
+    assert excel_reader.sheet_names == ["Sheet1", "Sheet2", "Sheet3"]
+    sheet_by_name = excel_reader.load_sheet(
+        "Sheet2", header_row=None, column_names=["foo", "bar", "baz"]
+    )
+    sheet_by_idx = excel_reader.load_sheet(
+        1, header_row=None, column_names=["foo", "bar", "baz"]
+    )
+
+    # Metadata
+    assert sheet_by_name.name == sheet_by_idx.name == "Sheet2"
+    assert sheet_by_name.height == sheet_by_idx.height == 2
+    assert sheet_by_name.width == sheet_by_idx.width == 3
+
+    expected = DataFrame({"foo": [1.0, 2.0], "bar": [3.0, 4.0], "baz": [5.0, 6.0]})
+
+    assert_frame_equal(sheet_by_name.to_pandas(), expected)
+    assert_frame_equal(sheet_by_idx.to_pandas(), expected)
+
+
+def test_sheets_with_skipping_headers():
+    excel_reader = fastexcel.read_excel(
+        path_for_fixture("fixture-changing-header-location.xlsx")
+    )
+    assert excel_reader.sheet_names == ["Sheet1", "Sheet2", "Sheet3"]
+    sheet_by_name = excel_reader.load_sheet(
+        "Sheet2", header_row=1, column_names=["Bugs"]
+    )
+    sheet_by_idx = excel_reader.load_sheet(1, header_row=1, column_names=["Bugs"])
+
+    # Metadata
+    assert sheet_by_name.name == sheet_by_idx.name == "Sheet2"
+    assert sheet_by_name.height == sheet_by_idx.height == 2
+    assert sheet_by_name.width == sheet_by_idx.width == 3
+
+    expected = DataFrame(
+        {"Bugs": [1.0, 2.0], "column_1": [3.0, 4.0], "column_2": [5.0, 6.0]}
+    )
+
+    assert_frame_equal(sheet_by_name.to_pandas(), expected)
+    assert_frame_equal(sheet_by_idx.to_pandas(), expected)
