@@ -69,14 +69,16 @@ impl ExcelSheet {
     pub(crate) fn column_names(&self) -> Vec<String> {
         let width = self.data.width();
         match &self.header {
-            Header::None => (0..width).map(|idx| format!("column_{idx}")).collect(),
+            Header::None => (0..width)
+                .map(|col_idx| format!("__UNNAMED__{col_idx}"))
+                .collect(),
             Header::At(row_idx) => (0..width)
                 .map(|col_idx| {
                     self.data
                         .get((*row_idx, col_idx))
                         .and_then(|data| data.get_string())
                         .map(ToOwned::to_owned)
-                        .unwrap_or(format!("column_{col_idx}"))
+                        .unwrap_or(format!("__UNNAMED__{col_idx}"))
                 })
                 .collect(),
             Header::With(names) => {
@@ -84,7 +86,9 @@ impl ExcelSheet {
                 names
                     .iter()
                     .map(ToOwned::to_owned)
-                    .chain((nameless_start_idx..width).map(|col_idx| format!("column_{col_idx}")))
+                    .chain(
+                        (nameless_start_idx..width).map(|col_idx| format!("__UNNAMED__{col_idx}")),
+                    )
                     .collect()
             }
         }
