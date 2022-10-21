@@ -105,7 +105,7 @@ fn arrow_schema_from_range_without_header(
 
 fn arrow_schema_from_range_with_named_header(
     range: &Range<CalDataType>,
-    column_names: &Vec<String>,
+    column_names: &[String],
 ) -> Result<Schema> {
     let mut fields = Vec::with_capacity(range.width());
     for col_idx in 0..range.width() {

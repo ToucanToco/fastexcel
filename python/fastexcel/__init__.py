@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -64,8 +64,9 @@ class ExcelReader:
     def load_sheet_by_name(
         self,
         name: str,
-        header_row: None | int = 0,
-        column_names: None | List[str] = None,
+        /,
+        header_row: int | None = 0,
+        column_names: list[str] | None = None,
     ) -> ExcelSheet:
         """Loads a sheet by name"""
         return ExcelSheet(
@@ -75,8 +76,9 @@ class ExcelReader:
     def load_sheet_by_idx(
         self,
         idx: int,
-        header_row: None | int = 0,
-        column_names: None | List[str] = None,
+        /,
+        header_row: int | None = 0,
+        column_names: list[str] | None = None,
     ) -> ExcelSheet:
         """Loads a sheet by index"""
         if idx < 0:
@@ -86,8 +88,9 @@ class ExcelReader:
     def load_sheet(
         self,
         idx_or_name: int | str,
-        header_row: None | int = 0,
-        column_names: None | List[str] = None,
+        /,
+        header_row: int | None = 0,
+        column_names: list[str] | None = None,
     ) -> ExcelSheet:
         """Loads a sheet by index"""
         return (

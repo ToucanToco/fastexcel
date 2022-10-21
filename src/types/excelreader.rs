@@ -46,6 +46,7 @@ impl ExcelReader {
         format!("ExcelReader<{}>", &self.path)
     }
 
+    #[args(name, "/", header_row = 0, column_names = "None")]
     pub fn load_sheet_by_name(
         &mut self,
         name: String,
@@ -62,6 +63,7 @@ impl ExcelReader {
         self.try_new_excel_sheet_from_range(name, range, header)
     }
 
+    #[args(idx, "/", header_row = 0, column_names = "None")]
     pub fn load_sheet_by_idx(
         &mut self,
         idx: usize,
