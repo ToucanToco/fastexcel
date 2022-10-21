@@ -27,45 +27,23 @@ class _ExcelReader:
         /,
         header_row: int | None = 0,
         column_names: list[str] | None = None,
-    ) -> _ExcelSheet:
-        """Loads a sheet by name.
-
-        The header_row (row used for the column labels) is by default the first row.
-        but another value for the header line can be specified.
-        If `None` is passed it means that the sheet doesn't have any header.
-        Column names can override headers found in the document.
-        If column_names is used header_row will be ignored."""
+    ) -> _ExcelSheet: ...
     def load_sheet_by_idx(
         self,
         idx: int,
         /,
         header_row: int | None = 0,
         column_names: list[str] | None = None,
-    ) -> _ExcelSheet:
-        """Loads a sheet by his index.
-
-        The header_row (row used for the column labels) is by default the first row.
-        but another value for the header line can be specified.
-        If `None` is passed it means that the sheet doesn't have any header.
-        Column names can override headers found in the document.
-        If column_names is used header_row will be ignored."""
+    ) -> _ExcelSheet: ...
     def load_sheet(
         self,
         idx_or_name: int | str,
         /,
         header_row: int | None = 0,
         column_names: list[str] | None = None,
-    ) -> _ExcelSheet:
-        """Try's to load a sheet name if a string is passed or a sheet index if a integer is passed.
-
-        The header_row (row used for the column labels) is by default the first row.
-        but another value for the header line can be specified.
-        If `None` is passed it means that the sheet doesn't have any header.
-        Column names can override headers found in the document.
-        If column_names is used header_row will be ignored."""
+    ) -> _ExcelSheet: ...
     @property
-    def sheet_names(self) -> list[str]:
-        """The list of sheet names"""
+    def sheet_names(self) -> list[str]: ...
 
 def read_excel(path: str) -> _ExcelReader:
     """Reads an excel file and returns an ExcelReader"""

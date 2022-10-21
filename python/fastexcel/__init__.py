@@ -68,7 +68,13 @@ class ExcelReader:
         header_row: int | None = 0,
         column_names: list[str] | None = None,
     ) -> ExcelSheet:
-        """Loads a sheet by name"""
+        """Loads a sheet by name.
+
+        `header_row` is the index of the row containing the column labels, default index is 0.
+        If `None`, the sheet does not have any column labels.
+        `column_names` overrides headers found in the document.
+        If `column_names` is used `header_row` will be ignored.
+        """
         return ExcelSheet(
             self._reader.load_sheet_by_name(name, header_row, column_names)
         )
@@ -80,7 +86,13 @@ class ExcelReader:
         header_row: int | None = 0,
         column_names: list[str] | None = None,
     ) -> ExcelSheet:
-        """Loads a sheet by index"""
+        """Loads a sheet by his index.
+
+        `header_row` is the index of the row containing the column labels, default index is 0.
+        If `None`, the sheet does not have any column labels.
+        `column_names` overrides headers found in the document.
+        If `column_names` is used `header_row` will be ignored.
+        """
         if idx < 0:
             raise ValueError(f"Expected idx to be > 0, got {idx}")
         return ExcelSheet(self._reader.load_sheet_by_idx(idx, header_row, column_names))
@@ -92,7 +104,13 @@ class ExcelReader:
         header_row: int | None = 0,
         column_names: list[str] | None = None,
     ) -> ExcelSheet:
-        """Loads a sheet by index"""
+        """Loads a sheet by name if a string is passed or by index if an integer is passed.
+
+        `header_row` is the index of the row containing the column labels, default index is 0.
+        If `None`, the sheet does not have any column labels.
+        `column_names` overrides headers found in the document.
+        If `column_names` is used `header_row` will be ignored.
+        """
         return (
             self.load_sheet_by_idx(idx_or_name, header_row, column_names)
             if isinstance(idx_or_name, int)

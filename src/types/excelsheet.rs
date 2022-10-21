@@ -34,7 +34,7 @@ impl Header {
 
     pub(crate) fn header_offset(&self) -> usize {
         match self {
-            Header::At(index) => *index + 1,
+            Header::At(index) => index + 1,
             Header::None => 0,
             Header::With(_) => 0,
         }
