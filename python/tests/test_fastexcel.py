@@ -85,8 +85,8 @@ def test_sheets_with_header_line_diff_from_zero():
         path_for_fixture("fixture-changing-header-location.xlsx")
     )
     assert excel_reader.sheet_names == ["Sheet1", "Sheet2", "Sheet3"]
-    sheet_by_name = excel_reader.load_sheet("Sheet1", 1)
-    sheet_by_idx = excel_reader.load_sheet(0, 1)
+    sheet_by_name = excel_reader.load_sheet("Sheet1", header_row=1)
+    sheet_by_idx = excel_reader.load_sheet(0, header_row=1)
 
     # Metadata
     assert sheet_by_name.name == sheet_by_idx.name == "Sheet1"
@@ -104,8 +104,8 @@ def test_sheets_with_no_header():
         path_for_fixture("fixture-changing-header-location.xlsx")
     )
     assert excel_reader.sheet_names == ["Sheet1", "Sheet2", "Sheet3"]
-    sheet_by_name = excel_reader.load_sheet("Sheet2", None)
-    sheet_by_idx = excel_reader.load_sheet(1, None)
+    sheet_by_name = excel_reader.load_sheet("Sheet2", header_row=None)
+    sheet_by_idx = excel_reader.load_sheet(1, header_row=None)
 
     # Metadata
     assert sheet_by_name.name == sheet_by_idx.name == "Sheet2"
@@ -144,8 +144,12 @@ def test_sheets_with_custom_headers():
         path_for_fixture("fixture-changing-header-location.xlsx")
     )
     assert excel_reader.sheet_names == ["Sheet1", "Sheet2", "Sheet3"]
-    sheet_by_name = excel_reader.load_sheet("Sheet2", None, ["foo", "bar", "baz"])
-    sheet_by_idx = excel_reader.load_sheet(1, None, ["foo", "bar", "baz"])
+    sheet_by_name = excel_reader.load_sheet(
+        "Sheet2", header_row=None, column_names=["foo", "bar", "baz"]
+    )
+    sheet_by_idx = excel_reader.load_sheet(
+        1, header_row=None, column_names=["foo", "bar", "baz"]
+    )
 
     # Metadata
     assert sheet_by_name.name == sheet_by_idx.name == "Sheet2"
@@ -163,8 +167,10 @@ def test_sheets_with_skipping_headers():
         path_for_fixture("fixture-changing-header-location.xlsx")
     )
     assert excel_reader.sheet_names == ["Sheet1", "Sheet2", "Sheet3"]
-    sheet_by_name = excel_reader.load_sheet("Sheet2", 1, ["Bugs"])
-    sheet_by_idx = excel_reader.load_sheet(1, 1, ["Bugs"])
+    sheet_by_name = excel_reader.load_sheet(
+        "Sheet2", header_row=1, column_names=["Bugs"]
+    )
+    sheet_by_idx = excel_reader.load_sheet(1, header_row=1, column_names=["Bugs"])
 
     # Metadata
     assert sheet_by_name.name == sheet_by_idx.name == "Sheet2"

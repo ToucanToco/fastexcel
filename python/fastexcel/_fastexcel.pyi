@@ -24,21 +24,21 @@ class _ExcelReader:
     def load_sheet_by_name(
         self,
         name: str,
-        /,
+        *,
         header_row: int | None = 0,
         column_names: list[str] | None = None,
     ) -> _ExcelSheet: ...
     def load_sheet_by_idx(
         self,
         idx: int,
-        /,
+        *,
         header_row: int | None = 0,
         column_names: list[str] | None = None,
     ) -> _ExcelSheet: ...
     def load_sheet(
         self,
         idx_or_name: int | str,
-        /,
+        *,
         header_row: int | None = 0,
         column_names: list[str] | None = None,
     ) -> _ExcelSheet: ...
