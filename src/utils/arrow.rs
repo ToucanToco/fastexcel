@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use arrow::{
     datatypes::{DataType as ArrowDataType, Field, Schema},
     ipc::writer::StreamWriter,
@@ -23,21 +23,19 @@ fn get_arrow_column_type(
     row: usize,
     col: usize,
 ) -> Result<ArrowDataType> {
-    Ok(
-        match data
-            .get((row, col))
-            .with_context(|| format!("Could not retrieve data at ({row},{col})"))?
-        {
-            CalDataType::Int(_) => ArrowDataType::Int64,
-            CalDataType::Float(_) => ArrowDataType::Float64,
-            CalDataType::String(_) => ArrowDataType::Utf8,
-            CalDataType::Bool(_) => ArrowDataType::Boolean,
-            CalDataType::DateTime(_) => ArrowDataType::Date64,
-            // FIXME: Change function return type to Result<ArrowDataType>
-            CalDataType::Error(err) => panic!("Error in calamine cell: {err:?}"),
-            CalDataType::Empty => ArrowDataType::Null,
-        },
-    )
+    match data
+        .get((row, col))
+        .with_context(|| format!("Could not retrieve data at ({row},{col})"))?
+    {
+        CalDataType::Int(_) => Ok(ArrowDataType::Int64),
+        CalDataType::Float(_) => Ok(ArrowDataType::Float64),
+        CalDataType::String(_) => Ok(ArrowDataType::Utf8),
+        CalDataType::Bool(_) => Ok(ArrowDataType::Boolean),
+        CalDataType::DateTime(_) => Ok(ArrowDataType::Date64),
+        // FIXME: Change function return type to Result<ArrowDataType>
+        CalDataType::Error(err) => Err(anyhow!("Error in calamine cell: {err:?}")),
+        CalDataType::Empty => Ok(ArrowDataType::Null),
+    }
 }
 
 fn alias_for_name(name: &str, fields: &[Field]) -> String {
