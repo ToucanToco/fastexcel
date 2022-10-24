@@ -1,3 +1,5 @@
+use std::{fs::File, io::BufReader};
+
 use anyhow::{Context, Result};
 use calamine::{open_workbook_auto, DataType, Range, Reader, Sheets};
 use pyo3::{pyclass, pymethods};
@@ -8,7 +10,7 @@ use super::{excelsheet::Header, ExcelSheet};
 
 #[pyclass(name = "_ExcelReader")]
 pub(crate) struct ExcelReader {
-    sheets: Sheets,
+    sheets: Sheets<BufReader<File>>,
     #[pyo3(get)]
     sheet_names: Vec<String>,
     path: String,
