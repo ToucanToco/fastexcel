@@ -66,6 +66,7 @@ jobs:
     - name: Release
       uses: softprops/action-gh-release@v1
       with:
+        generate_release_notes: true
         files: |
           wheels-linux/*.whl
           wheels-macos/*.whl
