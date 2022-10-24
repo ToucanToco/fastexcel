@@ -43,7 +43,7 @@ def test_single_sheet_with_types_to_pandas():
         sheet.to_pandas(),
         DataFrame(
             {
-                "__NAMELESS__": [0.0, 1.0, 2.0],
+                "__UNNAMED__0": [0.0, 1.0, 2.0],
                 "bools": [True, False, True],
                 "dates": [Timestamp("2022-03-02 05:43:04")] * 3,
                 "floats": [12.35, 42.69, 1234567],
@@ -71,9 +71,9 @@ def test_multiple_sheets_to_pandas():
         DataFrame(
             {
                 "col1": [2.0, 3.0],
-                "__NAMELESS__": [1.5, 2.5],
+                "__UNNAMED__1": [1.5, 2.5],
                 "col3": ["hello", "world"],
-                "__NAMELESS___1": [-5.0, -6.0],
+                "__UNNAMED__3": [-5.0, -6.0],
                 "col5": ["a", "b"],
             }
         ),
@@ -113,7 +113,11 @@ def test_sheets_with_no_header():
     assert sheet_by_name.width == sheet_by_idx.width == 3
 
     expected = DataFrame(
-        {"column_0": [1.0, 2.0], "column_1": [3.0, 4.0], "column_2": [5.0, 6.0]}
+        {
+            "__UNNAMED__0": [1.0, 2.0],
+            "__UNNAMED__1": [3.0, 4.0],
+            "__UNNAMED__2": [5.0, 6.0],
+        }
     )
 
     assert_frame_equal(sheet_by_name.to_pandas(), expected)
@@ -178,7 +182,7 @@ def test_sheets_with_skipping_headers():
     assert sheet_by_name.width == sheet_by_idx.width == 3
 
     expected = DataFrame(
-        {"Bugs": [1.0, 2.0], "column_1": [3.0, 4.0], "column_2": [5.0, 6.0]}
+        {"Bugs": [1.0, 2.0], "__UNNAMED__1": [3.0, 4.0], "__UNNAMED__2": [5.0, 6.0]}
     )
 
     assert_frame_equal(sheet_by_name.to_pandas(), expected)
