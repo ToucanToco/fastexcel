@@ -32,7 +32,7 @@ impl Header {
         }
     }
 
-    pub(crate) fn header_offset(&self) -> usize {
+    pub(crate) fn offset(&self) -> usize {
         match self {
             Header::At(index) => index + 1,
             Header::None => 0,
@@ -224,9 +224,7 @@ impl ExcelSheet {
 
     #[getter]
     pub fn offset(&self) -> usize {
-        // actually there is only the header that defines the offset
-        // in future there could be a row_offset
-        self.header.header_offset()
+        self.header.offset()
     }
 
     pub fn to_arrow(&self, py: Python<'_>) -> Result<PyObject> {
