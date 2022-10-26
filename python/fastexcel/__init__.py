@@ -67,6 +67,8 @@ class ExcelReader:
         *,
         header_row: int | None = 0,
         column_names: list[str] | None = None,
+        skip_rows: int = 0,
+        n_rows: int | None = None,
     ) -> ExcelSheet:
         """Loads a sheet by name.
 
@@ -74,10 +76,17 @@ class ExcelReader:
         If `None`, the sheet does not have any column labels.
         `column_names` overrides headers found in the document.
         If `column_names` is used `header_row` will be ignored.
+        `n_rows` is the number of rows to parse.
+        `skip_rows` is the line numbers to skip after the headers.
+        If `header_row` is `None` then it skips the number of lines from 0.
         """
         return ExcelSheet(
             self._reader.load_sheet_by_name(
-                name, header_row=header_row, column_names=column_names
+                name,
+                header_row=header_row,
+                column_names=column_names,
+                skip_rows=skip_rows,
+                n_rows=n_rows,
             )
         )
 
@@ -87,6 +96,8 @@ class ExcelReader:
         *,
         header_row: int | None = 0,
         column_names: list[str] | None = None,
+        skip_rows: int = 0,
+        n_rows: int | None = None,
     ) -> ExcelSheet:
         """Loads a sheet by his index.
 
@@ -94,12 +105,19 @@ class ExcelReader:
         If `None`, the sheet does not have any column labels.
         `column_names` overrides headers found in the document.
         If `column_names` is used `header_row` will be ignored.
+        `n_rows` is the number of rows to parse.
+        `skip_rows` is the line numbers to skip after the headers.
+        If `header_row` is `None` then it skips the number of lines from 0.
         """
         if idx < 0:
             raise ValueError(f"Expected idx to be > 0, got {idx}")
         return ExcelSheet(
             self._reader.load_sheet_by_idx(
-                idx, header_row=header_row, column_names=column_names
+                idx,
+                header_row=header_row,
+                column_names=column_names,
+                skip_rows=skip_rows,
+                n_rows=n_rows,
             )
         )
 
@@ -109,6 +127,8 @@ class ExcelReader:
         *,
         header_row: int | None = 0,
         column_names: list[str] | None = None,
+        skip_rows: int = 0,
+        n_rows: int | None = None,
     ) -> ExcelSheet:
         """Loads a sheet by name if a string is passed or by index if an integer is passed.
 
@@ -116,14 +136,25 @@ class ExcelReader:
         If `None`, the sheet does not have any column labels.
         `column_names` overrides headers found in the document.
         If `column_names` is used `header_row` will be ignored.
+        `n_rows` is the number of rows to parse.
+        `skip_rows` is the line numbers to skip after the headers.
+        If `header_row` is `None` then it skips the number of lines from 0.
         """
         return (
             self.load_sheet_by_idx(
-                idx_or_name, header_row=header_row, column_names=column_names
+                idx_or_name,
+                header_row=header_row,
+                column_names=column_names,
+                skip_rows=skip_rows,
+                n_rows=n_rows,
             )
             if isinstance(idx_or_name, int)
             else self.load_sheet_by_name(
-                idx_or_name, header_row=header_row, column_names=column_names
+                idx_or_name,
+                header_row=header_row,
+                column_names=column_names,
+                skip_rows=skip_rows,
+                n_rows=n_rows,
             )
         )
 
