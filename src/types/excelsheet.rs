@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use arrow::{
     array::{
         Array, BooleanArray, Float64Array, Int64Array, NullArray, StringArray,
@@ -47,8 +47,19 @@ pub(crate) struct Pagination {
 }
 
 impl Pagination {
-    pub(crate) fn new(skip_rows: usize, n_rows: Option<usize>) -> Self {
-        Self { skip_rows, n_rows }
+    pub(crate) fn new(
+        skip_rows: usize,
+        n_rows: Option<usize>,
+        range: &Range<CalDataType>,
+    ) -> Result<Self> {
+        let max_height = range.height();
+        if max_height < skip_rows {
+            return Err(anyhow!(
+                "To many rows skipped. Max height is {}",
+                max_height
+            ));
+        }
+        Ok(Self { skip_rows, n_rows })
     }
 
     pub(crate) fn offset(&self) -> usize {
@@ -117,11 +128,15 @@ impl ExcelSheet {
     }
 
     pub(crate) fn limit(&self) -> usize {
+        let upper_bound = self.data.height();
         if let Some(n_rows) = self.pagination.n_rows {
-            self.offset() + n_rows
-        } else {
-            self.data.height()
+            let limit = self.offset() + n_rows;
+            if limit < upper_bound {
+                return limit;
+            }
         }
+
+        upper_bound
     }
 }
 

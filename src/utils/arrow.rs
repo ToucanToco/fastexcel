@@ -32,7 +32,6 @@ fn get_arrow_column_type(
         CalDataType::String(_) => Ok(ArrowDataType::Utf8),
         CalDataType::Bool(_) => Ok(ArrowDataType::Boolean),
         CalDataType::DateTime(_) => Ok(ArrowDataType::Date64),
-        // FIXME: Change function return type to Result<ArrowDataType>
         CalDataType::Error(err) => Err(anyhow!("Error in calamine cell: {err:?}")),
         CalDataType::Empty => Ok(ArrowDataType::Null),
     }

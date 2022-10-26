@@ -61,7 +61,7 @@ impl ExcelReader {
             .with_context(|| format!("Error while loading sheet {name}"))?;
 
         let header = Header::new(header_row, column_names);
-        let pagination = Pagination::new(skip_rows, n_rows);
+        let pagination = Pagination::new(skip_rows, n_rows, &range)?;
         Ok(ExcelSheet::new(name, range, header, pagination))
     }
 
@@ -98,7 +98,7 @@ impl ExcelReader {
             .with_context(|| format!("Error while loading sheet at idx {idx}"))?;
 
         let header = Header::new(header_row, column_names);
-        let pagination = Pagination::new(skip_rows, n_rows);
+        let pagination = Pagination::new(skip_rows, n_rows, &range)?;
         Ok(ExcelSheet::new(name, range, header, pagination))
     }
 }
