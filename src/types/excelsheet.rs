@@ -41,7 +41,6 @@ impl Header {
     }
 }
 
-#[derive(Default)]
 pub(crate) struct Pagination {
     skip_rows: usize,
     n_rows: Option<usize>,
