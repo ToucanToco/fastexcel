@@ -72,6 +72,7 @@ pub(crate) struct ExcelSheet {
     pagination: Pagination,
     data: Range<CalDataType>,
     height: Option<usize>,
+    total_height: Option<usize>,
     width: Option<usize>,
 }
 
@@ -92,6 +93,7 @@ impl ExcelSheet {
             pagination,
             data,
             height: None,
+            total_height: None,
             width: None,
         }
     }
@@ -260,6 +262,15 @@ impl ExcelSheet {
             let height = self.limit() - self.offset();
             self.height = Some(height);
             height
+        })
+    }
+
+    #[getter]
+    pub fn total_height(&mut self) -> usize {
+        self.total_height.unwrap_or_else(|| {
+            let total_height = self.data.height() - self.header.offset();
+            self.total_height = Some(total_height);
+            total_height
         })
     }
 

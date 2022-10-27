@@ -27,8 +27,13 @@ class ExcelSheet:
 
     @property
     def height(self) -> int:
-        """The sheet's height"""
+        """The sheet's height, with skip_rows and nrows applied"""
         return self._sheet.height
+
+    @property
+    def total_height(self) -> int:
+        """The sheet's total height"""
+        return self._sheet.total_height
 
     def to_arrow(self) -> bytes:
         """Converts the sheet to an Arrow RecordBatch.
