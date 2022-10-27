@@ -37,7 +37,7 @@ def test_single_sheet_with_types_to_pandas():
 
     sheet = excel_reader.load_sheet(0)
     assert sheet.name == "Sheet1"
-    assert sheet.height == 3
+    assert sheet.height == sheet.total_height == 3
     assert sheet.width == 4
 
     assert_frame_equal(
@@ -199,6 +199,7 @@ def test_sheet_with_pagination():
     sheet = excel_reader.load_sheet(0, skip_rows=1, n_rows=1)
     assert sheet.name == "Sheet1"
     assert sheet.height == 1
+    assert sheet.total_height == 3
     assert sheet.width == 4
 
     assert_frame_equal(

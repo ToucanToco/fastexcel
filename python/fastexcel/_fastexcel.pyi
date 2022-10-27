@@ -9,6 +9,9 @@ class _ExcelSheet:
     def height(self) -> int:
         """The sheet's height"""
     @property
+    def total_height(self) -> int:
+        """The sheet's total height"""
+    @property
     def offset(self) -> int:
         """The sheet's offset before data starts"""
     def to_arrow(self) -> bytes:
