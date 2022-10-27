@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{bail, Context, Result};
 use arrow::{
     array::{
         Array, BooleanArray, Float64Array, Int64Array, NullArray, StringArray,
@@ -54,10 +54,7 @@ impl Pagination {
     ) -> Result<Self> {
         let max_height = range.height();
         if max_height < skip_rows {
-            return Err(anyhow!(
-                "To many rows skipped. Max height is {}",
-                max_height
-            ));
+            bail!("To many rows skipped. Max height is {max_height}");
         }
         Ok(Self { skip_rows, n_rows })
     }
