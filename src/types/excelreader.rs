@@ -4,7 +4,10 @@ use anyhow::{Context, Result};
 use calamine::{open_workbook_auto, Reader, Sheets};
 use pyo3::{pyclass, pymethods};
 
-use super::{excelsheet::Header, ExcelSheet};
+use super::{
+    excelsheet::{Header, Pagination},
+    ExcelSheet,
+};
 
 #[pyclass(name = "_ExcelReader")]
 pub(crate) struct ExcelReader {
@@ -35,12 +38,21 @@ impl ExcelReader {
         format!("ExcelReader<{}>", &self.path)
     }
 
-    #[args(name, "*", header_row = 0, column_names = "None")]
+    #[args(
+        name,
+        "*",
+        header_row = 0,
+        column_names = "None",
+        skip_rows = 0,
+        n_rows = "None"
+    )]
     pub fn load_sheet_by_name(
         &mut self,
         name: String,
         header_row: Option<usize>,
         column_names: Option<Vec<String>>,
+        skip_rows: usize,
+        n_rows: Option<usize>,
     ) -> Result<ExcelSheet> {
         let range = self
             .sheets
@@ -49,15 +61,25 @@ impl ExcelReader {
             .with_context(|| format!("Error while loading sheet {name}"))?;
 
         let header = Header::new(header_row, column_names);
-        Ok(ExcelSheet::new(name, range, header))
+        let pagination = Pagination::new(skip_rows, n_rows, &range)?;
+        Ok(ExcelSheet::new(name, range, header, pagination))
     }
 
-    #[args(idx, "*", header_row = 0, column_names = "None")]
+    #[args(
+        idx,
+        "*",
+        header_row = 0,
+        column_names = "None",
+        skip_rows = 0,
+        n_rows = "None"
+    )]
     pub fn load_sheet_by_idx(
         &mut self,
         idx: usize,
         header_row: Option<usize>,
         column_names: Option<Vec<String>>,
+        skip_rows: usize,
+        n_rows: Option<usize>,
     ) -> Result<ExcelSheet> {
         let name = self
             .sheet_names
@@ -76,6 +98,7 @@ impl ExcelReader {
             .with_context(|| format!("Error while loading sheet at idx {idx}"))?;
 
         let header = Header::new(header_row, column_names);
-        Ok(ExcelSheet::new(name, range, header))
+        let pagination = Pagination::new(skip_rows, n_rows, &range)?;
+        Ok(ExcelSheet::new(name, range, header, pagination))
     }
 }

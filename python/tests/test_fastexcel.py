@@ -1,6 +1,7 @@
 from os.path import dirname
 from os.path import join as path_join
 
+import pytest
 from pandas import DataFrame, Timestamp
 from pandas.testing import assert_frame_equal
 
@@ -187,3 +188,143 @@ def test_sheets_with_skipping_headers():
 
     assert_frame_equal(sheet_by_name.to_pandas(), expected)
     assert_frame_equal(sheet_by_idx.to_pandas(), expected)
+
+
+def test_sheet_with_pagination():
+    excel_reader = fastexcel.read_excel(
+        path_for_fixture("fixture-single-sheet-with-types.xlsx")
+    )
+    assert excel_reader.sheet_names == ["Sheet1"]
+
+    sheet = excel_reader.load_sheet(0, skip_rows=1, n_rows=1)
+    assert sheet.name == "Sheet1"
+    assert sheet.height == 1
+    assert sheet.width == 4
+
+    assert_frame_equal(
+        sheet.to_pandas(),
+        DataFrame(
+            {
+                "__UNNAMED__0": [1.0],
+                "bools": [False],
+                "dates": [Timestamp("2022-03-02 05:43:04")],
+                "floats": [42.69],
+            }
+        ),
+    )
+
+
+def test_sheet_with_skip_rows():
+    excel_reader = fastexcel.read_excel(
+        path_for_fixture("fixture-single-sheet-with-types.xlsx")
+    )
+    assert excel_reader.sheet_names == ["Sheet1"]
+
+    sheet = excel_reader.load_sheet(0, skip_rows=1)
+    assert sheet.name == "Sheet1"
+    assert sheet.height == 2
+    assert sheet.width == 4
+
+    assert_frame_equal(
+        sheet.to_pandas(),
+        DataFrame(
+            {
+                "__UNNAMED__0": [1.0, 2.0],
+                "bools": [False, True],
+                "dates": [Timestamp("2022-03-02 05:43:04")] * 2,
+                "floats": [42.69, 1234567],
+            }
+        ),
+    )
+
+
+def test_sheet_with_n_rows():
+    excel_reader = fastexcel.read_excel(
+        path_for_fixture("fixture-single-sheet-with-types.xlsx")
+    )
+    assert excel_reader.sheet_names == ["Sheet1"]
+
+    sheet = excel_reader.load_sheet(0, n_rows=1)
+    assert sheet.name == "Sheet1"
+    assert sheet.height == 1
+    assert sheet.width == 4
+
+    assert_frame_equal(
+        sheet.to_pandas(),
+        DataFrame(
+            {
+                "__UNNAMED__0": [0.0],
+                "bools": [True],
+                "dates": [Timestamp("2022-03-02 05:43:04")],
+                "floats": [12.35],
+            }
+        ),
+    )
+
+
+def test_sheet_with_pagination_and_without_headers():
+    excel_reader = fastexcel.read_excel(
+        path_for_fixture("fixture-single-sheet-with-types.xlsx")
+    )
+    assert excel_reader.sheet_names == ["Sheet1"]
+
+    sheet = excel_reader.load_sheet(
+        0,
+        n_rows=1,
+        skip_rows=1,
+        header_row=None,
+        column_names=["This", "Is", "Amazing", "Stuff"],
+    )
+    assert sheet.name == "Sheet1"
+    assert sheet.height == 1
+    assert sheet.width == 4
+
+    assert_frame_equal(
+        sheet.to_pandas(),
+        DataFrame(
+            {
+                "This": [0.0],
+                "Is": [True],
+                "Amazing": [Timestamp("2022-03-02 05:43:04")],
+                "Stuff": [12.35],
+            }
+        ),
+    )
+
+
+def test_sheet_with_pagination_out_of_bound():
+    excel_reader = fastexcel.read_excel(
+        path_for_fixture("fixture-single-sheet-with-types.xlsx")
+    )
+    assert excel_reader.sheet_names == ["Sheet1"]
+
+    with pytest.raises(RuntimeError, match="To many rows skipped. Max height is 4"):
+        excel_reader.load_sheet(
+            0,
+            skip_rows=1000000,
+            header_row=None,
+            column_names=["This", "Is", "Amazing", "Stuff"],
+        )
+
+    sheet = excel_reader.load_sheet(
+        0,
+        n_rows=1000000,
+        skip_rows=1,
+        header_row=None,
+        column_names=["This", "Is", "Amazing", "Stuff"],
+    )
+    assert sheet.name == "Sheet1"
+    assert sheet.height == 3
+    assert sheet.width == 4
+
+    assert_frame_equal(
+        sheet.to_pandas(),
+        DataFrame(
+            {
+                "This": [0.0, 1.0, 2.0],
+                "Is": [True, False, True],
+                "Amazing": [Timestamp("2022-03-02 05:43:04")] * 3,
+                "Stuff": [12.35, 42.69, 1234567],
+            }
+        ),
+    )

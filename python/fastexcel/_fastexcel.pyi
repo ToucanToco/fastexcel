@@ -27,6 +27,8 @@ class _ExcelReader:
         *,
         header_row: int | None = 0,
         column_names: list[str] | None = None,
+        skip_rows: int = 0,
+        n_rows: int | None = None,
     ) -> _ExcelSheet: ...
     def load_sheet_by_idx(
         self,
@@ -34,6 +36,8 @@ class _ExcelReader:
         *,
         header_row: int | None = 0,
         column_names: list[str] | None = None,
+        skip_rows: int = 0,
+        n_rows: int | None = None,
     ) -> _ExcelSheet: ...
     def load_sheet(
         self,
@@ -41,6 +45,8 @@ class _ExcelReader:
         *,
         header_row: int | None = 0,
         column_names: list[str] | None = None,
+        skip_rows: int = 0,
+        n_rows: int | None = None,
     ) -> _ExcelSheet: ...
     @property
     def sheet_names(self) -> list[str]: ...
