@@ -10,12 +10,15 @@ on:
 jobs:
   linux:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11"]
     steps:
     - uses: actions/checkout@v3
     - name: Set up Python python3.10
       uses: actions/setup-python@v4
       with:
-        python-version: "3.10"
+        python-version: "${{ matrix.python-version }}"
     - name: Set up rust toolchain
       uses: actions-rs/toolchain@v1
       with:
@@ -44,10 +47,13 @@ jobs:
 
   macos:
     runs-on: macos-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11"]
     steps:
     - uses: actions/checkout@v3
     - name: build (fast)
       uses: messense/maturin-action@v1
       with:
         command: build
-        args: -o dist --universal2 --interpreter python3.10
+        args: "-o dist --universal2 --interpreter python${{ matrix.python-version }}"
