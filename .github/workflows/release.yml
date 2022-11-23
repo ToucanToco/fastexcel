@@ -41,7 +41,7 @@ jobs:
     - name: Upload wheels
       uses: actions/upload-artifact@v3
       with:
-        name: "wheels-macos-python${{ matrix.python-version }}"
+        name: "wheels-macos-python-${{ matrix.python-version }}"
         path: dist
 
   # NOTE: Cannot use a matrix here, as we only want a single release
