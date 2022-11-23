@@ -9,6 +9,9 @@ on:
 jobs:
   linux:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11"]
     steps:
     - uses: actions/checkout@v3
     - name: build (release)
@@ -16,43 +19,57 @@ jobs:
       with:
         manylinux: auto
         command: build
-        args: --release -o dist --interpreter python3.10
+        args: "--release -o dist --interpreter python${{ matrix.python-version }}"
     - name: Upload wheels
       uses: actions/upload-artifact@v3
       with:
-        name: wheels-linux
+        name: "wheels-linux-python-${{ matrix.python-version }}"
         path: dist
 
   macos:
     runs-on: macos-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11"]
     steps:
     - uses: actions/checkout@v3
     - name: build (release)
       uses: messense/maturin-action@v1
       with:
         command: build
-        args: --release -o dist --universal2 --interpreter python3.10
+        args: "--release -o dist --universal2 --interpreter python${{ matrix.python-version }}"
     - name: Upload wheels
       uses: actions/upload-artifact@v3
       with:
-        name: wheels-macos
+        name: "wheels-macos-python${{ matrix.python-version }}"
         path: dist
 
+  # NOTE: Cannot use a matrix here, as we only want a single release
   release:
     name: Release
     runs-on: ubuntu-latest
     needs: [linux, macos]
     steps:
-    - name: Download Linux wheels
+    - name: Download Linux 3.10 wheels
       uses: actions/download-artifact@v3
       with:
-        name: wheels-linux
+        name: "wheels-linux-python-3.10"
+        path: wheels-linux
+    - name: Download Linux 3.11 wheels
+      uses: actions/download-artifact@v3
+      with:
+        name: "wheels-linux-python-3.11"
         path: wheels-linux
 
-    - name: Download MacOS wheels
+    - name: Download MacOS 3.10 wheels
       uses: actions/download-artifact@v3
       with:
-        name: wheels-macos
+        name: "wheels-macos-python-3.10"
+        path: wheels-macos
+    - name: Download MacOS 3.11 wheels
+      uses: actions/download-artifact@v3
+      with:
+        name: "wheels-macos-python-3.11"
         path: wheels-macos
 
     - name: Publish to PyPI
