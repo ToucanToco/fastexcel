@@ -37,3 +37,9 @@ warn_unused_ignores = true
 testpaths = [
     "python/tests"
 ]
+
+[tool.ruff]
+line-length = 100
+
+# Enable Pyflakes `E` and `F` codes by default.
+select = ["E", "F", "Q"]

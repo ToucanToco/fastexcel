@@ -2,8 +2,7 @@
 
 # Commands
 ## Python
-flake8	= flake8 python/fastexcel *.py
-isort	= isort python/fastexcel *.py
+ruff	= ruff python/fastexcel *.py
 black	= black python/fastexcel *.py
 mypy	= mypy python/fastexcel *.py
 pytest	= python -m pytest
@@ -12,14 +11,13 @@ clippy	= cargo clippy
 fmt	= cargo fmt
 
 lint:
-	$(flake8)
-	$(isort)  --check-only --df
+	$(ruff)
 	$(black)  --check --diff
 	$(mypy)
 	$(clippy)
 format:
 	$(black)
-	$(isort)
+	$(ruff) --fix
 	$(fmt)
 
 install-test-requirements:
