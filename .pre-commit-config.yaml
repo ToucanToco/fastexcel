@@ -15,12 +15,12 @@ repos:
     -   id: lint
         name: Lint
         entry: make lint
-        types: [python]
+        types_or: [python, rust]
         language: system
         pass_filenames: false
     -   id: format
         name: Format
         entry: make format
-        types: [python]
+        types_or: [python, rust]
         language: system
         pass_filenames: false
