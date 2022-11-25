@@ -6,16 +6,22 @@ repos:
     hooks:
     -   id: trailing-whitespace
     -   id: end-of-file-fixer
--   repo: https://github.com/psf/black
-    rev: 22.8.0
-    hooks:
-    -   id: black
--   repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: v0.0.137
-    hooks:
-    -   id: ruff
 -   repo: http://github.com/doublify/pre-commit-rust
     rev: v1.0
     hooks:
     -   id: fmt
     -   id: cargo-check
+-   repo: local
+    hooks:
+    -   id: lint
+        name: Lint
+        entry: make lint
+        types: [python]
+        language: system
+        pass_filenames: false
+    -   id: format
+        name: Format
+        entry: make format
+        types: [python]
+        language: system
+        pass_filenames: false
