@@ -10,15 +10,10 @@ repos:
     rev: 22.8.0
     hooks:
     -   id: black
--   repo: http://github.com/PyCQA/isort
-    rev: 5.10.1
+-   repo: https://github.com/charliermarsh/ruff-pre-commit
+    rev: v0.0.137
     hooks:
-    -   id: isort
--   repo: http://github.com/PyCQA/flake8
-    rev: 5.0.4
-    hooks:
-    -   id: flake8
-        exclude: test.py
+    -   id: ruff
 -   repo: http://github.com/doublify/pre-commit-rust
     rev: v1.0
     hooks:
