@@ -9,7 +9,7 @@ name = "fastexcel"
 crate-type = ["cdylib"]
 
 [dependencies]
-anyhow = "1.0.66"
+anyhow = "1.0.68"
 calamine = { version = "0.19.1", features = ["dates"] }
 pyo3 = { version = "0.17.3", features = ["extension-module", "anyhow"] }
 
