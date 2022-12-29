@@ -9,6 +9,8 @@ pytest	= python -m pytest
 ## Rust
 clippy	= cargo clippy
 fmt	= cargo fmt
+## Docs
+pdoc	= pdoc -o docs python/fastexcel
 
 lint:
 	$(ruff)
@@ -23,7 +25,10 @@ format:
 install-test-requirements:
 	pip install -U maturin -r test-requirements.txt
 
-dev-setup: install-test-requirements
+install-doc-requirements:
+	pip install -r doc-requirements.txt
+
+dev-setup: install-test-requirements install-doc-requirements
 	pre-commit install
 
 dev-install:
@@ -34,5 +39,8 @@ prod-install:
 
 test:
 	$(pytest)
+
+doc:
+	$(pdoc)
 
 test-ci: dev-install test
