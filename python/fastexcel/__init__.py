@@ -27,7 +27,7 @@ class ExcelSheet:
 
     @property
     def height(self) -> int:
-        """The sheet's height, with skip_rows and nrows applied"""
+        """The sheet's height, with `skip_rows` and `nrows` applied"""
         return self._sheet.height
 
     @property
@@ -36,7 +36,7 @@ class ExcelSheet:
         return self._sheet.total_height
 
     def to_arrow(self) -> bytes:
-        """Converts the sheet to an Arrow RecordBatch.
+        """Converts the sheet to an Arrow `RecordBatch`.
 
         The RecordBatch is serialized to the IPC format. It can be read with
         `pyarrow.ipc.open_stream`.
@@ -44,9 +44,9 @@ class ExcelSheet:
         return self._sheet.to_arrow()
 
     def to_pandas(self) -> "pd.DataFrame":
-        """Converts the sheet to a pandas DataFrame.
+        """Converts the sheet to a Pandas `DataFrame`.
 
-        Requires the "pandas" extra to be installed.
+        Requires the `pandas` extra to be installed.
         """
         # We know for sure that the sheet will yield exactly one RecordBatch
         return list(pa.ipc.open_stream(self.to_arrow()))[0].to_pandas()
@@ -77,13 +77,14 @@ class ExcelReader:
     ) -> ExcelSheet:
         """Loads a sheet by name.
 
-        `header_row` is the index of the row containing the column labels, default index is 0.
-        If `None`, the sheet does not have any column labels.
-        `column_names` overrides headers found in the document.
-        If `column_names` is used `header_row` will be ignored.
-        `n_rows` is the number of rows to parse.
-        `skip_rows` is the line numbers to skip after the headers.
-        If `header_row` is `None` then it skips the number of lines from 0.
+        :param name: The name of the sheet to load.
+        :param header_row: The index of the row containing the column labels, default index is 0.
+                           If `None`, the sheet does not have any column labels.
+        :param column_names: Overrides headers found in the document. If `column_names` is used,
+                             `header_row` will be ignored.
+        :param n_rows: Specifies how many rows should be loaded. If `None`, all rows are loaded
+        :param skip_rows: Specifies how many should be skipped after the header. If `header_row` is
+                          `None`, it skips the number of rows from the sheet's start.
         """
         return ExcelSheet(
             self._reader.load_sheet_by_name(
@@ -104,15 +105,16 @@ class ExcelReader:
         skip_rows: int = 0,
         n_rows: int | None = None,
     ) -> ExcelSheet:
-        """Loads a sheet by his index.
+        """Loads a sheet by index.
 
-        `header_row` is the index of the row containing the column labels, default index is 0.
-        If `None`, the sheet does not have any column labels.
-        `column_names` overrides headers found in the document.
-        If `column_names` is used `header_row` will be ignored.
-        `n_rows` is the number of rows to parse.
-        `skip_rows` is the line numbers to skip after the headers.
-        If `header_row` is `None` then it skips the number of lines from 0.
+        :param idx: The index (starting at 0) of the sheet to load.
+        :param header_row: The index of the row containing the column labels, default index is 0.
+                           If `None`, the sheet does not have any column labels.
+        :param column_names: Overrides headers found in the document. If `column_names` is used,
+                             `header_row` will be ignored.
+        :param n_rows: Specifies how many rows should be loaded. If `None`, all rows are loaded
+        :param skip_rows: Specifies how many should be skipped after the header. If `header_row` is
+                          `None`, it skips the number of rows from the sheet's start.
         """
         if idx < 0:
             raise ValueError(f"Expected idx to be > 0, got {idx}")
@@ -137,13 +139,7 @@ class ExcelReader:
     ) -> ExcelSheet:
         """Loads a sheet by name if a string is passed or by index if an integer is passed.
 
-        `header_row` is the index of the row containing the column labels, default index is 0.
-        If `None`, the sheet does not have any column labels.
-        `column_names` overrides headers found in the document.
-        If `column_names` is used `header_row` will be ignored.
-        `n_rows` is the number of rows to parse.
-        `skip_rows` is the line numbers to skip after the headers.
-        If `header_row` is `None` then it skips the number of lines from 0.
+        See `load_sheet_by_idx` and `load_sheet_by_name` for parameter documentation.
         """
         return (
             self.load_sheet_by_idx(
@@ -168,6 +164,10 @@ class ExcelReader:
 
 
 def read_excel(path: str) -> ExcelReader:
+    """Opens and loads an excel file.
+
+    :param path: The path to the file
+    """
     return ExcelReader(_read_excel(path))
 
 
