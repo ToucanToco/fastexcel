@@ -5,7 +5,9 @@ repos:
     rev: v3.2.0
     hooks:
     -   id: trailing-whitespace
+        types_or: [python, rust]
     -   id: end-of-file-fixer
+        types_or: [python, rust]
 -   repo: http://github.com/doublify/pre-commit-rust
     rev: v1.0
     hooks:

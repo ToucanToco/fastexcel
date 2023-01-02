@@ -7,4 +7,3 @@ __pycache__
 *.dat
 .python-version
 .venv
-docs
