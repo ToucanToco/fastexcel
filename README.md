@@ -40,7 +40,11 @@ The Makefile provides the `lint` and `format` extras to ease this.
 
 `make test`
 
-### Creating a release
+## Building the docs
+
+`make doc`
+
+## Creating a release
 
 1. Create a PR containing a commit that only updates the version in `Cargo.toml`.
 2. Once it is approved, squash and merge it into main.
