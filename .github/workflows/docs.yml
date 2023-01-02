@@ -1,0 +1,31 @@
+name: Docs
+
+on:
+  push:
+    branches:
+      - main
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          # Fetch all branches
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+      - run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+
+          git checkout gh-pages
+          git merge -m 'Merge main' main
+
+          make install-doc-requirements
+          make doc
+
+          git add docs
+          git commit -m "Re-generated documentation"
+          git push origin gh-pages
