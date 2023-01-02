@@ -20,10 +20,14 @@ jobs:
           git config user.name github-actions
           git config user.email github-actions@github.com
 
+          # Sync
           git checkout gh-pages
           git merge -m 'Merge main' main
 
+          make install-test-requirements
           make install-doc-requirements
+          # Required for pdoc to be able to import the sources
+          make dev-install
           make doc
 
           git add docs
