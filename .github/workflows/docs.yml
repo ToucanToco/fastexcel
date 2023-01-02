@@ -16,6 +16,12 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: "3.11"
+      - name: Set up rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
       - run: |
           git config user.name github-actions
           git config user.email github-actions@github.com
@@ -23,6 +29,10 @@ jobs:
           # Sync
           git checkout gh-pages
           git merge -m 'Merge main' main
+
+          # venv required by maturin
+          python3 -m venv .venv
+          source .venv/bin/activate
 
           make install-test-requirements
           make install-doc-requirements
