@@ -40,7 +40,6 @@ impl ExcelReader {
 
     #[pyo3(signature = (
         name,
-        *,
         header_row = 0,
         column_names = None,
         skip_rows = 0,
@@ -67,7 +66,6 @@ impl ExcelReader {
 
     #[pyo3(signature = (
         idx,
-        *,
         header_row = 0,
         column_names = None,
         skip_rows = 0,
