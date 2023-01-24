@@ -38,14 +38,14 @@ impl ExcelReader {
         format!("ExcelReader<{}>", &self.path)
     }
 
-    #[args(
+    #[pyo3(signature = (
         name,
-        "*",
+        *,
         header_row = 0,
-        column_names = "None",
+        column_names = None,
         skip_rows = 0,
-        n_rows = "None"
-    )]
+        n_rows = None
+    ))]
     pub fn load_sheet_by_name(
         &mut self,
         name: String,
@@ -65,13 +65,13 @@ impl ExcelReader {
         Ok(ExcelSheet::new(name, range, header, pagination))
     }
 
-    #[args(
+    #[pyo3(signature = (
         idx,
-        "*",
+        *,
         header_row = 0,
-        column_names = "None",
+        column_names = None,
         skip_rows = 0,
-        n_rows = "None"
+        n_rows = None)
     )]
     pub fn load_sheet_by_idx(
         &mut self,
