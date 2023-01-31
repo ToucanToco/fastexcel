@@ -3,23 +3,10 @@ use arrow::{
     array::ArrayRef,
     datatypes::{DataType as ArrowDataType, Field, Schema},
     ffi::ArrowArray,
-    ipc::writer::StreamWriter,
     record_batch::RecordBatch,
 };
 use calamine::{DataType as CalDataType, Range};
-use pyo3::prelude::*;
-use pyo3::{ffi::Py_uintptr_t, types::PyBytes};
-
-pub(crate) fn record_batch_to_bytes(rb: &RecordBatch) -> Result<Vec<u8>> {
-    let mut writer = StreamWriter::try_new(Vec::new(), &rb.schema())
-        .with_context(|| "Could not instantiate StreamWriter for RecordBatch")?;
-    writer
-        .write(rb)
-        .with_context(|| "Could not write RecordBatch to writer")?;
-    writer
-        .into_inner()
-        .with_context(|| "Could not complete Arrow stream")
-}
+use pyo3::{ffi::Py_uintptr_t, types::PyModule, PyObject, Python, ToPyObject};
 
 fn get_arrow_column_type(
     data: &Range<CalDataType>,
@@ -71,18 +58,21 @@ pub(crate) fn arrow_schema_from_column_names_and_range(
     Ok(Schema::new(fields))
 }
 
-pub(crate) fn record_batch_to_pybytes<'p>(py: Python<'p>, rb: &RecordBatch) -> Result<&'p PyBytes> {
-    record_batch_to_bytes(rb).map(|bytes| PyBytes::new(py, bytes.as_slice()))
-}
-
 /// Arrow array to Python.
 pub(crate) fn to_python_array(
     array: &ArrayRef,
     py: Python,
     pyarrow: &PyModule,
-) -> PyResult<PyObject> {
-    let ffi_array = ArrowArray::try_new(array.data().to_owned()).with_context(|| "haha")?;
+) -> Result<PyObject> {
+    let ffi_array = ArrowArray::try_new(array.data().to_owned())
+        .with_context(|| "Could not instantiate Arrow Array")?;
     let (array_ptr, schema_ptr) = ArrowArray::into_raw(ffi_array);
+
+    // Ok to call the _import_from_c private method.
+    // See https://arrow.apache.org/docs/python/generated/pyarrow.RecordBatchReader.html
+    // > To import and export using the Arrow C stream interface, use the _import_from_c and _export_from_c methods.
+    // > However, keep in mind this interface is intended for expert users.
+    // And we are definitely experts ;)
     let array = pyarrow.getattr("Array")?.call_method1(
         "_import_from_c",
         (array_ptr as Py_uintptr_t, schema_ptr as Py_uintptr_t),
@@ -95,7 +85,7 @@ pub(crate) fn to_python_record_batch(
     rb: &RecordBatch,
     py: Python,
     pyarrow: &PyModule,
-) -> PyResult<PyObject> {
+) -> Result<PyObject> {
     let mut arrays = Vec::with_capacity(rb.num_columns());
     for array in rb.columns() {
         let array_object = to_python_array(array, py, pyarrow)?;

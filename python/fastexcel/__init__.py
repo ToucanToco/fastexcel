@@ -50,7 +50,6 @@ class ExcelSheet:
         """
         # We know for sure that the sheet will yield exactly one RecordBatch
         return self.to_arrow().to_pandas()
-        return list(pa.ipc.open_stream(self.to_arrow()))[0].to_pandas()
 
     def __repr__(self) -> str:
         return self._sheet.__repr__()
