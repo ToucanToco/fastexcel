@@ -36,11 +36,7 @@ class ExcelSheet:
         return self._sheet.total_height
 
     def to_arrow(self) -> pa.RecordBatch:
-        """Converts the sheet to an Arrow `RecordBatch`.
-
-        The RecordBatch is serialized to the IPC format. It can be read with
-        `pyarrow.ipc.open_stream`.
-        """
+        """Converts the sheet to an Arrow `RecordBatch`"""
         return self._sheet.to_arrow()
 
     def to_pandas(self) -> "pd.DataFrame":

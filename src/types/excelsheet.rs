@@ -11,10 +11,7 @@ use arrow::{
 };
 use calamine::{DataType as CalDataType, Range};
 
-use pyo3::{
-    prelude::{pyclass, pymethods, PyObject, Python},
-    types::PyModule,
-};
+use pyo3::prelude::{pyclass, pymethods, PyObject, Python};
 
 use crate::utils::arrow::{arrow_schema_from_column_names_and_range, to_python_record_batch};
 
@@ -285,7 +282,7 @@ impl ExcelSheet {
     pub fn to_arrow(&self, py: Python<'_>) -> Result<PyObject> {
         let rb = RecordBatch::try_from(self)
             .with_context(|| format!("Could not create RecordBatch from sheet {}", self.name))?;
-        let module = PyModule::import(py, "pyarrow").expect("pyarrow is mandatory");
+        let module = py.import("pyarrow")?;
         to_python_record_batch(&rb, py, module)
     }
 

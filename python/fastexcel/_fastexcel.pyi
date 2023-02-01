@@ -1,3 +1,5 @@
+import pyarrow as pa
+
 class _ExcelSheet:
     @property
     def name(self) -> str:
@@ -14,12 +16,8 @@ class _ExcelSheet:
     @property
     def offset(self) -> int:
         """The sheet's offset before data starts"""
-    def to_arrow(self) -> bytes:
-        """Converts the sheet to an Arrow RecordBatch.
-
-        The RecordBatch is serialized to the IPC format. It can be read with
-        `pyarrow.ipc.open_stream`.
-        """
+    def to_arrow(self) -> pa.RecordBatch:
+        """Converts the sheet to an Arrow `RecordBatch`"""
 
 class _ExcelReader:
     """A class representing an open Excel file and allowing to read its sheets"""
