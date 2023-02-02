@@ -36,7 +36,7 @@ class ExcelSheet:
         return self._sheet.total_height
 
     def to_arrow(self) -> pa.RecordBatch:
-        """Converts the sheet to an Arrow `RecordBatch`"""
+        """Converts the sheet to a pyarrow `RecordBatch`"""
         return self._sheet.to_arrow()
 
     def to_pandas(self) -> "pd.DataFrame":
