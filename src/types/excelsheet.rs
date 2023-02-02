@@ -11,9 +11,9 @@ use arrow::{
 };
 use calamine::{DataType as CalDataType, Range};
 
-use pyo3::{pyclass, pymethods, PyObject, Python};
+use pyo3::prelude::{pyclass, pymethods, PyObject, Python};
 
-use crate::utils::arrow::{arrow_schema_from_column_names_and_range, record_batch_to_pybytes};
+use crate::utils::arrow::{arrow_schema_from_column_names_and_range, to_python_record_batch};
 
 pub(crate) enum Header {
     None,
@@ -282,7 +282,8 @@ impl ExcelSheet {
     pub fn to_arrow(&self, py: Python<'_>) -> Result<PyObject> {
         let rb = RecordBatch::try_from(self)
             .with_context(|| format!("Could not create RecordBatch from sheet {}", self.name))?;
-        record_batch_to_pybytes(py, &rb).map(|pybytes| pybytes.into())
+        let module = py.import("pyarrow")?;
+        to_python_record_batch(&rb, py, module)
     }
 
     pub fn __repr__(&self) -> String {

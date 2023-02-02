@@ -17,7 +17,7 @@ pyo3 = { version = "0.18.0", features = ["extension-module", "anyhow"] }
 version = "32.0.0"
 # There's a lot of stuff we don't want here, such as serde support
 default-features = false
-features = ["ipc"]
+features = ["ipc", "ffi"]
 
 [package.metadata.maturin]
 python-source = "python"
