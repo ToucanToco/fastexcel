@@ -17,7 +17,7 @@ class _ExcelSheet:
     def offset(self) -> int:
         """The sheet's offset before data starts"""
     def to_arrow(self) -> pa.RecordBatch:
-        """Converts the sheet to an Arrow `RecordBatch`"""
+        """Converts the sheet to a pyarrow `RecordBatch`"""
 
 class _ExcelReader:
     """A class representing an open Excel file and allowing to read its sheets"""
