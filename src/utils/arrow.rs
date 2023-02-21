@@ -1,11 +1,6 @@
 use anyhow::{anyhow, Context, Result};
-use arrow::{
-    datatypes::{DataType as ArrowDataType, Field, Schema},
-    pyarrow::PyArrowConvert,
-    record_batch::RecordBatch,
-};
+use arrow::datatypes::{DataType as ArrowDataType, Field, Schema};
 use calamine::{DataType as CalDataType, Range};
-use pyo3::{types::PyModule, PyObject, Python};
 
 fn get_arrow_column_type(
     data: &Range<CalDataType>,
