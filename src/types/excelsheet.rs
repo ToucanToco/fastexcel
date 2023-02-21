@@ -1,19 +1,20 @@
 use std::sync::Arc;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use arrow::{
     array::{
         Array, BooleanArray, Float64Array, Int64Array, NullArray, StringArray,
         TimestampMillisecondArray,
     },
     datatypes::{DataType as ArrowDataType, Schema},
+    pyarrow::PyArrowConvert,
     record_batch::RecordBatch,
 };
 use calamine::{DataType as CalDataType, Range};
 
 use pyo3::prelude::{pyclass, pymethods, PyObject, Python};
 
-use crate::utils::arrow::{arrow_schema_from_column_names_and_range, to_python_record_batch};
+use crate::utils::arrow::arrow_schema_from_column_names_and_range;
 
 pub(crate) enum Header {
     None,
@@ -280,10 +281,15 @@ impl ExcelSheet {
     }
 
     pub fn to_arrow(&self, py: Python<'_>) -> Result<PyObject> {
-        let rb = RecordBatch::try_from(self)
-            .with_context(|| format!("Could not create RecordBatch from sheet {}", self.name))?;
-        let module = py.import("pyarrow")?;
-        to_python_record_batch(&rb, py, module)
+        RecordBatch::try_from(self)
+            .with_context(|| format!("Could not create RecordBatch from sheet {}", self.name))
+            .and_then(|rb| match rb.to_pyarrow(py) {
+                Err(e) => Err(anyhow!(
+                    "Could not convert RecordBatch to pyarrow for sheet {}: {e}",
+                    self.name
+                )),
+                Ok(pyobj) => Ok(pyobj),
+            })
     }
 
     pub fn __repr__(&self) -> String {
