@@ -4,6 +4,7 @@ if TYPE_CHECKING:
     import pandas as pd
 
 import pyarrow as pa
+import polars as pl
 
 from ._fastexcel import __version__, _ExcelReader, _ExcelSheet
 from ._fastexcel import read_excel as _read_excel
@@ -46,6 +47,15 @@ class ExcelSheet:
         """
         # We know for sure that the sheet will yield exactly one RecordBatch
         return self.to_arrow().to_pandas()
+
+    def to_polars(self) -> pl.DataFrame | pl.Series:
+        """Converts the sheet to a Polars `DataFrame`.
+
+        Requires the `polars` extra to be installed.
+        """
+        # We know for sure that the sheet will yield exactly one RecordBatch
+        batch = self.to_arrow()
+        return pl.from_arrow(data=pa.Table.from_batches([batch]))
 
     def __repr__(self) -> str:
         return self._sheet.__repr__()
