@@ -1,10 +1,10 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
 if TYPE_CHECKING:
     import pandas as pd
+    import polars as pl
 
 import pyarrow as pa
-import polars as pl
 
 from ._fastexcel import __version__, _ExcelReader, _ExcelSheet
 from ._fastexcel import read_excel as _read_excel
@@ -48,11 +48,13 @@ class ExcelSheet:
         # We know for sure that the sheet will yield exactly one RecordBatch
         return self.to_arrow().to_pandas()
 
-    def to_polars(self) -> pl.DataFrame | pl.Series:
+    def to_polars(self) -> Union["pl.DataFrame", "pl.Series"]:
         """Converts the sheet to a Polars `DataFrame`.
 
         Requires the `polars` extra to be installed.
         """
+        import polars as pl
+
         # We know for sure that the sheet will yield exactly one RecordBatch
         batch = self.to_arrow()
         return pl.from_arrow(data=pa.Table.from_batches([batch]))
