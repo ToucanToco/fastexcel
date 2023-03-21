@@ -2,9 +2,10 @@ from os.path import dirname
 from os.path import join as path_join
 
 import pytest
+import pandas as pd
 import polars as pl
-from polars import DataFrame
-from polars.testing import assert_frame_equal
+from polars.testing import assert_frame_equal as pl_assert_frame_equal
+from pandas.testing import assert_frame_equal as pd_assert_frame_equal
 
 import fastexcel
 
@@ -13,7 +14,7 @@ def path_for_fixture(fixture_file: str) -> str:
     return path_join(dirname(__file__), "fixtures", fixture_file)
 
 
-def test_single_sheet_to_polars():
+def test_single_sheet_to_pandas():
     excel_reader = fastexcel.read_excel(path_for_fixture("fixture-single-sheet.xlsx"))
     assert excel_reader.sheet_names == ["January"]
     sheet_by_name = excel_reader.load_sheet("January")
@@ -24,13 +25,18 @@ def test_single_sheet_to_polars():
     assert sheet_by_name.height == sheet_by_idx.height == 2
     assert sheet_by_name.width == sheet_by_idx.width == 2
 
-    expected = DataFrame({"Month": [1.0, 2.0], "Year": [2019.0, 2020.0]})
+    expected = {"Month": [1.0, 2.0], "Year": [2019.0, 2020.0]}
 
-    assert_frame_equal(sheet_by_name.to_polars(), expected)
-    assert_frame_equal(sheet_by_idx.to_polars(), expected)
+    pd_expected = pd.DataFrame(expected)
+    pd_assert_frame_equal(sheet_by_name.to_pandas(), pd_expected)
+    pd_assert_frame_equal(sheet_by_idx.to_pandas(), pd_expected)
+
+    pl_expected = pl.DataFrame(expected)
+    pl_assert_frame_equal(sheet_by_name.to_polars(), pl_expected)
+    pl_assert_frame_equal(sheet_by_idx.to_polars(), pl_expected)
 
 
-def test_single_sheet_with_types_to_polars():
+def test_single_sheet_with_types_to_pandas():
     excel_reader = fastexcel.read_excel(
         path_for_fixture("fixture-single-sheet-with-types.xlsx")
     )
@@ -41,9 +47,21 @@ def test_single_sheet_with_types_to_polars():
     assert sheet.height == sheet.total_height == 3
     assert sheet.width == 4
 
-    assert_frame_equal(
+    pd_assert_frame_equal(
+        sheet.to_pandas(),
+        pd.DataFrame(
+            {
+                "__UNNAMED__0": [0.0, 1.0, 2.0],
+                "bools": [True, False, True],
+                "dates": [pd.Timestamp("2022-03-02 05:43:04")] * 3,
+                "floats": [12.35, 42.69, 1234567],
+            }
+        ),
+    )
+
+    pl_assert_frame_equal(
         sheet.to_polars(),
-        DataFrame(
+        pl.DataFrame(
             {
                 "__UNNAMED__0": [0.0, 1.0, 2.0],
                 "bools": [True, False, True],
@@ -54,23 +72,42 @@ def test_single_sheet_with_types_to_polars():
     )
 
 
-def test_multiple_sheets_to_polars():
+def test_multiple_sheets_to_pandas():
     excel_reader = fastexcel.read_excel(path_for_fixture("fixture-multi-sheet.xlsx"))
     assert excel_reader.sheet_names == ["January", "February", "With unnamed columns"]
 
-    assert_frame_equal(
+    pd_assert_frame_equal(
+        excel_reader.load_sheet_by_idx(0).to_pandas(),
+        pd.DataFrame({"Month": [1.0], "Year": [2019.0]}),
+    )
+    pd_assert_frame_equal(
+        excel_reader.load_sheet_by_idx(1).to_pandas(),
+        pd.DataFrame({"Month": [2.0, 3.0, 4.0], "Year": [2019.0, 2021.0, 2022.0]}),
+    )
+    pd_assert_frame_equal(
+        excel_reader.load_sheet_by_name("With unnamed columns").to_pandas(),
+        pd.DataFrame(
+            {
+                "col1": [2.0, 3.0],
+                "__UNNAMED__1": [1.5, 2.5],
+                "col3": ["hello", "world"],
+                "__UNNAMED__3": [-5.0, -6.0],
+                "col5": ["a", "b"],
+            }
+        ),
+    )
+
+    pl_assert_frame_equal(
         excel_reader.load_sheet_by_idx(0).to_polars(),
-        DataFrame({"Month": [1.0], "Year": [2019.0]}),
+        pl.DataFrame({"Month": [1.0], "Year": [2019.0]}),
     )
-
-    assert_frame_equal(
+    pl_assert_frame_equal(
         excel_reader.load_sheet_by_idx(1).to_polars(),
-        DataFrame({"Month": [2.0, 3.0, 4.0], "Year": [2019.0, 2021.0, 2022.0]}),
+        pl.DataFrame({"Month": [2.0, 3.0, 4.0], "Year": [2019.0, 2021.0, 2022.0]}),
     )
-
-    assert_frame_equal(
+    pl_assert_frame_equal(
         excel_reader.load_sheet_by_name("With unnamed columns").to_polars(),
-        DataFrame(
+        pl.DataFrame(
             {
                 "col1": [2.0, 3.0],
                 "__UNNAMED__1": [1.5, 2.5],
@@ -95,10 +132,15 @@ def test_sheets_with_header_line_diff_from_zero():
     assert sheet_by_name.height == sheet_by_idx.height == 2
     assert sheet_by_name.width == sheet_by_idx.width == 2
 
-    expected = DataFrame({"Month": [1.0, 2.0], "Year": [2019.0, 2020.0]})
+    expected = {"Month": [1.0, 2.0], "Year": [2019.0, 2020.0]}
 
-    assert_frame_equal(sheet_by_name.to_polars(), expected)
-    assert_frame_equal(sheet_by_idx.to_polars(), expected)
+    pd_expected = pd.DataFrame(expected)
+    pd_assert_frame_equal(sheet_by_name.to_pandas(), pd_expected)
+    pd_assert_frame_equal(sheet_by_idx.to_pandas(), pd_expected)
+
+    pl_expected = pl.DataFrame(expected)
+    pl_assert_frame_equal(sheet_by_name.to_polars(), pl_expected)
+    pl_assert_frame_equal(sheet_by_idx.to_polars(), pl_expected)
 
 
 def test_sheets_with_no_header():
@@ -114,16 +156,19 @@ def test_sheets_with_no_header():
     assert sheet_by_name.height == sheet_by_idx.height == 2
     assert sheet_by_name.width == sheet_by_idx.width == 3
 
-    expected = DataFrame(
-        {
-            "__UNNAMED__0": [1.0, 2.0],
-            "__UNNAMED__1": [3.0, 4.0],
-            "__UNNAMED__2": [5.0, 6.0],
-        }
-    )
+    expected = {
+        "__UNNAMED__0": [1.0, 2.0],
+        "__UNNAMED__1": [3.0, 4.0],
+        "__UNNAMED__2": [5.0, 6.0],
+    }
 
-    assert_frame_equal(sheet_by_name.to_polars(), expected)
-    assert_frame_equal(sheet_by_idx.to_polars(), expected)
+    pd_expected = pd.DataFrame(expected)
+    pd_assert_frame_equal(sheet_by_name.to_pandas(), pd_expected)
+    pd_assert_frame_equal(sheet_by_idx.to_pandas(), pd_expected)
+
+    pl_expected = pl.DataFrame(expected)
+    pl_assert_frame_equal(sheet_by_name.to_polars(), pl_expected)
+    pl_assert_frame_equal(sheet_by_idx.to_polars(), pl_expected)
 
 
 def test_sheets_with_empty_rows_before_header():
@@ -139,10 +184,15 @@ def test_sheets_with_empty_rows_before_header():
     assert sheet_by_name.height == sheet_by_idx.height == 2
     assert sheet_by_name.width == sheet_by_idx.width == 2
 
-    expected = DataFrame({"Month": [1.0, 2.0], "Year": [2019.0, 2020.0]})
+    expected = {"Month": [1.0, 2.0], "Year": [2019.0, 2020.0]}
 
-    assert_frame_equal(sheet_by_name.to_polars(), expected)
-    assert_frame_equal(sheet_by_idx.to_polars(), expected)
+    pd_expected = pd.DataFrame(expected)
+    pd_assert_frame_equal(sheet_by_name.to_pandas(), pd_expected)
+    pd_assert_frame_equal(sheet_by_idx.to_pandas(), pd_expected)
+
+    pl_expected = pl.DataFrame(expected)
+    pl_assert_frame_equal(sheet_by_name.to_polars(), pl_expected)
+    pl_assert_frame_equal(sheet_by_idx.to_polars(), pl_expected)
 
 
 def test_sheets_with_custom_headers():
@@ -162,10 +212,15 @@ def test_sheets_with_custom_headers():
     assert sheet_by_name.height == sheet_by_idx.height == 2
     assert sheet_by_name.width == sheet_by_idx.width == 3
 
-    expected = DataFrame({"foo": [1.0, 2.0], "bar": [3.0, 4.0], "baz": [5.0, 6.0]})
+    expected = {"foo": [1.0, 2.0], "bar": [3.0, 4.0], "baz": [5.0, 6.0]}
 
-    assert_frame_equal(sheet_by_name.to_polars(), expected)
-    assert_frame_equal(sheet_by_idx.to_polars(), expected)
+    pd_expected = pd.DataFrame(expected)
+    pd_assert_frame_equal(sheet_by_name.to_pandas(), pd_expected)
+    pd_assert_frame_equal(sheet_by_idx.to_pandas(), pd_expected)
+
+    pl_expected = pl.DataFrame(expected)
+    pl_assert_frame_equal(sheet_by_name.to_polars(), pl_expected)
+    pl_assert_frame_equal(sheet_by_idx.to_polars(), pl_expected)
 
 
 def test_sheets_with_skipping_headers():
@@ -183,12 +238,16 @@ def test_sheets_with_skipping_headers():
     assert sheet_by_name.height == sheet_by_idx.height == 2
     assert sheet_by_name.width == sheet_by_idx.width == 3
 
-    expected = DataFrame(
-        {"Bugs": [1.0, 2.0], "__UNNAMED__1": [3.0, 4.0], "__UNNAMED__2": [5.0, 6.0]}
-    )
+    expected = {"Bugs": [1.0, 2.0], "__UNNAMED__1": [3.0, 4.0], "__UNNAMED__2": [5.0, 6.0]}
 
-    assert_frame_equal(sheet_by_name.to_polars(), expected)
-    assert_frame_equal(sheet_by_idx.to_polars(), expected)
+
+    pd_expected = pd.DataFrame(expected)
+    pd_assert_frame_equal(sheet_by_name.to_pandas(), pd_expected)
+    pd_assert_frame_equal(sheet_by_idx.to_pandas(), pd_expected)
+
+    pl_expected = pl.DataFrame(expected)
+    pl_assert_frame_equal(sheet_by_name.to_polars(), pl_expected)
+    pl_assert_frame_equal(sheet_by_idx.to_polars(), pl_expected)
 
 
 def test_sheet_with_pagination():
@@ -203,9 +262,21 @@ def test_sheet_with_pagination():
     assert sheet.total_height == 3
     assert sheet.width == 4
 
-    assert_frame_equal(
+    pd_assert_frame_equal(
+        sheet.to_pandas(),
+        pd.DataFrame(
+            {
+                "__UNNAMED__0": [1.0],
+                "bools": [False],
+                "dates": [pd.Timestamp("2022-03-02 05:43:04")],
+                "floats": [42.69],
+            }
+        ),
+    )
+
+    pl_assert_frame_equal(
         sheet.to_polars(),
-        DataFrame(
+        pl.DataFrame(
             {
                 "__UNNAMED__0": [1.0],
                 "bools": [False],
@@ -227,9 +298,21 @@ def test_sheet_with_skip_rows():
     assert sheet.height == 2
     assert sheet.width == 4
 
-    assert_frame_equal(
+    pd_assert_frame_equal(
+        sheet.to_pandas(),
+        pd.DataFrame(
+            {
+                "__UNNAMED__0": [1.0, 2.0],
+                "bools": [False, True],
+                "dates": [pd.Timestamp("2022-03-02 05:43:04")] * 2,
+                "floats": [42.69, 1234567],
+            }
+        ),
+    )
+
+    pl_assert_frame_equal(
         sheet.to_polars(),
-        DataFrame(
+        pl.DataFrame(
             {
                 "__UNNAMED__0": [1.0, 2.0],
                 "bools": [False, True],
@@ -251,9 +334,21 @@ def test_sheet_with_n_rows():
     assert sheet.height == 1
     assert sheet.width == 4
 
-    assert_frame_equal(
+    pd_assert_frame_equal(
+        sheet.to_pandas(),
+        pd.DataFrame(
+            {
+                "__UNNAMED__0": [0.0],
+                "bools": [True],
+                "dates": [pd.Timestamp("2022-03-02 05:43:04")],
+                "floats": [12.35],
+            }
+        ),
+    )
+
+    pl_assert_frame_equal(
         sheet.to_polars(),
-        DataFrame(
+        pl.DataFrame(
             {
                 "__UNNAMED__0": [0.0],
                 "bools": [True],
@@ -281,9 +376,21 @@ def test_sheet_with_pagination_and_without_headers():
     assert sheet.height == 1
     assert sheet.width == 4
 
-    assert_frame_equal(
+    pd_assert_frame_equal(
+        sheet.to_pandas(),
+        pd.DataFrame(
+            {
+                "This": [0.0],
+                "Is": [True],
+                "Amazing": [pd.Timestamp("2022-03-02 05:43:04")],
+                "Stuff": [12.35],
+            }
+        ),
+    )
+
+    pl_assert_frame_equal(
         sheet.to_polars(),
-        DataFrame(
+        pl.DataFrame(
             {
                 "This": [0.0],
                 "Is": [True],
@@ -319,9 +426,21 @@ def test_sheet_with_pagination_out_of_bound():
     assert sheet.height == 3
     assert sheet.width == 4
 
-    assert_frame_equal(
+    pd_assert_frame_equal(
+        sheet.to_pandas(),
+        pd.DataFrame(
+            {
+                "This": [0.0, 1.0, 2.0],
+                "Is": [True, False, True],
+                "Amazing": [pd.Timestamp("2022-03-02 05:43:04")] * 3,
+                "Stuff": [12.35, 42.69, 1234567],
+            }
+        ),
+    )
+
+    pl_assert_frame_equal(
         sheet.to_polars(),
-        DataFrame(
+        pl.DataFrame(
             {
                 "This": [0.0, 1.0, 2.0],
                 "Is": [True, False, True],
