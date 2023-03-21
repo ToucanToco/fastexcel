@@ -32,7 +32,7 @@ dev-setup: install-test-requirements install-doc-requirements
 	pre-commit install
 
 dev-install:
-	maturin develop -E pandas
+	maturin develop -E pandas,polars
 
 prod-install:
 	./prod_install.sh
