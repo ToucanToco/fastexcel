@@ -11,7 +11,7 @@ crate-type = ["cdylib"]
 [dependencies]
 anyhow = "1.0.70"
 calamine = { version = "0.19.1", features = ["dates"] }
-pyo3 = { version = "0.18.1", features = ["extension-module", "anyhow"] }
+pyo3 = { version = "0.18.2", features = ["extension-module", "anyhow"] }
 
 [dependencies.arrow]
 version = "35.0.0"
