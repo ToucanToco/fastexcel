@@ -18,7 +18,3 @@ version = "38.0.0"
 # There's a lot of stuff we don't want here, such as serde support
 default-features = false
 features = ["pyarrow"]
-
-[package.metadata.maturin]
-python-source = "python"
-name = "fastexcel._fastexcel"

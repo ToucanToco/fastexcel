@@ -1,5 +1,5 @@
 [build-system]
-requires = ["maturin>=0.13,<0.14"]
+requires = ["maturin>=0.15,<0.16"]
 build-backend = "maturin"
 
 [project]
@@ -24,6 +24,7 @@ Issues = "https://github.com/ToucanToco/fastexcel"
 
 [tool.maturin]
 python-source = "python"
+module-name = "fastexcel._fastexcel"
 
 [tool.mypy]
 python_version = "3.10"
