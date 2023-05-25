@@ -40,6 +40,16 @@ The Makefile provides the `lint` and `format` extras to ease this.
 
 `make test`
 
+## Running the benchmarks
+
+### Speed benchmark
+
+`make benchmarks`
+
+### Memory benchmark
+
+`mprof run -T 0.01 python python/tests/benchmarks/memory.py python/tests/benchmarks/fixtures/plain_data.xls`
+
 ## Building the docs
 
 `make doc`

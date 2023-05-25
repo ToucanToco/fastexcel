@@ -1,10 +1,10 @@
-.PHONY: lint format dev-setup dev-install prod-install test install-test-requirements benchmark
+.PHONY: lint format dev-setup dev-install prod-install test install-test-requirements benchmarks
 
 # Commands
 ## Python
-ruff	= ruff python/fastexcel *.py
-black	= black python/fastexcel *.py
-mypy	= mypy python/fastexcel *.py
+ruff	= ruff python/
+black	= black python/
+mypy	= mypy python/
 pytest	= python -m pytest
 ## Rust
 clippy	= cargo clippy
@@ -45,5 +45,5 @@ doc:
 
 test-ci: dev-install test
 
-benchmark: prod-install
-	pytest ./python/tests/benchmarks/benchmark.py
+benchmarks: prod-install
+	pytest ./python/tests/benchmarks/speed.py
