@@ -15,7 +15,7 @@ dependencies = [
 
 [project.optional-dependencies]
 pandas = ["pandas>=1.4.4,<2.1"]
-polars = ["polars>=0.16.14,<0.18"]
+polars = ["polars>=0.16.14,<0.19"]
 
 
 [project.urls]
