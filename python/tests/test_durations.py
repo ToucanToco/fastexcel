@@ -22,7 +22,7 @@ def test_sheet_with_different_time_types() -> None:
     pl_df = sheet.to_polars()
 
     ## dtypes
-    # PyArrow always converts to ns precision, even though we're in ms ¯\_(ツ)_/¯
+    # Pandas always converts to ns precision, even though we're in ms ¯\_(ツ)_/¯
     assert pd_df.dtypes.to_dict() == {
         # the dtype for a date is object
         "date": np.dtype("object"),
