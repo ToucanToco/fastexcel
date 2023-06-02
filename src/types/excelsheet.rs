@@ -1,12 +1,13 @@
 use std::sync::Arc;
 
 use anyhow::{anyhow, bail, Context, Result};
+use arrow::array::PrimitiveArray;
 use arrow::{
-    array::{
-        Array, BooleanArray, Date32Array, DurationMillisecondArray, Float64Array, Int64Array,
-        NullArray, StringArray, TimestampMillisecondArray,
+    array::{Array, BooleanArray, Float64Array, Int64Array, NullArray, StringArray},
+    datatypes::{
+        ArrowPrimitiveType, DataType as ArrowDataType, Date32Type, DurationMillisecondType, Schema,
+        TimeUnit, TimestampMillisecondType,
     },
-    datatypes::{DataType as ArrowDataType, Schema, TimeUnit},
     pyarrow::PyArrowConvert,
     record_batch::RecordBatch,
 };
@@ -141,93 +142,21 @@ impl ExcelSheet {
     }
 }
 
-fn create_boolean_array(
-    data: &Range<CalDataType>,
-    col: usize,
-    offset: usize,
-    limit: usize,
-) -> Arc<dyn Array> {
-    Arc::new(BooleanArray::from_iter((offset..limit).map(|row| {
-        data.get((row, col)).and_then(|cell| cell.get_bool())
-    })))
-}
-
-fn create_int_array(
-    data: &Range<CalDataType>,
-    col: usize,
-    offset: usize,
-    limit: usize,
-) -> Arc<dyn Array> {
-    Arc::new(Int64Array::from_iter(
-        (offset..limit).map(|row| data.get((row, col)).and_then(|cell| cell.get_int())),
-    ))
-}
-
-fn create_float_array(
-    data: &Range<CalDataType>,
-    col: usize,
-    offset: usize,
-    limit: usize,
-) -> Arc<dyn Array> {
-    Arc::new(Float64Array::from_iter((offset..limit).map(|row| {
-        data.get((row, col)).and_then(|cell| cell.get_float())
-    })))
-}
-
-fn create_string_array(
-    data: &Range<CalDataType>,
-    col: usize,
-    offset: usize,
-    limit: usize,
-) -> Arc<dyn Array> {
-    Arc::new(StringArray::from_iter((offset..limit).map(|row| {
-        data.get((row, col)).and_then(|cell| cell.get_string())
-    })))
-}
-
 fn duration_type_to_i64(caldt: &CalDataType) -> Option<i64> {
     caldt
         .as_time()
         .map(|t| 1000 * i64::from(t.num_seconds_from_midnight()))
 }
 
-fn create_date_array(
+fn create_arrow_array<NT, T: ArrowPrimitiveType<Native = NT>, F: Fn(&CalDataType) -> Option<NT>>(
     data: &Range<CalDataType>,
     col: usize,
     offset: usize,
     limit: usize,
+    transformer: &F,
 ) -> Arc<dyn Array> {
-    let epoch = NaiveDate::from_ymd_opt(1970, 1, 1).unwrap();
-    Arc::new(Date32Array::from_iter((offset..limit).map(|row| {
-        data.get((row, col))
-            .and_then(|caldate| caldate.as_date())
-            .and_then(|date| i32::try_from(date.signed_duration_since(epoch).num_days()).ok())
-    })))
-}
-
-fn create_datetime_array(
-    data: &Range<CalDataType>,
-    col: usize,
-    offset: usize,
-    limit: usize,
-) -> Arc<dyn Array> {
-    Arc::new(TimestampMillisecondArray::from_iter((offset..limit).map(
-        |row| {
-            data.get((row, col))
-                .and_then(|caldt| caldt.as_datetime())
-                .map(|dt| dt.timestamp_millis())
-        },
-    )))
-}
-
-fn create_duration_array(
-    data: &Range<CalDataType>,
-    col: usize,
-    offset: usize,
-    limit: usize,
-) -> Arc<dyn Array> {
-    Arc::new(DurationMillisecondArray::from_iter(
-        (offset..limit).map(|row| data.get((row, col)).and_then(duration_type_to_i64)),
+    Arc::new(PrimitiveArray::<T>::from_iter(
+        (offset..limit).map(|row| data.get((row, col)).and_then(transformer)),
     ))
 }
 
@@ -247,37 +176,79 @@ impl TryFrom<&ExcelSheet> for RecordBatch {
     type Error = anyhow::Error;
 
     fn try_from(value: &ExcelSheet) -> Result<Self, Self::Error> {
+        let epoch = NaiveDate::from_ymd_opt(1970, 1, 1).unwrap();
         let offset = value.offset();
         let limit = value.limit();
+        let data = value.data();
         let schema = Schema::try_from(value)
             .with_context(|| format!("Could not build schema for sheet {}", value.name))?;
         let iter = schema.fields().iter().enumerate().map(|(col_idx, field)| {
-            (
-                field.name(),
-                match field.data_type() {
-                    ArrowDataType::Boolean => {
-                        create_boolean_array(value.data(), col_idx, offset, limit)
-                    }
-                    ArrowDataType::Int64 => create_int_array(value.data(), col_idx, offset, limit),
-                    ArrowDataType::Float64 => {
-                        create_float_array(value.data(), col_idx, offset, limit)
-                    }
-                    ArrowDataType::Utf8 => {
-                        create_string_array(value.data(), col_idx, offset, limit)
-                    }
-                    ArrowDataType::Timestamp(TimeUnit::Millisecond, None) => {
-                        create_datetime_array(value.data(), col_idx, offset, limit)
-                    }
-                    ArrowDataType::Date32 => {
-                        create_date_array(value.data(), col_idx, offset, limit)
-                    }
-                    ArrowDataType::Duration(TimeUnit::Millisecond) => {
-                        create_duration_array(value.data(), col_idx, offset, limit)
-                    }
-                    ArrowDataType::Null => Arc::new(NullArray::new(limit - offset)),
-                    _ => unreachable!(),
-                },
-            )
+            let array: Arc<dyn Array> = match field.data_type() {
+                ArrowDataType::Boolean => {
+                    Arc::new(BooleanArray::from_iter((offset..limit).map(|row| {
+                        value
+                            .data()
+                            .get((row, col_idx))
+                            .and_then(|cell| cell.get_bool())
+                    })))
+                }
+                ArrowDataType::Int64 => {
+                    Arc::new(Int64Array::from_iter((offset..limit).map(|row| {
+                        value
+                            .data()
+                            .get((row, col_idx))
+                            .and_then(|cell| cell.get_int())
+                    })))
+                }
+                ArrowDataType::Float64 => {
+                    Arc::new(Float64Array::from_iter((offset..limit).map(|row| {
+                        value
+                            .data()
+                            .get((row, col_idx))
+                            .and_then(|cell| cell.get_float())
+                    })))
+                }
+                ArrowDataType::Utf8 => {
+                    Arc::new(StringArray::from_iter((offset..limit).map(|row| {
+                        value
+                            .data()
+                            .get((row, col_idx))
+                            .and_then(|cell| cell.get_string())
+                    })))
+                }
+                ArrowDataType::Timestamp(TimeUnit::Millisecond, None) => {
+                    create_arrow_array::<_, TimestampMillisecondType, _>(
+                        data,
+                        col_idx,
+                        offset,
+                        limit,
+                        &|caldt: &CalDataType| caldt.as_datetime().map(|dt| dt.timestamp_millis()),
+                    )
+                }
+                ArrowDataType::Date32 => create_arrow_array::<_, Date32Type, _>(
+                    data,
+                    col_idx,
+                    offset,
+                    limit,
+                    &|caldt: &CalDataType| {
+                        caldt.as_date().and_then(|date| {
+                            i32::try_from(date.signed_duration_since(epoch).num_days()).ok()
+                        })
+                    },
+                ),
+                ArrowDataType::Duration(TimeUnit::Millisecond) => {
+                    create_arrow_array::<_, DurationMillisecondType, _>(
+                        data,
+                        col_idx,
+                        offset,
+                        limit,
+                        &duration_type_to_i64,
+                    )
+                }
+                ArrowDataType::Null => Arc::new(NullArray::new(limit - offset)),
+                _ => unreachable!(),
+            };
+            (field.name(), array)
         });
         RecordBatch::try_from_iter(iter)
             .with_context(|| format!("Could not convert sheet {} to RecordBatch", value.name))
