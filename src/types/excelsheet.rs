@@ -3,14 +3,15 @@ use std::sync::Arc;
 use anyhow::{anyhow, bail, Context, Result};
 use arrow::{
     array::{
-        Array, BooleanArray, Float64Array, Int64Array, NullArray, StringArray,
-        TimestampMillisecondArray,
+        Array, BooleanArray, DurationMillisecondArray, Float64Array, Int64Array, NullArray,
+        StringArray, TimestampMillisecondArray,
     },
-    datatypes::{DataType as ArrowDataType, Schema},
+    datatypes::{DataType as ArrowDataType, Schema, TimeUnit},
     pyarrow::PyArrowConvert,
     record_batch::RecordBatch,
 };
 use calamine::{DataType as CalDataType, Range};
+use chrono::{NaiveDateTime, NaiveTime, Timelike};
 
 use pyo3::prelude::{pyclass, pymethods, PyObject, Python};
 
@@ -184,19 +185,48 @@ fn create_string_array(
     })))
 }
 
+fn date_type_to_i64(caldt: &CalDataType) -> Option<i64> {
+    // First, we try to cast this to a datetime
+    caldt
+        .as_datetime()
+        // Otherwise we fallback to a date
+        .or_else(|| {
+            caldt
+                .as_date()
+                // needs to be converted to a NaiveDateTime to support .timestamp_millis
+                .map(|d| NaiveDateTime::new(d, NaiveTime::from_hms_opt(0, 0, 0).unwrap()))
+        })
+        // Can't use NaiveDateTime::timestamp millis here because the signature includes lifetime
+        // annotations, probably because of #[inline] or #[must_use]
+        .map(|dt| dt.timestamp_millis())
+}
+
+fn duration_type_to_i64(caldt: &CalDataType) -> Option<i64> {
+    caldt
+        .as_time()
+        .map(|t| 1000 * i64::from(t.num_seconds_from_midnight()))
+}
+
 fn create_date_array(
     data: &Range<CalDataType>,
     col: usize,
     offset: usize,
     limit: usize,
 ) -> Arc<dyn Array> {
-    Arc::new(TimestampMillisecondArray::from_iter((offset..limit).map(
-        |row| {
-            data.get((row, col))
-                .and_then(|cell| cell.as_datetime())
-                .map(|dt| dt.timestamp_millis())
-        },
-    )))
+    Arc::new(TimestampMillisecondArray::from_iter(
+        (offset..limit).map(|row| data.get((row, col)).and_then(date_type_to_i64)),
+    ))
+}
+
+fn create_duration_array(
+    data: &Range<CalDataType>,
+    col: usize,
+    offset: usize,
+    limit: usize,
+) -> Arc<dyn Array> {
+    Arc::new(DurationMillisecondArray::from_iter(
+        (offset..limit).map(|row| data.get((row, col)).and_then(duration_type_to_i64)),
+    ))
 }
 
 impl TryFrom<&ExcelSheet> for Schema {
@@ -235,6 +265,9 @@ impl TryFrom<&ExcelSheet> for RecordBatch {
                     }
                     ArrowDataType::Date64 => {
                         create_date_array(value.data(), col_idx, offset, limit)
+                    }
+                    ArrowDataType::Duration(TimeUnit::Millisecond) => {
+                        create_duration_array(value.data(), col_idx, offset, limit)
                     }
                     ArrowDataType::Null => Arc::new(NullArray::new(limit - offset)),
                     _ => unreachable!(),

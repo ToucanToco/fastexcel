@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Context, Result};
-use arrow::datatypes::{DataType as ArrowDataType, Field, Schema};
+use arrow::datatypes::{DataType as ArrowDataType, Field, Schema, TimeUnit};
 use calamine::{DataType as CalDataType, Range};
 
 fn get_arrow_column_type(
@@ -16,6 +16,10 @@ fn get_arrow_column_type(
         CalDataType::String(_) => Ok(ArrowDataType::Utf8),
         CalDataType::Bool(_) => Ok(ArrowDataType::Boolean),
         CalDataType::DateTime(_) => Ok(ArrowDataType::Date64),
+        // These types contain an ISO8601 representation of a datetime or a duration
+        CalDataType::DateTimeIso(_) => Ok(ArrowDataType::Date64),
+        CalDataType::DurationIso(_) => Ok(ArrowDataType::Duration(TimeUnit::Millisecond)),
+        // Errors and nulls
         CalDataType::Error(err) => Err(anyhow!("Error in calamine cell: {err:?}")),
         CalDataType::Empty => Ok(ArrowDataType::Null),
     }
