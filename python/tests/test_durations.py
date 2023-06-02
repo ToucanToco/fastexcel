@@ -1,10 +1,11 @@
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
 import fastexcel
 import numpy as np
 import pandas as pd
 import polars as pl
 from pandas.testing import assert_frame_equal as pd_assert_frame_equal
+from polars.datatypes import Date as PlDate
 from polars.datatypes import Datetime as PlDateTime
 from polars.datatypes import Duration as PlDuration
 from polars.datatypes import Utf8 as PlUtf8
@@ -23,13 +24,14 @@ def test_sheet_with_different_time_types() -> None:
     ## dtypes
     # PyArrow always converts to ns precision, even though we're in ms ¯\_(ツ)_/¯
     assert pd_df.dtypes.to_dict() == {
-        "date": np.dtype("datetime64[ns]"),
+        # the dtype for a date is object
+        "date": np.dtype("object"),
         "datestr": np.dtype("object"),
         "time": np.dtype("timedelta64[ns]"),
         "datetime": np.dtype("datetime64[ns]"),
     }
     expected_pl_dtypes = {
-        "date": PlDateTime(time_unit="ms", time_zone=None),
+        "date": PlDate,
         "datestr": PlUtf8,
         "time": PlDuration(time_unit="ms"),
         "datetime": PlDateTime(time_unit="ms", time_zone=None),
@@ -40,7 +42,7 @@ def test_sheet_with_different_time_types() -> None:
 
     expected_pd = pd.DataFrame(
         {
-            "date": [pd.to_datetime("2023-06-01")],
+            "date": [date(2023, 6, 1)],
             "datestr": ["2023-06-01T02:03:04+02:00"],
             "time": [pd.to_timedelta("01:02:03")],
             "datetime": [pd.to_datetime("2023-06-01 02:03:04")],
@@ -48,13 +50,12 @@ def test_sheet_with_different_time_types() -> None:
     )
     expected_pl = pl.DataFrame(
         {
-            "date": [datetime(2023, 6, 1)],
+            "date": [date(2023, 6, 1)],
             "datestr": ["2023-06-01T02:03:04+02:00"],
             "time": [timedelta(hours=1, minutes=2, seconds=3)],
             "datetime": [datetime(2023, 6, 1, 2, 3, 4)],
         },
         schema=expected_pl_dtypes,
     )
-
     pd_assert_frame_equal(pd_df, expected_pd)
     pl_assert_frame_equal(pl_df, expected_pl)

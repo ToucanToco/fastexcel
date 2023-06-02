@@ -3,15 +3,15 @@ use std::sync::Arc;
 use anyhow::{anyhow, bail, Context, Result};
 use arrow::{
     array::{
-        Array, BooleanArray, DurationMillisecondArray, Float64Array, Int64Array, NullArray,
-        StringArray, TimestampMillisecondArray,
+        Array, BooleanArray, Date32Array, DurationMillisecondArray, Float64Array, Int64Array,
+        NullArray, StringArray, TimestampMillisecondArray,
     },
     datatypes::{DataType as ArrowDataType, Schema, TimeUnit},
     pyarrow::PyArrowConvert,
     record_batch::RecordBatch,
 };
 use calamine::{DataType as CalDataType, Range};
-use chrono::{NaiveDateTime, NaiveTime, Timelike};
+use chrono::{NaiveDate, Timelike};
 
 use pyo3::prelude::{pyclass, pymethods, PyObject, Python};
 
@@ -185,22 +185,6 @@ fn create_string_array(
     })))
 }
 
-fn date_type_to_i64(caldt: &CalDataType) -> Option<i64> {
-    // First, we try to cast this to a datetime
-    caldt
-        .as_datetime()
-        // Otherwise we fallback to a date
-        .or_else(|| {
-            caldt
-                .as_date()
-                // needs to be converted to a NaiveDateTime to support .timestamp_millis
-                .map(|d| NaiveDateTime::new(d, NaiveTime::from_hms_opt(0, 0, 0).unwrap()))
-        })
-        // Can't use NaiveDateTime::timestamp millis here because the signature includes lifetime
-        // annotations, probably because of #[inline] or #[must_use]
-        .map(|dt| dt.timestamp_millis())
-}
-
 fn duration_type_to_i64(caldt: &CalDataType) -> Option<i64> {
     caldt
         .as_time()
@@ -213,9 +197,27 @@ fn create_date_array(
     offset: usize,
     limit: usize,
 ) -> Arc<dyn Array> {
-    Arc::new(TimestampMillisecondArray::from_iter(
-        (offset..limit).map(|row| data.get((row, col)).and_then(date_type_to_i64)),
-    ))
+    let epoch = NaiveDate::from_ymd_opt(1970, 1, 1).unwrap();
+    Arc::new(Date32Array::from_iter((offset..limit).map(|row| {
+        data.get((row, col))
+            .and_then(|caldate| caldate.as_date())
+            .and_then(|date| i32::try_from(date.signed_duration_since(epoch).num_days()).ok())
+    })))
+}
+
+fn create_datetime_array(
+    data: &Range<CalDataType>,
+    col: usize,
+    offset: usize,
+    limit: usize,
+) -> Arc<dyn Array> {
+    Arc::new(TimestampMillisecondArray::from_iter((offset..limit).map(
+        |row| {
+            data.get((row, col))
+                .and_then(|caldt| caldt.as_datetime())
+                .map(|dt| dt.timestamp_millis())
+        },
+    )))
 }
 
 fn create_duration_array(
@@ -263,7 +265,10 @@ impl TryFrom<&ExcelSheet> for RecordBatch {
                     ArrowDataType::Utf8 => {
                         create_string_array(value.data(), col_idx, offset, limit)
                     }
-                    ArrowDataType::Date64 => {
+                    ArrowDataType::Timestamp(TimeUnit::Millisecond, None) => {
+                        create_datetime_array(value.data(), col_idx, offset, limit)
+                    }
+                    ArrowDataType::Date32 => {
                         create_date_array(value.data(), col_idx, offset, limit)
                     }
                     ArrowDataType::Duration(TimeUnit::Millisecond) => {
