@@ -2,9 +2,9 @@
 
 # Commands
 ## Python
-ruff	= ruff python/fastexcel *.py
-black	= black python/fastexcel *.py
-mypy	= mypy python/fastexcel *.py
+ruff	= ruff python/ *.py
+black	= black python/ *.py
+mypy	= mypy python/ *.py
 pytest	= python -m pytest
 ## Rust
 clippy	= cargo clippy

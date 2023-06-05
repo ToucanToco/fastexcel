@@ -68,7 +68,9 @@ def test_single_sheet_with_types_to_pandas():
                 "dates": ["2022-03-02 05:43:04"] * 3,
                 "floats": [12.35, 42.69, 1234567],
             }
-        ).with_columns(pl.col("dates").str.strptime(pl.Datetime, "%F %T").dt.cast_time_unit("ms")),
+        ).with_columns(
+            pl.col("dates").str.strptime(pl.Datetime, "%F %T").dt.cast_time_unit("ms")
+        ),
     )
 
 
@@ -238,8 +240,11 @@ def test_sheets_with_skipping_headers():
     assert sheet_by_name.height == sheet_by_idx.height == 2
     assert sheet_by_name.width == sheet_by_idx.width == 3
 
-    expected = {"Bugs": [1.0, 2.0], "__UNNAMED__1": [3.0, 4.0], "__UNNAMED__2": [5.0, 6.0]}
-
+    expected = {
+        "Bugs": [1.0, 2.0],
+        "__UNNAMED__1": [3.0, 4.0],
+        "__UNNAMED__2": [5.0, 6.0],
+    }
 
     pd_expected = pd.DataFrame(expected)
     pd_assert_frame_equal(sheet_by_name.to_pandas(), pd_expected)
@@ -283,7 +288,9 @@ def test_sheet_with_pagination():
                 "dates": ["2022-03-02 05:43:04"],
                 "floats": [42.69],
             }
-        ).with_columns(pl.col("dates").str.strptime(pl.Datetime, "%F %T").dt.cast_time_unit("ms")),
+        ).with_columns(
+            pl.col("dates").str.strptime(pl.Datetime, "%F %T").dt.cast_time_unit("ms")
+        ),
     )
 
 
@@ -319,7 +326,9 @@ def test_sheet_with_skip_rows():
                 "dates": ["2022-03-02 05:43:04"] * 2,
                 "floats": [42.69, 1234567],
             }
-        ).with_columns(pl.col("dates").str.strptime(pl.Datetime, "%F %T").dt.cast_time_unit("ms")),
+        ).with_columns(
+            pl.col("dates").str.strptime(pl.Datetime, "%F %T").dt.cast_time_unit("ms")
+        ),
     )
 
 
@@ -355,7 +364,9 @@ def test_sheet_with_n_rows():
                 "dates": ["2022-03-02 05:43:04"],
                 "floats": [12.35],
             }
-        ).with_columns(pl.col("dates").str.strptime(pl.Datetime, "%F %T").dt.cast_time_unit("ms")),
+        ).with_columns(
+            pl.col("dates").str.strptime(pl.Datetime, "%F %T").dt.cast_time_unit("ms")
+        ),
     )
 
 
@@ -397,7 +408,9 @@ def test_sheet_with_pagination_and_without_headers():
                 "Amazing": ["2022-03-02 05:43:04"],
                 "Stuff": [12.35],
             }
-        ).with_columns(pl.col("Amazing").str.strptime(pl.Datetime, "%F %T").dt.cast_time_unit("ms")),
+        ).with_columns(
+            pl.col("Amazing").str.strptime(pl.Datetime, "%F %T").dt.cast_time_unit("ms")
+        ),
     )
 
 
@@ -447,5 +460,7 @@ def test_sheet_with_pagination_out_of_bound():
                 "Amazing": ["2022-03-02 05:43:04"] * 3,
                 "Stuff": [12.35, 42.69, 1234567],
             }
-        ).with_columns(pl.col("Amazing").str.strptime(pl.Datetime, "%F %T").dt.cast_time_unit("ms")),
+        ).with_columns(
+            pl.col("Amazing").str.strptime(pl.Datetime, "%F %T").dt.cast_time_unit("ms")
+        ),
     )
