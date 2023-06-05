@@ -12,7 +12,7 @@ from polars.datatypes import PolarsDataType
 from polars.datatypes import Utf8 as PlUtf8
 from polars.testing import assert_frame_equal as pl_assert_frame_equal
 
-from .utils import path_for_fixture
+from utils import path_for_fixture
 
 
 def test_sheet_with_different_time_types() -> None:
