@@ -8,10 +8,11 @@ from pandas.testing import assert_frame_equal as pd_assert_frame_equal
 from polars.datatypes import Date as PlDate
 from polars.datatypes import Datetime as PlDateTime
 from polars.datatypes import Duration as PlDuration
+from polars.datatypes import PolarsDataType
 from polars.datatypes import Utf8 as PlUtf8
 from polars.testing import assert_frame_equal as pl_assert_frame_equal
 
-from tests.utils import path_for_fixture
+from .utils import path_for_fixture
 
 
 def test_sheet_with_different_time_types() -> None:
@@ -30,7 +31,7 @@ def test_sheet_with_different_time_types() -> None:
         "time": np.dtype("timedelta64[ns]"),
         "datetime": np.dtype("datetime64[ns]"),
     }
-    expected_pl_dtypes = {
+    expected_pl_dtypes: dict[str, PolarsDataType] = {
         "date": PlDate,
         "datestr": PlUtf8,
         "time": PlDuration(time_unit="ms"),
