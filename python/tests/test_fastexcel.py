@@ -1,17 +1,11 @@
-from os.path import dirname
-from os.path import join as path_join
-
-import pytest
+import fastexcel
 import pandas as pd
 import polars as pl
-from polars.testing import assert_frame_equal as pl_assert_frame_equal
+import pytest
 from pandas.testing import assert_frame_equal as pd_assert_frame_equal
+from polars.testing import assert_frame_equal as pl_assert_frame_equal
 
-import fastexcel
-
-
-def path_for_fixture(fixture_file: str) -> str:
-    return path_join(dirname(__file__), "fixtures", fixture_file)
+from utils import path_for_fixture
 
 
 def test_single_sheet_to_pandas():
