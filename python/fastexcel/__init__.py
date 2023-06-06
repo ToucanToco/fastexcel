@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -48,16 +48,16 @@ class ExcelSheet:
         # We know for sure that the sheet will yield exactly one RecordBatch
         return self.to_arrow().to_pandas()
 
-    def to_polars(self) -> Union["pl.DataFrame", "pl.Series"]:
+    def to_polars(self) -> "pl.DataFrame":
         """Converts the sheet to a Polars `DataFrame`.
 
         Requires the `polars` extra to be installed.
         """
         import polars as pl
 
-        # We know for sure that the sheet will yield exactly one RecordBatch
-        batch = self.to_arrow()
-        return pl.from_arrow(data=pa.Table.from_batches([batch]))
+        df = pl.from_arrow(data=self.to_arrow())
+        assert isinstance(df, pl.DataFrame)
+        return df
 
     def __repr__(self) -> str:
         return self._sheet.__repr__()

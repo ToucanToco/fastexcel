@@ -1,6 +1,6 @@
 [package]
 name = "fastexcel"
-version = "0.4.2"
+version = "0.5.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -9,16 +9,13 @@ name = "fastexcel"
 crate-type = ["cdylib"]
 
 [dependencies]
-anyhow = "1.0.70"
-calamine = { version = "0.19.1", features = ["dates"] }
-pyo3 = { version = "0.18.1", features = ["extension-module", "anyhow"] }
+anyhow = "1.0.71"
+calamine = { version = "0.20.0", features = ["dates"] }
+chrono = { version = "0.4.26", default-features = false }
+pyo3 = { version = "0.18.3", features = ["extension-module", "anyhow"] }
 
 [dependencies.arrow]
-version = "35.0.0"
+version = "40.0.0"
 # There's a lot of stuff we don't want here, such as serde support
 default-features = false
 features = ["pyarrow"]
-
-[package.metadata.maturin]
-python-source = "python"
-name = "fastexcel._fastexcel"
