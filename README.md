@@ -4,6 +4,8 @@ A fast excel file reader for Python, written in Rust.
 
 Based on [`calamine`](https://github.com/tafia/calamine) and [Apache Arrow](https://arrow.apache.org/).
 
+Docs available [here](https://fastexcel.toucantoco.dev/).
+
 ## Dev setup
 
 ### Prerequisites
