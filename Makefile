@@ -1,4 +1,4 @@
-.PHONY: lint format dev-setup dev-install prod-install test install-test-requirements
+.PHONY: lint format dev-setup dev-install prod-install test install-test-requirements benchmarks
 
 # Commands
 ## Python
@@ -44,3 +44,6 @@ doc:
 	$(pdoc)
 
 test-ci: dev-install test
+
+benchmarks: prod-install
+	pytest ./python/tests/benchmarks/speed.py
