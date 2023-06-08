@@ -1,6 +1,6 @@
+from fastexcel import read_excel
 from openpyxl import load_workbook
 from xlrd import open_workbook
-from fastexcel import read_excel
 
 
 def pyxl_read(test_file_path: str):
@@ -24,10 +24,5 @@ def xlrd_read(test_file_path: str):
 def fastexcel_read(test_file_path: str):
     reader = read_excel(test_file_path)
     for sheet_name in reader.sheet_names:
-        # FIXME : Remove try catch after
-        # https://github.com/ToucanToco/fastexcel/issues/111 is resolved
-        try:
-            sheet = reader.load_sheet_by_name(sheet_name)
-            sheet.to_arrow()
-        except Exception:
-            pass
+        sheet = reader.load_sheet_by_name(sheet_name)
+        sheet.to_arrow()

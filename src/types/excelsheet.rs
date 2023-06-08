@@ -251,36 +251,48 @@ impl TryFrom<&ExcelSheet> for RecordBatch {
         let limit = value.limit();
         let schema = Schema::try_from(value)
             .with_context(|| format!("Could not build schema for sheet {}", value.name))?;
-        let iter = schema.fields().iter().enumerate().map(|(col_idx, field)| {
-            (
-                field.name(),
-                match field.data_type() {
-                    ArrowDataType::Boolean => {
-                        create_boolean_array(value.data(), col_idx, offset, limit)
-                    }
-                    ArrowDataType::Int64 => create_int_array(value.data(), col_idx, offset, limit),
-                    ArrowDataType::Float64 => {
-                        create_float_array(value.data(), col_idx, offset, limit)
-                    }
-                    ArrowDataType::Utf8 => {
-                        create_string_array(value.data(), col_idx, offset, limit)
-                    }
-                    ArrowDataType::Timestamp(TimeUnit::Millisecond, None) => {
-                        create_datetime_array(value.data(), col_idx, offset, limit)
-                    }
-                    ArrowDataType::Date32 => {
-                        create_date_array(value.data(), col_idx, offset, limit)
-                    }
-                    ArrowDataType::Duration(TimeUnit::Millisecond) => {
-                        create_duration_array(value.data(), col_idx, offset, limit)
-                    }
-                    ArrowDataType::Null => Arc::new(NullArray::new(limit - offset)),
-                    _ => unreachable!(),
-                },
-            )
-        });
-        RecordBatch::try_from_iter(iter)
-            .with_context(|| format!("Could not convert sheet {} to RecordBatch", value.name))
+        let mut iter = schema
+            .fields()
+            .iter()
+            .enumerate()
+            .map(|(col_idx, field)| {
+                (
+                    field.name(),
+                    match field.data_type() {
+                        ArrowDataType::Boolean => {
+                            create_boolean_array(value.data(), col_idx, offset, limit)
+                        }
+                        ArrowDataType::Int64 => {
+                            create_int_array(value.data(), col_idx, offset, limit)
+                        }
+                        ArrowDataType::Float64 => {
+                            create_float_array(value.data(), col_idx, offset, limit)
+                        }
+                        ArrowDataType::Utf8 => {
+                            create_string_array(value.data(), col_idx, offset, limit)
+                        }
+                        ArrowDataType::Timestamp(TimeUnit::Millisecond, None) => {
+                            create_datetime_array(value.data(), col_idx, offset, limit)
+                        }
+                        ArrowDataType::Date32 => {
+                            create_date_array(value.data(), col_idx, offset, limit)
+                        }
+                        ArrowDataType::Duration(TimeUnit::Millisecond) => {
+                            create_duration_array(value.data(), col_idx, offset, limit)
+                        }
+                        ArrowDataType::Null => Arc::new(NullArray::new(limit - offset)),
+                        _ => unreachable!(),
+                    },
+                )
+            })
+            .peekable();
+        // If the iterable is empty, try_from_iter returns an Err
+        if iter.peek().is_none() {
+            Ok(RecordBatch::new_empty(Arc::new(schema)))
+        } else {
+            RecordBatch::try_from_iter(iter)
+                .with_context(|| format!("Could not convert sheet {} to RecordBatch", value.name))
+        }
     }
 }
 
