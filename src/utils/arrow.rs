@@ -25,6 +25,8 @@ fn get_arrow_column_type(
             None => Ok(ArrowDataType::Date32),
         },
         CalDataType::DurationIso(_) => Ok(ArrowDataType::Duration(TimeUnit::Millisecond)),
+        // A simple duration
+        CalDataType::Duration(_) => Ok(ArrowDataType::Duration(TimeUnit::Millisecond)),
         // Errors and nulls
         CalDataType::Error(err) => Err(anyhow!("Error in calamine cell: {err:?}")),
         CalDataType::Empty => Ok(ArrowDataType::Null),
