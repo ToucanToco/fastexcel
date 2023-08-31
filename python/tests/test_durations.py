@@ -23,13 +23,12 @@ def test_sheet_with_different_time_types() -> None:
     pl_df = sheet.to_polars()
 
     ## dtypes
-    # Pandas always converts to ns precision, even though we're in ms ¯\_(ツ)_/¯
     assert pd_df.dtypes.to_dict() == {
         # the dtype for a date is object
         "date": np.dtype("object"),
         "datestr": np.dtype("object"),
-        "time": np.dtype("timedelta64[ns]"),
-        "datetime": np.dtype("datetime64[ns]"),
+        "time": np.dtype("timedelta64[ms]"),
+        "datetime": np.dtype("datetime64[ms]"),
     }
     expected_pl_dtypes: dict[str, PolarsDataType] = {
         "date": PlDate,
@@ -45,8 +44,10 @@ def test_sheet_with_different_time_types() -> None:
         {
             "date": [date(2023, 6, 1)],
             "datestr": ["2023-06-01T02:03:04+02:00"],
-            "time": [pd.to_timedelta("01:02:03")],
-            "datetime": [pd.to_datetime("2023-06-01 02:03:04")],
+            "time": pd.Series([pd.to_timedelta("01:02:03")]).astype("timedelta64[ms]"),
+            "datetime": pd.Series([pd.to_datetime("2023-06-01 02:03:04")]).astype(
+                "datetime64[ms]"
+            ),
         }
     )
     expected_pl = pl.DataFrame(
