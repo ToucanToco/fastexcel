@@ -10,12 +10,12 @@ classifiers = [
     "Programming Language :: Python :: Implementation :: CPython",
 ]
 dependencies = [
-    "pyarrow>=8.0.0,<12.1.0",
+    "pyarrow>=8.0.0,<13.1.0",
 ]
 
 [project.optional-dependencies]
-pandas = ["pandas>=1.4.4,<2.1"]
-polars = ["polars>=0.16.14,<0.19"]
+pandas = ["pandas>=1.4.4,<2.2"]
+polars = ["polars>=0.16.14,<0.20"]
 
 
 [project.urls]

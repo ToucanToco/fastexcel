@@ -1,17 +1,11 @@
-from os.path import dirname
-from os.path import join as path_join
-
-import pytest
+import fastexcel
 import pandas as pd
 import polars as pl
-from polars.testing import assert_frame_equal as pl_assert_frame_equal
+import pytest
 from pandas.testing import assert_frame_equal as pd_assert_frame_equal
+from polars.testing import assert_frame_equal as pl_assert_frame_equal
 
-import fastexcel
-
-
-def path_for_fixture(fixture_file: str) -> str:
-    return path_join(dirname(__file__), "fixtures", fixture_file)
+from utils import path_for_fixture
 
 
 def test_single_sheet_to_pandas():
@@ -53,7 +47,9 @@ def test_single_sheet_with_types_to_pandas():
             {
                 "__UNNAMED__0": [0.0, 1.0, 2.0],
                 "bools": [True, False, True],
-                "dates": [pd.Timestamp("2022-03-02 05:43:04")] * 3,
+                "dates": pd.Series([pd.Timestamp("2022-03-02 05:43:04")] * 3).astype(
+                    "datetime64[ms]"
+                ),
                 "floats": [12.35, 42.69, 1234567],
             }
         ),
@@ -273,7 +269,9 @@ def test_sheet_with_pagination():
             {
                 "__UNNAMED__0": [1.0],
                 "bools": [False],
-                "dates": [pd.Timestamp("2022-03-02 05:43:04")],
+                "dates": pd.Series([pd.Timestamp("2022-03-02 05:43:04")]).astype(
+                    "datetime64[ms]"
+                ),
                 "floats": [42.69],
             }
         ),
@@ -311,7 +309,9 @@ def test_sheet_with_skip_rows():
             {
                 "__UNNAMED__0": [1.0, 2.0],
                 "bools": [False, True],
-                "dates": [pd.Timestamp("2022-03-02 05:43:04")] * 2,
+                "dates": pd.Series([pd.Timestamp("2022-03-02 05:43:04")] * 2).astype(
+                    "datetime64[ms]"
+                ),
                 "floats": [42.69, 1234567],
             }
         ),
@@ -349,7 +349,9 @@ def test_sheet_with_n_rows():
             {
                 "__UNNAMED__0": [0.0],
                 "bools": [True],
-                "dates": [pd.Timestamp("2022-03-02 05:43:04")],
+                "dates": pd.Series([pd.Timestamp("2022-03-02 05:43:04")]).astype(
+                    "datetime64[ms]"
+                ),
                 "floats": [12.35],
             }
         ),
@@ -393,7 +395,9 @@ def test_sheet_with_pagination_and_without_headers():
             {
                 "This": [0.0],
                 "Is": [True],
-                "Amazing": [pd.Timestamp("2022-03-02 05:43:04")],
+                "Amazing": pd.Series([pd.Timestamp("2022-03-02 05:43:04")]).astype(
+                    "datetime64[ms]"
+                ),
                 "Stuff": [12.35],
             }
         ),
@@ -445,7 +449,9 @@ def test_sheet_with_pagination_out_of_bound():
             {
                 "This": [0.0, 1.0, 2.0],
                 "Is": [True, False, True],
-                "Amazing": [pd.Timestamp("2022-03-02 05:43:04")] * 3,
+                "Amazing": pd.Series([pd.Timestamp("2022-03-02 05:43:04")] * 3).astype(
+                    "datetime64[ms]"
+                ),
                 "Stuff": [12.35, 42.69, 1234567],
             }
         ),
