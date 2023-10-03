@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.10", "3.11"]
+        python-version: ["3.10", "3.11", "3.12"]
     steps:
     - uses: actions/checkout@v4
     - name: build (release)
@@ -30,7 +30,7 @@ jobs:
     runs-on: macos-latest
     strategy:
       matrix:
-        python-version: ["3.10", "3.11"]
+        python-version: ["3.10", "3.11", "3.12"]
     steps:
     - uses: actions/checkout@v4
     - name: build (release)
@@ -60,6 +60,11 @@ jobs:
       with:
         name: "wheels-linux-python-3.11"
         path: wheels-linux
+    - name: Download Linux 3.12 wheels
+      uses: actions/download-artifact@v3
+      with:
+        name: "wheels-linux-python-3.12"
+        path: wheels-linux
 
     - name: Download MacOS 3.10 wheels
       uses: actions/download-artifact@v3
@@ -70,6 +75,11 @@ jobs:
       uses: actions/download-artifact@v3
       with:
         name: "wheels-macos-python-3.11"
+        path: wheels-macos
+    - name: Download MacOS 3.12 wheels
+      uses: actions/download-artifact@v3
+      with:
+        name: "wheels-macos-python-3.12"
         path: wheels-macos
 
     - name: Publish to PyPI
