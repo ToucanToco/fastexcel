@@ -53,14 +53,16 @@ pub(crate) fn arrow_schema_from_column_names_and_range(
     column_names: &[String],
     row_idx: usize,
 ) -> Result<Schema> {
-    let fields = Vec::with_capacity(column_names.len());
-
     let fields = column_names
         .iter()
         .enumerate()
         .map(|(col_idx, name)| {
             let col_type = get_arrow_column_type(range, row_idx, col_idx).unwrap();
-            Field::new(&alias_for_name(name, &fields), col_type, true)
+            Field::new(
+                alias_for_name(name, &Vec::with_capacity(column_names.len())),
+                col_type,
+                true,
+            )
         })
         .collect::<Vec<_>>();
 
