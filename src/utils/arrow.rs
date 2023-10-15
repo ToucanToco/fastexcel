@@ -34,16 +34,15 @@ fn get_arrow_column_type(
 }
 
 fn alias_for_name(name: &str, fields: &[Field]) -> String {
-    fn rec(name: &str, fields: &[Field], depth: usize) -> String {
-        let alias = if depth == 0 {
-            name.to_owned()
-        } else {
-            format!("{name}_{depth}")
-        };
-        match fields.iter().any(|f| f.name() == &alias) {
-            true => rec(name, fields, depth + 1),
-            false => alias,
+    fn rec(name: &str, fields: &[Field], mut depth: usize) -> String {
+        let mut alias = name.to_owned();
+
+        while fields.iter().any(|f| f.name() == &alias) {
+            depth += 1;
+            alias = format!("{}_{}", name, depth);
         }
+
+        alias
     }
 
     rec(name, fields, 0)
@@ -54,12 +53,16 @@ pub(crate) fn arrow_schema_from_column_names_and_range(
     column_names: &[String],
     row_idx: usize,
 ) -> Result<Schema> {
-    let mut fields = Vec::with_capacity(column_names.len());
+    let fields = Vec::with_capacity(column_names.len());
 
-    for (col_idx, name) in column_names.iter().enumerate() {
-        let col_type = get_arrow_column_type(range, row_idx, col_idx)?;
-        fields.push(Field::new(&alias_for_name(name, &fields), col_type, true));
-    }
+    let fields = column_names
+        .iter()
+        .enumerate()
+        .map(|(col_idx, name)| {
+            let col_type = get_arrow_column_type(range, row_idx, col_idx).unwrap();
+            Field::new(&alias_for_name(name, &fields), col_type, true)
+        })
+        .collect::<Vec<_>>();
 
     Ok(Schema::new(fields))
 }
