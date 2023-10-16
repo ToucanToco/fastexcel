@@ -40,6 +40,6 @@ jobs:
           make dev-install
           make doc
 
-          git add docs
+          git add -f docs
           git commit -m "Re-generated documentation"
           git push origin gh-pages
