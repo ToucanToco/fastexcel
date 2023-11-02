@@ -10,7 +10,7 @@ classifiers = [
     "Programming Language :: Python :: Implementation :: CPython",
 ]
 dependencies = [
-    "pyarrow>=8.0.0,<13.1.0",
+    "pyarrow>=8.0.0,<14.1.0",
 ]
 
 [project.optional-dependencies]
