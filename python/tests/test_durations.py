@@ -45,9 +45,7 @@ def test_sheet_with_different_time_types() -> None:
             "date": [date(2023, 6, 1)],
             "datestr": ["2023-06-01T02:03:04+02:00"],
             "time": pd.Series([pd.to_timedelta("01:02:03")]).astype("timedelta64[ms]"),
-            "datetime": pd.Series([pd.to_datetime("2023-06-01 02:03:04")]).astype(
-                "datetime64[ms]"
-            ),
+            "datetime": pd.Series([pd.to_datetime("2023-06-01 02:03:04")]).astype("datetime64[ms]"),
         }
     )
     expected_pl = pl.DataFrame(

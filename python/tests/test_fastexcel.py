@@ -31,9 +31,7 @@ def test_single_sheet_to_pandas():
 
 
 def test_single_sheet_with_types_to_pandas():
-    excel_reader = fastexcel.read_excel(
-        path_for_fixture("fixture-single-sheet-with-types.xlsx")
-    )
+    excel_reader = fastexcel.read_excel(path_for_fixture("fixture-single-sheet-with-types.xlsx"))
     assert excel_reader.sheet_names == ["Sheet1"]
 
     sheet = excel_reader.load_sheet(0)
@@ -64,9 +62,7 @@ def test_single_sheet_with_types_to_pandas():
                 "dates": ["2022-03-02 05:43:04"] * 3,
                 "floats": [12.35, 42.69, 1234567],
             }
-        ).with_columns(
-            pl.col("dates").str.strptime(pl.Datetime, "%F %T").dt.cast_time_unit("ms")
-        ),
+        ).with_columns(pl.col("dates").str.strptime(pl.Datetime, "%F %T").dt.cast_time_unit("ms")),
     )
 
 
@@ -118,9 +114,7 @@ def test_multiple_sheets_to_pandas():
 
 
 def test_sheets_with_header_line_diff_from_zero():
-    excel_reader = fastexcel.read_excel(
-        path_for_fixture("fixture-changing-header-location.xlsx")
-    )
+    excel_reader = fastexcel.read_excel(path_for_fixture("fixture-changing-header-location.xlsx"))
     assert excel_reader.sheet_names == ["Sheet1", "Sheet2", "Sheet3"]
     sheet_by_name = excel_reader.load_sheet("Sheet1", header_row=1)
     sheet_by_idx = excel_reader.load_sheet(0, header_row=1)
@@ -142,9 +136,7 @@ def test_sheets_with_header_line_diff_from_zero():
 
 
 def test_sheets_with_no_header():
-    excel_reader = fastexcel.read_excel(
-        path_for_fixture("fixture-changing-header-location.xlsx")
-    )
+    excel_reader = fastexcel.read_excel(path_for_fixture("fixture-changing-header-location.xlsx"))
     assert excel_reader.sheet_names == ["Sheet1", "Sheet2", "Sheet3"]
     sheet_by_name = excel_reader.load_sheet("Sheet2", header_row=None)
     sheet_by_idx = excel_reader.load_sheet(1, header_row=None)
@@ -170,9 +162,7 @@ def test_sheets_with_no_header():
 
 
 def test_sheets_with_empty_rows_before_header():
-    excel_reader = fastexcel.read_excel(
-        path_for_fixture("fixture-changing-header-location.xlsx")
-    )
+    excel_reader = fastexcel.read_excel(path_for_fixture("fixture-changing-header-location.xlsx"))
     assert excel_reader.sheet_names == ["Sheet1", "Sheet2", "Sheet3"]
     sheet_by_name = excel_reader.load_sheet("Sheet3")
     sheet_by_idx = excel_reader.load_sheet(2)
@@ -194,16 +184,12 @@ def test_sheets_with_empty_rows_before_header():
 
 
 def test_sheets_with_custom_headers():
-    excel_reader = fastexcel.read_excel(
-        path_for_fixture("fixture-changing-header-location.xlsx")
-    )
+    excel_reader = fastexcel.read_excel(path_for_fixture("fixture-changing-header-location.xlsx"))
     assert excel_reader.sheet_names == ["Sheet1", "Sheet2", "Sheet3"]
     sheet_by_name = excel_reader.load_sheet(
         "Sheet2", header_row=None, column_names=["foo", "bar", "baz"]
     )
-    sheet_by_idx = excel_reader.load_sheet(
-        1, header_row=None, column_names=["foo", "bar", "baz"]
-    )
+    sheet_by_idx = excel_reader.load_sheet(1, header_row=None, column_names=["foo", "bar", "baz"])
 
     # Metadata
     assert sheet_by_name.name == sheet_by_idx.name == "Sheet2"
@@ -222,13 +208,9 @@ def test_sheets_with_custom_headers():
 
 
 def test_sheets_with_skipping_headers():
-    excel_reader = fastexcel.read_excel(
-        path_for_fixture("fixture-changing-header-location.xlsx")
-    )
+    excel_reader = fastexcel.read_excel(path_for_fixture("fixture-changing-header-location.xlsx"))
     assert excel_reader.sheet_names == ["Sheet1", "Sheet2", "Sheet3"]
-    sheet_by_name = excel_reader.load_sheet(
-        "Sheet2", header_row=1, column_names=["Bugs"]
-    )
+    sheet_by_name = excel_reader.load_sheet("Sheet2", header_row=1, column_names=["Bugs"])
     sheet_by_idx = excel_reader.load_sheet(1, header_row=1, column_names=["Bugs"])
 
     # Metadata
@@ -252,9 +234,7 @@ def test_sheets_with_skipping_headers():
 
 
 def test_sheet_with_pagination():
-    excel_reader = fastexcel.read_excel(
-        path_for_fixture("fixture-single-sheet-with-types.xlsx")
-    )
+    excel_reader = fastexcel.read_excel(path_for_fixture("fixture-single-sheet-with-types.xlsx"))
     assert excel_reader.sheet_names == ["Sheet1"]
 
     sheet = excel_reader.load_sheet(0, skip_rows=1, n_rows=1)
@@ -269,9 +249,7 @@ def test_sheet_with_pagination():
             {
                 "__UNNAMED__0": [1.0],
                 "bools": [False],
-                "dates": pd.Series([pd.Timestamp("2022-03-02 05:43:04")]).astype(
-                    "datetime64[ms]"
-                ),
+                "dates": pd.Series([pd.Timestamp("2022-03-02 05:43:04")]).astype("datetime64[ms]"),
                 "floats": [42.69],
             }
         ),
@@ -286,16 +264,12 @@ def test_sheet_with_pagination():
                 "dates": ["2022-03-02 05:43:04"],
                 "floats": [42.69],
             }
-        ).with_columns(
-            pl.col("dates").str.strptime(pl.Datetime, "%F %T").dt.cast_time_unit("ms")
-        ),
+        ).with_columns(pl.col("dates").str.strptime(pl.Datetime, "%F %T").dt.cast_time_unit("ms")),
     )
 
 
 def test_sheet_with_skip_rows():
-    excel_reader = fastexcel.read_excel(
-        path_for_fixture("fixture-single-sheet-with-types.xlsx")
-    )
+    excel_reader = fastexcel.read_excel(path_for_fixture("fixture-single-sheet-with-types.xlsx"))
     assert excel_reader.sheet_names == ["Sheet1"]
 
     sheet = excel_reader.load_sheet(0, skip_rows=1)
@@ -326,16 +300,12 @@ def test_sheet_with_skip_rows():
                 "dates": ["2022-03-02 05:43:04"] * 2,
                 "floats": [42.69, 1234567],
             }
-        ).with_columns(
-            pl.col("dates").str.strptime(pl.Datetime, "%F %T").dt.cast_time_unit("ms")
-        ),
+        ).with_columns(pl.col("dates").str.strptime(pl.Datetime, "%F %T").dt.cast_time_unit("ms")),
     )
 
 
 def test_sheet_with_n_rows():
-    excel_reader = fastexcel.read_excel(
-        path_for_fixture("fixture-single-sheet-with-types.xlsx")
-    )
+    excel_reader = fastexcel.read_excel(path_for_fixture("fixture-single-sheet-with-types.xlsx"))
     assert excel_reader.sheet_names == ["Sheet1"]
 
     sheet = excel_reader.load_sheet(0, n_rows=1)
@@ -349,9 +319,7 @@ def test_sheet_with_n_rows():
             {
                 "__UNNAMED__0": [0.0],
                 "bools": [True],
-                "dates": pd.Series([pd.Timestamp("2022-03-02 05:43:04")]).astype(
-                    "datetime64[ms]"
-                ),
+                "dates": pd.Series([pd.Timestamp("2022-03-02 05:43:04")]).astype("datetime64[ms]"),
                 "floats": [12.35],
             }
         ),
@@ -366,16 +334,12 @@ def test_sheet_with_n_rows():
                 "dates": ["2022-03-02 05:43:04"],
                 "floats": [12.35],
             }
-        ).with_columns(
-            pl.col("dates").str.strptime(pl.Datetime, "%F %T").dt.cast_time_unit("ms")
-        ),
+        ).with_columns(pl.col("dates").str.strptime(pl.Datetime, "%F %T").dt.cast_time_unit("ms")),
     )
 
 
 def test_sheet_with_pagination_and_without_headers():
-    excel_reader = fastexcel.read_excel(
-        path_for_fixture("fixture-single-sheet-with-types.xlsx")
-    )
+    excel_reader = fastexcel.read_excel(path_for_fixture("fixture-single-sheet-with-types.xlsx"))
     assert excel_reader.sheet_names == ["Sheet1"]
 
     sheet = excel_reader.load_sheet(
@@ -419,9 +383,7 @@ def test_sheet_with_pagination_and_without_headers():
 
 
 def test_sheet_with_pagination_out_of_bound():
-    excel_reader = fastexcel.read_excel(
-        path_for_fixture("fixture-single-sheet-with-types.xlsx")
-    )
+    excel_reader = fastexcel.read_excel(path_for_fixture("fixture-single-sheet-with-types.xlsx"))
     assert excel_reader.sheet_names == ["Sheet1"]
 
     with pytest.raises(RuntimeError, match="To many rows skipped. Max height is 4"):
