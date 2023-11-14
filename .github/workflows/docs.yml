@@ -41,5 +41,5 @@ jobs:
           make doc
 
           git add -f docs
-          git commit -m "Re-generated documentation"
+          git commit -m "Re-generated documentation" --allow-empty
           git push origin gh-pages
