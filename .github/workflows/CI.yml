@@ -56,4 +56,5 @@ jobs:
       uses: messense/maturin-action@v1
       with:
         command: build
-        args: "-o dist --universal2 --interpreter python${{ matrix.python-version }}"
+        target: universal2-apple-darwin
+        args: "-o dist --interpreter python${{ matrix.python-version }}"
