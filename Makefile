@@ -23,7 +23,7 @@ format:
 	$(fmt)
 
 install-test-requirements:
-	pip install -U 'maturin>=0.15,<0.16' -r test-requirements.txt
+	pip install -U -r test-requirements.txt -r build-requirements.txt
 
 install-doc-requirements:
 	pip install -r doc-requirements.txt
