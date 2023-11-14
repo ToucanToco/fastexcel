@@ -3,7 +3,7 @@
 # Commands
 ## Python
 ruff	= ruff python/ *.py
-black	= black python/ *.py
+format	= ruff format python/ *.py
 mypy	= mypy python/ *.py
 pytest	= python -m pytest
 ## Rust
@@ -14,12 +14,12 @@ pdoc	= pdoc -o docs python/fastexcel
 
 lint:
 	$(ruff)
-	$(black)  --check --diff
+	$(format)  --check --diff
 	$(mypy)
 	$(clippy)
 format:
-	$(black)
 	$(ruff) --fix
+	$(format)
 	$(fmt)
 
 install-test-requirements:
