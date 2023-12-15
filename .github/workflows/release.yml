@@ -52,33 +52,33 @@ jobs:
     needs: [linux, macos]
     steps:
     - name: Download Linux 3.10 wheels
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: "wheels-linux-python-3.10"
         path: wheels-linux
     - name: Download Linux 3.11 wheels
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: "wheels-linux-python-3.11"
         path: wheels-linux
     - name: Download Linux 3.12 wheels
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: "wheels-linux-python-3.12"
         path: wheels-linux
 
     - name: Download MacOS 3.10 wheels
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: "wheels-macos-python-3.10"
         path: wheels-macos
     - name: Download MacOS 3.11 wheels
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: "wheels-macos-python-3.11"
         path: wheels-macos
     - name: Download MacOS 3.12 wheels
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: "wheels-macos-python-3.12"
         path: wheels-macos
