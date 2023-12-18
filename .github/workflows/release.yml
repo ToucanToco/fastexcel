@@ -21,7 +21,7 @@ jobs:
         command: build
         args: "--release -o dist --interpreter python${{ matrix.python-version }}"
     - name: Upload wheels
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: "wheels-linux-python-${{ matrix.python-version }}"
         path: dist
@@ -40,7 +40,7 @@ jobs:
         target: universal2-apple-darwin
         args: "--release -o dist --interpreter python${{ matrix.python-version }}"
     - name: Upload wheels
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: "wheels-macos-python-${{ matrix.python-version }}"
         path: dist
