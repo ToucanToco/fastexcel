@@ -167,6 +167,37 @@ class ExcelReader:
             )
         )
 
+    def load_sheet_eager(
+        self,
+        idx_or_name: int | str,
+        *,
+        header_row: int | None = 0,
+        column_names: list[str] | None = None,
+        skip_rows: int = 0,
+        n_rows: int | None = None,
+    ) -> pa.RecordBatch:
+        """Loads a sheet by name if a string is passed or by index if an integer is passed.
+
+        See `load_sheet_by_idx` and `load_sheet_by_name` for parameter documentation.
+        """
+        return (
+            self._reader.load_sheet_by_idx_eager(
+                idx_or_name,
+                header_row=header_row,
+                column_names=column_names,
+                skip_rows=skip_rows,
+                n_rows=n_rows,
+            )
+            if isinstance(idx_or_name, int)
+            else self._reader.load_sheet_by_name_eager(
+                idx_or_name,
+                header_row=header_row,
+                column_names=column_names,
+                skip_rows=skip_rows,
+                n_rows=n_rows,
+            )
+        )
+
     def __repr__(self) -> str:
         return self._reader.__repr__()
 
