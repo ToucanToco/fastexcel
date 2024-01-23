@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from datetime import date, datetime, timedelta
 
 import fastexcel
@@ -11,7 +13,6 @@ from polars.datatypes import Duration as PlDuration
 from polars.datatypes import PolarsDataType
 from polars.datatypes import Utf8 as PlUtf8
 from polars.testing import assert_frame_equal as pl_assert_frame_equal
-
 from utils import path_for_fixture
 
 
