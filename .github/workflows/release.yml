@@ -118,4 +118,3 @@ jobs:
         files: |
           wheels-linux/*.whl
           wheels-macos/*.whl
-8
