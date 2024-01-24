@@ -1,5 +1,6 @@
-from enum import Enum
 import argparse
+from enum import Enum
+
 from readers import fastexcel_read, pyxl_read, xlrd_read
 
 
@@ -18,13 +19,14 @@ def get_args() -> argparse.Namespace:
 
 def main():
     args = get_args()
-    match args.engine:
-        case Engine.FASTEXCEL:
-            fastexcel_read(args.file)
-        case Engine.XLRD:
-            xlrd_read(args.file)
-        case Engine.OPENPYXL:
-            pyxl_read(args.file)
+    engine = args.engine
+
+    if engine == Engine.FASTEXCEL:
+        fastexcel_read(args.file)
+    elif engine == Engine.XLRD:
+        xlrd_read(args.file)
+    elif engine == Engine.OPENPYXL:
+        pyxl_read(args.file)
 
 
 if __name__ == "__main__":

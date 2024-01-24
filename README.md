@@ -10,7 +10,7 @@ Docs available [here](https://fastexcel.toucantoco.dev/).
 
 ### Prerequisites
 
-Python>=3.10 and a recent Rust toolchain must be installed on your machine. `cargo` must be available in your `PATH`.
+Python>=3.8 and a recent Rust toolchain must be installed on your machine. `cargo` must be available in your `PATH`.
 
 ### First setup
 
@@ -31,7 +31,7 @@ This will compile the wheel (in debug mode) and install it. It will then be avai
 
 ### Installing the project in prod mode
 
-This is required for profiling, as dev mdoe wheels are much slower. `make prod-install` will compile the project
+This is required for profiling, as dev mode wheels are much slower. `make prod-install` will compile the project
 in release mode and install it in your local venv, overriding previous dev installs.
 
 ### Linting and formatting
