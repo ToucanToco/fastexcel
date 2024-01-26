@@ -5,7 +5,7 @@
 ruff	= ruff python/ *.py
 format	= ruff format python/ *.py
 mypy	= mypy python/ *.py
-pytest	= python -m pytest
+pytest	= pytest
 ## Rust
 clippy	= cargo clippy
 fmt	= cargo fmt
