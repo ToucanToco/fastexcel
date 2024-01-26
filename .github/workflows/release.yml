@@ -45,6 +45,24 @@ jobs:
         name: "wheels-macos-python-${{ matrix.python-version }}"
         path: dist
 
+  windows:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
+    steps:
+    - uses: actions/checkout@v4
+    - name: build (release)
+      uses: messense/maturin-action@v1
+      with:
+        command: build
+        args: "--release -o dist --interpreter python${{ matrix.python-version }}"
+    - name: Upload wheels
+      uses: actions/upload-artifact@v4
+      with:
+        name: "wheels-windows-python-${{ matrix.python-version }}"
+        path: dist
+
   # NOTE: Cannot use a matrix here, as we only want a single release
   release:
     name: Release
@@ -103,13 +121,39 @@ jobs:
         name: "wheels-macos-python-3.12"
         path: wheels-macos
 
+    - name: Download Windows 3.8 wheels
+      uses: actions/download-artifact@v4
+      with:
+        name: "wheels-windows-python-3.8"
+        path: wheels-windows
+    - name: Download Windows 3.9 wheels
+      uses: actions/download-artifact@v4
+      with:
+        name: "wheels-windows-python-3.9"
+        path: wheels-windows
+    - name: Download Windows 3.10 wheels
+      uses: actions/download-artifact@v4
+      with:
+        name: "wheels-windows-python-3.10"
+        path: wheels-windows
+    - name: Download Windows 3.11 wheels
+      uses: actions/download-artifact@v4
+      with:
+        name: "wheels-windows-python-3.11"
+        path: wheels-windows
+    - name: Download Windows 3.12 wheels
+      uses: actions/download-artifact@v4
+      with:
+        name: "wheels-windows-python-3.12"
+        path: wheels-windows
+
     - name: Publish to PyPI
       uses: messense/maturin-action@v1
       env:
         MATURIN_PYPI_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
       with:
         command: upload
-        args: "--skip-existing wheels-linux/*.whl wheels-macos/*.whl"
+        args: "--skip-existing wheels-linux/*.whl wheels-macos/*.whl wheels-windows/*.whl"
 
     - name: Release
       uses: softprops/action-gh-release@v1
@@ -118,3 +162,4 @@ jobs:
         files: |
           wheels-linux/*.whl
           wheels-macos/*.whl
+          wheels-windows/*.whl
