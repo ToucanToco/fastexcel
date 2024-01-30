@@ -60,3 +60,23 @@ def test_sheet_with_different_time_types() -> None:
     )
     pd_assert_frame_equal(pd_df, expected_pd)
     pl_assert_frame_equal(pl_df, expected_pl)
+
+
+def test_sheet_with_offset_header_row_and_durations() -> None:
+    excel_reader = fastexcel.read_excel(path_for_fixture("single-sheet-skip-rows-durations.xlsx"))
+    sheet = excel_reader.load_sheet(0, header_row=9)
+
+    pd_df = sheet.to_pandas()
+    pl_df = sheet.to_polars()
+
+    assert pd_df["Tot. Time Away From System"].dtype == np.dtype("timedelta64[ms]")
+    assert pd_df["Tot. Time Away From System"].tolist() == [
+        pd.Timedelta("01:18:43"),
+        pd.Timedelta("07:16:51"),
+    ]
+
+    assert pl_df["Tot. Time Away From System"].dtype == pl.Duration(time_unit="ms")
+    assert pl_df["Tot. Time Away From System"].to_list() == [
+        timedelta(hours=1, minutes=18, seconds=43),
+        timedelta(hours=7, minutes=16, seconds=51),
+    ]
