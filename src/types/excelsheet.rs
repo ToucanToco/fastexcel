@@ -11,7 +11,7 @@ use arrow::{
     record_batch::RecordBatch,
 };
 use calamine::{DataType as CalDataType, Range};
-use chrono::{NaiveDate, Timelike};
+use chrono::NaiveDate;
 
 use pyo3::prelude::{pyclass, pymethods, PyObject, Python};
 
@@ -186,9 +186,7 @@ fn create_string_array(
 }
 
 fn duration_type_to_i64(caldt: &CalDataType) -> Option<i64> {
-    caldt
-        .as_time()
-        .map(|t| 1000 * i64::from(t.num_seconds_from_midnight()))
+    caldt.as_duration().map(|d| d.num_milliseconds())
 }
 
 fn create_date_array(
