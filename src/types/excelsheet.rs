@@ -168,9 +168,9 @@ fn create_float_array(
     offset: usize,
     limit: usize,
 ) -> Arc<dyn Array> {
-    Arc::new(Float64Array::from_iter((offset..limit).map(|row| {
-        data.get((row, col)).and_then(|cell| cell.get_float())
-    })))
+    Arc::new(Float64Array::from_iter(
+        (offset..limit).map(|row| data.get((row, col)).and_then(|cell| cell.as_f64())),
+    ))
 }
 
 fn create_string_array(
