@@ -110,8 +110,7 @@ impl ExcelSheet {
                 .map(|col_idx| {
                     self.data
                         .get((*row_idx, col_idx))
-                        .and_then(|data| data.get_string())
-                        .map(ToOwned::to_owned)
+                        .and_then(|data| data.as_string())
                         .unwrap_or(format!("__UNNAMED__{col_idx}"))
                 })
                 .collect(),
@@ -181,7 +180,15 @@ fn create_string_array(
     limit: usize,
 ) -> Arc<dyn Array> {
     Arc::new(StringArray::from_iter((offset..limit).map(|row| {
-        data.get((row, col)).and_then(|cell| cell.get_string())
+        // NOTE: Not using cell.as_string() here because it matches the String variant last, which
+        // is slower for columns containing mostly/only strings (which we expect to meet more often than
+        // mixed dtype columns containing mostly numbers)
+        data.get((row, col)).and_then(|cell| match cell {
+            CalDataType::String(s) => Some(s.to_string()),
+            CalDataType::Float(s) => Some(s.to_string()),
+            CalDataType::Int(s) => Some(s.to_string()),
+            _ => None,
+        })
     })))
 }
 
@@ -237,6 +244,7 @@ impl TryFrom<&ExcelSheet> for Schema {
             value.data(),
             &value.column_names(),
             value.offset(),
+            value.limit(),
         )
     }
 }
