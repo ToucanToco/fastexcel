@@ -3,8 +3,12 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     import pandas as pd
     import polars as pl
+
+from os.path import expanduser
 
 import pyarrow as pa
 
@@ -173,12 +177,12 @@ class ExcelReader:
         return self._reader.__repr__()
 
 
-def read_excel(path: str) -> ExcelReader:
+def read_excel(path: Path | str) -> ExcelReader:
     """Opens and loads an excel file.
 
     :param path: The path to the file
     """
-    return ExcelReader(_read_excel(path))
+    return ExcelReader(_read_excel(expanduser(path)))
 
 
 __all__ = ("ExcelReader", "ExcelSheet", "read_excel", "__version__")
