@@ -44,5 +44,7 @@ testpaths = [
 [tool.ruff]
 line-length = 100
 target-version = "py38"
+
+[tool.ruff.lint]
 # Enable Pyflakes `E` and `F` codes by default.
 select = ["E", "F", "I", "Q", "FA102"]
