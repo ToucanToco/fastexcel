@@ -131,6 +131,8 @@ mod tests {
             Cell::new((3, 0), CalDataType::Float(13.37)),
             Cell::new((4, 0), CalDataType::String("hello".to_string())),
             Cell::new((5, 0), CalDataType::Empty),
+            Cell::new((6, 0), CalDataType::Int(12)),
+            Cell::new((7, 0), CalDataType::Float(12.21)),
         ])
     }
 
@@ -151,6 +153,10 @@ mod tests {
     #[case(2, 5, ArrowDataType::Utf8)]
     // int + float + string + empty
     #[case(2, 6, ArrowDataType::Utf8)]
+    // int + null
+    #[case(5, 7, ArrowDataType::Int64)]
+    // int + float + null
+    #[case(5, 8, ArrowDataType::Float64)]
     fn get_arrow_column_type_multi_dtype_ok(
         range: Range<CalDataType>,
         #[case] start_row: usize,
