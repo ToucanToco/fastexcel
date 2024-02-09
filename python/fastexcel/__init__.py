@@ -95,14 +95,16 @@ class ExcelReader:
         :param name: The name of the sheet to load.
         :param header_row: The index of the row containing the column labels, default index is 0.
                            If `None`, the sheet does not have any column labels.
-        :param column_names: Overrides headers found in the document. If `column_names` is used,
-                             `header_row` will be ignored.
-        :param n_rows: Specifies how many rows should be loaded. If `None`, all rows are loaded
-        :param skip_rows: Specifies how many rows should be skipped after the header. If
-                          `header_row` is `None`, it skips the number of rows from the sheet's
-                          start.
-        :param schema_sample_rows: Specifies how many rows should be used to determine the dtype of
-                                   a column. If `None`, all rows will be used.
+        :param column_names: Overrides headers found in the document.
+                             If `column_names` is used, `header_row` will be ignored.
+        :param n_rows: Specifies how many rows should be loaded.
+                       If `None`, all rows are loaded
+        :param skip_rows: Specifies how many rows should be skipped after the header.
+                          If `header_row` is `None`, it skips the number of rows from the
+                          start of the sheet.
+        :param schema_sample_rows: Specifies how many rows should be used to determine
+                                   the dtype of a column.
+                                   If `None`, all rows will be used.
         """
         return ExcelSheet(
             self._reader.load_sheet_by_name(
@@ -130,14 +132,16 @@ class ExcelReader:
         :param idx: The index (starting at 0) of the sheet to load.
         :param header_row: The index of the row containing the column labels, default index is 0.
                            If `None`, the sheet does not have any column labels.
-        :param column_names: Overrides headers found in the document. If `column_names` is used,
-                             `header_row` will be ignored.
-        :param n_rows: Specifies how many rows should be loaded. If `None`, all rows are loaded
-        :param skip_rows: Specifies how many rows should be skipped after the header. If
-                          `header_row` is `None`, it skips the number of rows from the sheet's
-                          start.
-        :param schema_sample_rows: Specifies how many rows should be used to determine the dtype of
-                                   a column. If `None`, all rows will be used.
+        :param column_names: Overrides headers found in the document.
+                             If `column_names` is used, `header_row` will be ignored.
+        :param n_rows: Specifies how many rows should be loaded.
+                       If `None`, all rows are loaded
+        :param skip_rows: Specifies how many rows should be skipped after the header.
+                          If `header_row` is `None`, it skips the number of rows from the
+                          start of the sheet.
+        :param schema_sample_rows: Specifies how many rows should be used to determine
+                                   the dtype of a column.
+                                   If `None`, all rows will be used.
         """
         if idx < 0:
             raise ValueError(f"Expected idx to be > 0, got {idx}")
