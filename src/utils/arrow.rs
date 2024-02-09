@@ -1,35 +1,36 @@
 use anyhow::{anyhow, Context, Result};
 use arrow::datatypes::{DataType as ArrowDataType, Field, Schema, TimeUnit};
-use calamine::{DataType as CalDataType, Range};
+use calamine::{Data as CalData, DataType, Range};
 
-fn get_arrow_column_type(
-    data: &Range<CalDataType>,
-    row: usize,
-    col: usize,
-) -> Result<ArrowDataType> {
+fn get_arrow_column_type(data: &Range<CalData>, row: usize, col: usize) -> Result<ArrowDataType> {
     let cell = data
         .get((row, col))
         .with_context(|| format!("Could not retrieve data at ({row},{col})"))?;
     match cell {
-        CalDataType::Int(_) => Ok(ArrowDataType::Int64),
-        CalDataType::Float(_) => Ok(ArrowDataType::Float64),
-        CalDataType::String(_) => Ok(ArrowDataType::Utf8),
-        CalDataType::Bool(_) => Ok(ArrowDataType::Boolean),
-        CalDataType::DateTime(_) => Ok(ArrowDataType::Timestamp(TimeUnit::Millisecond, None)),
+        CalData::Int(_) => Ok(ArrowDataType::Int64),
+        CalData::Float(_) => Ok(ArrowDataType::Float64),
+        CalData::String(_) => Ok(ArrowDataType::Utf8),
+        CalData::Bool(_) => Ok(ArrowDataType::Boolean),
+        // Since calamine 0.24.0, a new ExcelDateTime exists for the Datetime type. It can either be
+        // a duration or a datatime
+        CalData::DateTime(excel_datetime) => Ok(if excel_datetime.is_datetime() {
+            ArrowDataType::Timestamp(TimeUnit::Millisecond, None)
+        } else {
+            ArrowDataType::Duration(TimeUnit::Millisecond)
+        }),
         // These types contain an ISO8601 representation of a date/datetime or a duration
-        CalDataType::DateTimeIso(_) => match cell.as_datetime() {
+        CalData::DateTimeIso(_) => match cell.as_datetime() {
             // If we cannot convert the cell to a datetime, we're working on a date
             Some(_) => Ok(ArrowDataType::Timestamp(TimeUnit::Millisecond, None)),
             // NOTE: not using the Date64 type on purpose, as pyarrow converts it to a datetime
             // rather than a date
             None => Ok(ArrowDataType::Date32),
         },
-        CalDataType::DurationIso(_) => Ok(ArrowDataType::Duration(TimeUnit::Millisecond)),
         // A simple duration
-        CalDataType::Duration(_) => Ok(ArrowDataType::Duration(TimeUnit::Millisecond)),
+        CalData::DurationIso(_) => Ok(ArrowDataType::Duration(TimeUnit::Millisecond)),
         // Errors and nulls
-        CalDataType::Error(err) => Err(anyhow!("Error in calamine cell: {err:?}")),
-        CalDataType::Empty => Ok(ArrowDataType::Null),
+        CalData::Error(err) => Err(anyhow!("Error in calamine cell: {err:?}")),
+        CalData::Empty => Ok(ArrowDataType::Null),
     }
 }
 
@@ -50,7 +51,7 @@ fn alias_for_name(name: &str, fields: &[Field]) -> String {
 }
 
 pub(crate) fn arrow_schema_from_column_names_and_range(
-    range: &Range<CalDataType>,
+    range: &Range<CalData>,
     column_names: &[String],
     row_idx: usize,
 ) -> Result<Schema> {

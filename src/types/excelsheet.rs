@@ -10,7 +10,7 @@ use arrow::{
     pyarrow::PyArrowConvert,
     record_batch::RecordBatch,
 };
-use calamine::{DataType as CalDataType, Range};
+use calamine::{Data as CalData, DataType, Range};
 use chrono::NaiveDate;
 
 use pyo3::prelude::{pyclass, pymethods, PyObject, Python};
@@ -52,7 +52,7 @@ impl Pagination {
     pub(crate) fn new(
         skip_rows: usize,
         n_rows: Option<usize>,
-        range: &Range<CalDataType>,
+        range: &Range<CalData>,
     ) -> Result<Self> {
         let max_height = range.height();
         if max_height < skip_rows {
@@ -72,20 +72,20 @@ pub(crate) struct ExcelSheet {
     pub(crate) name: String,
     header: Header,
     pagination: Pagination,
-    data: Range<CalDataType>,
+    data: Range<CalData>,
     height: Option<usize>,
     total_height: Option<usize>,
     width: Option<usize>,
 }
 
 impl ExcelSheet {
-    pub(crate) fn data(&self) -> &Range<CalDataType> {
+    pub(crate) fn data(&self) -> &Range<CalData> {
         &self.data
     }
 
     pub(crate) fn new(
         name: String,
-        data: Range<CalDataType>,
+        data: Range<CalData>,
         header: Header,
         pagination: Pagination,
     ) -> Self {
@@ -142,7 +142,7 @@ impl ExcelSheet {
 }
 
 fn create_boolean_array(
-    data: &Range<CalDataType>,
+    data: &Range<CalData>,
     col: usize,
     offset: usize,
     limit: usize,
@@ -153,7 +153,7 @@ fn create_boolean_array(
 }
 
 fn create_int_array(
-    data: &Range<CalDataType>,
+    data: &Range<CalData>,
     col: usize,
     offset: usize,
     limit: usize,
@@ -164,7 +164,7 @@ fn create_int_array(
 }
 
 fn create_float_array(
-    data: &Range<CalDataType>,
+    data: &Range<CalData>,
     col: usize,
     offset: usize,
     limit: usize,
@@ -175,7 +175,7 @@ fn create_float_array(
 }
 
 fn create_string_array(
-    data: &Range<CalDataType>,
+    data: &Range<CalData>,
     col: usize,
     offset: usize,
     limit: usize,
@@ -185,12 +185,12 @@ fn create_string_array(
     })))
 }
 
-fn duration_type_to_i64(caldt: &CalDataType) -> Option<i64> {
+fn duration_type_to_i64(caldt: &CalData) -> Option<i64> {
     caldt.as_duration().map(|d| d.num_milliseconds())
 }
 
 fn create_date_array(
-    data: &Range<CalDataType>,
+    data: &Range<CalData>,
     col: usize,
     offset: usize,
     limit: usize,
@@ -204,7 +204,7 @@ fn create_date_array(
 }
 
 fn create_datetime_array(
-    data: &Range<CalDataType>,
+    data: &Range<CalData>,
     col: usize,
     offset: usize,
     limit: usize,
@@ -219,7 +219,7 @@ fn create_datetime_array(
 }
 
 fn create_duration_array(
-    data: &Range<CalDataType>,
+    data: &Range<CalData>,
     col: usize,
     offset: usize,
     limit: usize,
