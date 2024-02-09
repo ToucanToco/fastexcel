@@ -76,6 +76,7 @@ pub(crate) struct ExcelSheet {
     height: Option<usize>,
     total_height: Option<usize>,
     width: Option<usize>,
+    schema_sample_rows: Option<usize>,
 }
 
 impl ExcelSheet {
@@ -88,12 +89,14 @@ impl ExcelSheet {
         data: Range<CalData>,
         header: Header,
         pagination: Pagination,
+        schema_sample_rows: Option<usize>,
     ) -> Self {
         ExcelSheet {
             name,
             header,
             pagination,
             data,
+            schema_sample_rows,
             height: None,
             total_height: None,
             width: None,
@@ -137,6 +140,10 @@ impl ExcelSheet {
         }
 
         upper_bound
+    }
+
+    pub(crate) fn schema_sample_rows(&self) -> &Option<usize> {
+        &self.schema_sample_rows
     }
 }
 
@@ -240,11 +247,16 @@ impl TryFrom<&ExcelSheet> for Schema {
     type Error = anyhow::Error;
 
     fn try_from(value: &ExcelSheet) -> Result<Self, Self::Error> {
+        // Checking how many rows we want to use to determine the dtype for a column. If sample_rows is
+        // not provided, we sample limit rows, i.e on the entire column
+        let sample_rows = value.offset() + value.schema_sample_rows().unwrap_or(value.limit());
+
         arrow_schema_from_column_names_and_range(
             value.data(),
             &value.column_names(),
             value.offset(),
-            value.limit(),
+            // If sample_rows is higher than the sheet's limit, use the limit instead
+            std::cmp::min(sample_rows, value.limit()),
         )
     }
 }
