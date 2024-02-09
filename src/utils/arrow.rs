@@ -37,6 +37,7 @@ fn get_cell_type(data: &Range<CalData>, row: usize, col: usize) -> Result<ArrowD
 }
 
 static FLOAT_TYPES_CELL: OnceLock<HashSet<ArrowDataType>> = OnceLock::new();
+static INT_TYPES_CELL: OnceLock<HashSet<ArrowDataType>> = OnceLock::new();
 static STRING_TYPES_CELL: OnceLock<HashSet<ArrowDataType>> = OnceLock::new();
 
 fn float_types() -> &'static HashSet<ArrowDataType> {
@@ -47,6 +48,10 @@ fn float_types() -> &'static HashSet<ArrowDataType> {
             ArrowDataType::Boolean,
         ])
     })
+}
+
+fn int_types() -> &'static HashSet<ArrowDataType> {
+    INT_TYPES_CELL.get_or_init(|| HashSet::from([ArrowDataType::Int64, ArrowDataType::Boolean]))
 }
 
 fn string_types() -> &'static HashSet<ArrowDataType> {
@@ -78,6 +83,9 @@ fn get_arrow_column_type(
     } else if column_types.len() == 1 {
         // If a single non-null type was found, return it
         Ok(column_types.into_iter().next().unwrap())
+    } else if column_types.is_subset(int_types()) {
+        // If every cell in the column can be converted to an int, return int64
+        Ok(ArrowDataType::Int64)
     } else if column_types.is_subset(float_types()) {
         // If every cell in the column can be converted to a float, return Float64
         Ok(ArrowDataType::Float64)
@@ -171,6 +179,8 @@ mod tests {
     #[case(5, 8, ArrowDataType::Float64)]
     // int + float + bool + null
     #[case(5, 9, ArrowDataType::Float64)]
+    // int + bool
+    #[case(8, 10, ArrowDataType::Int64)]
     fn get_arrow_column_type_multi_dtype_ok(
         range: Range<CalData>,
         #[case] start_row: usize,
