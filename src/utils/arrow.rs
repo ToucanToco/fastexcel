@@ -39,9 +39,14 @@ fn get_cell_type(data: &Range<CalData>, row: usize, col: usize) -> Result<ArrowD
 static FLOAT_TYPES_CELL: OnceLock<HashSet<ArrowDataType>> = OnceLock::new();
 static STRING_TYPES_CELL: OnceLock<HashSet<ArrowDataType>> = OnceLock::new();
 
-// NOTE: Add Bools in here as well once https://github.com/tafia/calamine/pull/399 is merged
 fn float_types() -> &'static HashSet<ArrowDataType> {
-    FLOAT_TYPES_CELL.get_or_init(|| HashSet::from([ArrowDataType::Int64, ArrowDataType::Float64]))
+    FLOAT_TYPES_CELL.get_or_init(|| {
+        HashSet::from([
+            ArrowDataType::Int64,
+            ArrowDataType::Float64,
+            ArrowDataType::Boolean,
+        ])
+    })
 }
 
 fn string_types() -> &'static HashSet<ArrowDataType> {
@@ -138,6 +143,8 @@ mod tests {
             Cell::new((5, 0), CalData::Empty),
             Cell::new((6, 0), CalData::Int(12)),
             Cell::new((7, 0), CalData::Float(12.21)),
+            Cell::new((8, 0), CalData::Bool(true)),
+            Cell::new((9, 0), CalData::Int(1337)),
         ])
     }
 
@@ -162,6 +169,8 @@ mod tests {
     #[case(5, 7, ArrowDataType::Int64)]
     // int + float + null
     #[case(5, 8, ArrowDataType::Float64)]
+    // int + float + bool + null
+    #[case(5, 9, ArrowDataType::Float64)]
     fn get_arrow_column_type_multi_dtype_ok(
         range: Range<CalData>,
         #[case] start_row: usize,
