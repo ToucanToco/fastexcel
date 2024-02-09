@@ -57,7 +57,6 @@ impl ExcelReader {
         let range = self
             .sheets
             .worksheet_range(&name)
-            .with_context(|| format!("Sheet {name} not found"))?
             .with_context(|| format!("Error while loading sheet {name}"))?;
 
         let header = Header::new(header_row, column_names);
