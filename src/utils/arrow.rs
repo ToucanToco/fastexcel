@@ -2,32 +2,37 @@ use std::{collections::HashSet, sync::OnceLock};
 
 use anyhow::{anyhow, Context, Result};
 use arrow::datatypes::{DataType as ArrowDataType, Field, Schema, TimeUnit};
-use calamine::{DataType as CalDataType, Range};
+use calamine::{Data as CalData, DataType, Range};
 
-fn get_cell_type(data: &Range<CalDataType>, row: usize, col: usize) -> Result<ArrowDataType> {
+fn get_cell_type(data: &Range<CalData>, row: usize, col: usize) -> Result<ArrowDataType> {
     let cell = data
         .get((row, col))
         .with_context(|| format!("Could not retrieve data at ({row},{col})"))?;
     match cell {
-        CalDataType::Int(_) => Ok(ArrowDataType::Int64),
-        CalDataType::Float(_) => Ok(ArrowDataType::Float64),
-        CalDataType::String(_) => Ok(ArrowDataType::Utf8),
-        CalDataType::Bool(_) => Ok(ArrowDataType::Boolean),
-        CalDataType::DateTime(_) => Ok(ArrowDataType::Timestamp(TimeUnit::Millisecond, None)),
+        CalData::Int(_) => Ok(ArrowDataType::Int64),
+        CalData::Float(_) => Ok(ArrowDataType::Float64),
+        CalData::String(_) => Ok(ArrowDataType::Utf8),
+        CalData::Bool(_) => Ok(ArrowDataType::Boolean),
+        // Since calamine 0.24.0, a new ExcelDateTime exists for the Datetime type. It can either be
+        // a duration or a datatime
+        CalData::DateTime(excel_datetime) => Ok(if excel_datetime.is_datetime() {
+            ArrowDataType::Timestamp(TimeUnit::Millisecond, None)
+        } else {
+            ArrowDataType::Duration(TimeUnit::Millisecond)
+        }),
         // These types contain an ISO8601 representation of a date/datetime or a duration
-        CalDataType::DateTimeIso(_) => match cell.as_datetime() {
+        CalData::DateTimeIso(_) => match cell.as_datetime() {
             // If we cannot convert the cell to a datetime, we're working on a date
             Some(_) => Ok(ArrowDataType::Timestamp(TimeUnit::Millisecond, None)),
             // NOTE: not using the Date64 type on purpose, as pyarrow converts it to a datetime
             // rather than a date
             None => Ok(ArrowDataType::Date32),
         },
-        CalDataType::DurationIso(_) => Ok(ArrowDataType::Duration(TimeUnit::Millisecond)),
         // A simple duration
-        CalDataType::Duration(_) => Ok(ArrowDataType::Duration(TimeUnit::Millisecond)),
+        CalData::DurationIso(_) => Ok(ArrowDataType::Duration(TimeUnit::Millisecond)),
         // Errors and nulls
-        CalDataType::Error(err) => Err(anyhow!("Error in calamine cell: {err:?}")),
-        CalDataType::Empty => Ok(ArrowDataType::Null),
+        CalData::Error(err) => Err(anyhow!("Error in calamine cell: {err:?}")),
+        CalData::Empty => Ok(ArrowDataType::Null),
     }
 }
 
@@ -50,7 +55,7 @@ fn string_types() -> &'static HashSet<ArrowDataType> {
 }
 
 fn get_arrow_column_type(
-    data: &Range<CalDataType>,
+    data: &Range<CalData>,
     start_row: usize,
     end_row: usize,
     col: usize,
@@ -99,7 +104,7 @@ fn alias_for_name(name: &str, fields: &[Field]) -> String {
 }
 
 pub(crate) fn arrow_schema_from_column_names_and_range(
-    range: &Range<CalDataType>,
+    range: &Range<CalData>,
     column_names: &[String],
     row_idx: usize,
     row_limit: usize,
@@ -122,17 +127,17 @@ mod tests {
     use super::*;
 
     #[fixture]
-    fn range() -> Range<CalDataType> {
+    fn range() -> Range<CalData> {
         Range::from_sparse(vec![
             // First column
-            Cell::new((0, 0), CalDataType::Bool(true)),
-            Cell::new((1, 0), CalDataType::Bool(false)),
-            Cell::new((2, 0), CalDataType::Int(42)),
-            Cell::new((3, 0), CalDataType::Float(13.37)),
-            Cell::new((4, 0), CalDataType::String("hello".to_string())),
-            Cell::new((5, 0), CalDataType::Empty),
-            Cell::new((6, 0), CalDataType::Int(12)),
-            Cell::new((7, 0), CalDataType::Float(12.21)),
+            Cell::new((0, 0), CalData::Bool(true)),
+            Cell::new((1, 0), CalData::Bool(false)),
+            Cell::new((2, 0), CalData::Int(42)),
+            Cell::new((3, 0), CalData::Float(13.37)),
+            Cell::new((4, 0), CalData::String("hello".to_string())),
+            Cell::new((5, 0), CalData::Empty),
+            Cell::new((6, 0), CalData::Int(12)),
+            Cell::new((7, 0), CalData::Float(12.21)),
         ])
     }
 
@@ -158,7 +163,7 @@ mod tests {
     // int + float + null
     #[case(5, 8, ArrowDataType::Float64)]
     fn get_arrow_column_type_multi_dtype_ok(
-        range: Range<CalDataType>,
+        range: Range<CalData>,
         #[case] start_row: usize,
         #[case] end_row: usize,
         #[case] expected: ArrowDataType,
