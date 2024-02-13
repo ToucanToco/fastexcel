@@ -76,6 +76,7 @@ pub(crate) struct ExcelSheet {
     height: Option<usize>,
     total_height: Option<usize>,
     width: Option<usize>,
+    schema_sample_rows: Option<usize>,
 }
 
 impl ExcelSheet {
@@ -88,12 +89,14 @@ impl ExcelSheet {
         data: Range<CalData>,
         header: Header,
         pagination: Pagination,
+        schema_sample_rows: Option<usize>,
     ) -> Self {
         ExcelSheet {
             name,
             header,
             pagination,
             data,
+            schema_sample_rows,
             height: None,
             total_height: None,
             width: None,
@@ -110,8 +113,7 @@ impl ExcelSheet {
                 .map(|col_idx| {
                     self.data
                         .get((*row_idx, col_idx))
-                        .and_then(|data| data.get_string())
-                        .map(ToOwned::to_owned)
+                        .and_then(|data| data.as_string())
                         .unwrap_or(format!("__UNNAMED__{col_idx}"))
                 })
                 .collect(),
@@ -138,6 +140,10 @@ impl ExcelSheet {
         }
 
         upper_bound
+    }
+
+    pub(crate) fn schema_sample_rows(&self) -> &Option<usize> {
+        &self.schema_sample_rows
     }
 }
 
@@ -169,9 +175,9 @@ fn create_float_array(
     offset: usize,
     limit: usize,
 ) -> Arc<dyn Array> {
-    Arc::new(Float64Array::from_iter((offset..limit).map(|row| {
-        data.get((row, col)).and_then(|cell| cell.get_float())
-    })))
+    Arc::new(Float64Array::from_iter(
+        (offset..limit).map(|row| data.get((row, col)).and_then(|cell| cell.as_f64())),
+    ))
 }
 
 fn create_string_array(
@@ -181,7 +187,15 @@ fn create_string_array(
     limit: usize,
 ) -> Arc<dyn Array> {
     Arc::new(StringArray::from_iter((offset..limit).map(|row| {
-        data.get((row, col)).and_then(|cell| cell.get_string())
+        // NOTE: Not using cell.as_string() here because it matches the String variant last, which
+        // is slower for columns containing mostly/only strings (which we expect to meet more often than
+        // mixed dtype columns containing mostly numbers)
+        data.get((row, col)).and_then(|cell| match cell {
+            CalData::String(s) => Some(s.to_string()),
+            CalData::Float(s) => Some(s.to_string()),
+            CalData::Int(s) => Some(s.to_string()),
+            _ => None,
+        })
     })))
 }
 
@@ -233,10 +247,16 @@ impl TryFrom<&ExcelSheet> for Schema {
     type Error = anyhow::Error;
 
     fn try_from(value: &ExcelSheet) -> Result<Self, Self::Error> {
+        // Checking how many rows we want to use to determine the dtype for a column. If sample_rows is
+        // not provided, we sample limit rows, i.e on the entire column
+        let sample_rows = value.offset() + value.schema_sample_rows().unwrap_or(value.limit());
+
         arrow_schema_from_column_names_and_range(
             value.data(),
             &value.column_names(),
             value.offset(),
+            // If sample_rows is higher than the sheet's limit, use the limit instead
+            std::cmp::min(sample_rows, value.limit()),
         )
     }
 }

@@ -44,7 +44,8 @@ impl ExcelReader {
         header_row = 0,
         column_names = None,
         skip_rows = 0,
-        n_rows = None
+        n_rows = None,
+        schema_sample_rows = 1_000,
     ))]
     pub fn load_sheet_by_name(
         &mut self,
@@ -53,6 +54,7 @@ impl ExcelReader {
         column_names: Option<Vec<String>>,
         skip_rows: usize,
         n_rows: Option<usize>,
+        schema_sample_rows: Option<usize>,
     ) -> Result<ExcelSheet> {
         let range = self
             .sheets
@@ -61,7 +63,13 @@ impl ExcelReader {
 
         let header = Header::new(header_row, column_names);
         let pagination = Pagination::new(skip_rows, n_rows, &range)?;
-        Ok(ExcelSheet::new(name, range, header, pagination))
+        Ok(ExcelSheet::new(
+            name,
+            range,
+            header,
+            pagination,
+            schema_sample_rows,
+        ))
     }
 
     #[pyo3(signature = (
@@ -70,8 +78,9 @@ impl ExcelReader {
         header_row = 0,
         column_names = None,
         skip_rows = 0,
-        n_rows = None)
-    )]
+        n_rows = None,
+        schema_sample_rows = 1_000,
+    ))]
     pub fn load_sheet_by_idx(
         &mut self,
         idx: usize,
@@ -79,6 +88,7 @@ impl ExcelReader {
         column_names: Option<Vec<String>>,
         skip_rows: usize,
         n_rows: Option<usize>,
+        schema_sample_rows: Option<usize>,
     ) -> Result<ExcelSheet> {
         let name = self
             .sheet_names
@@ -98,6 +108,12 @@ impl ExcelReader {
 
         let header = Header::new(header_row, column_names);
         let pagination = Pagination::new(skip_rows, n_rows, &range)?;
-        Ok(ExcelSheet::new(name, range, header, pagination))
+        Ok(ExcelSheet::new(
+            name,
+            range,
+            header,
+            pagination,
+            schema_sample_rows,
+        ))
     }
 }
