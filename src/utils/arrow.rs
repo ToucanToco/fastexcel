@@ -2,7 +2,7 @@ use std::{collections::HashSet, sync::OnceLock};
 
 use anyhow::{anyhow, Context, Result};
 use arrow::datatypes::{DataType as ArrowDataType, Field, Schema, TimeUnit};
-use calamine::{Data as CalData, DataType, Range};
+use calamine::{CellErrorType, Data as CalData, DataType, Range};
 
 fn get_cell_type(data: &Range<CalData>, row: usize, col: usize) -> Result<ArrowDataType> {
     let cell = data
@@ -31,7 +31,10 @@ fn get_cell_type(data: &Range<CalData>, row: usize, col: usize) -> Result<ArrowD
         // A simple duration
         CalData::DurationIso(_) => Ok(ArrowDataType::Duration(TimeUnit::Millisecond)),
         // Errors and nulls
-        CalData::Error(err) => Err(anyhow!("Error in calamine cell: {err:?}")),
+        CalData::Error(err) => match err {
+            CellErrorType::NA => Ok(ArrowDataType::Null),
+            _ => Err(anyhow!("Error in calamine cell: {err:?}")),
+        },
         CalData::Empty => Ok(ArrowDataType::Null),
     }
 }
