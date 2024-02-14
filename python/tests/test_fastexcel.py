@@ -431,3 +431,20 @@ def test_sheet_with_pagination_out_of_bound():
             pl.col("Amazing").str.strptime(pl.Datetime, "%F %T").dt.cast_time_unit("ms")
         ),
     )
+
+
+def test_sheet_with_na():
+    """Test reading a sheet with #N/A cells. For now, we consider them as null"""
+    excel_reader = fastexcel.read_excel(path_for_fixture("sheet-with-na.xlsx"))
+    sheet = excel_reader.load_sheet(0)
+
+    assert sheet.name == "Sheet1"
+    assert sheet.height == sheet.total_height == 2
+    assert sheet.width == 2
+
+    expected = {
+        "Title": ["A", "B"],
+        "Amount": [None, 100.0],
+    }
+    pd_assert_frame_equal(sheet.to_pandas(), pd.DataFrame(expected))
+    pl_assert_frame_equal(sheet.to_polars(), pl.DataFrame(expected))
