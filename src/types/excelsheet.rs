@@ -246,17 +246,17 @@ fn create_duration_array(
 impl TryFrom<&ExcelSheet> for Schema {
     type Error = anyhow::Error;
 
-    fn try_from(value: &ExcelSheet) -> Result<Self, Self::Error> {
+    fn try_from(sheet: &ExcelSheet) -> Result<Self, Self::Error> {
         // Checking how many rows we want to use to determine the dtype for a column. If sample_rows is
         // not provided, we sample limit rows, i.e on the entire column
-        let sample_rows = value.offset() + value.schema_sample_rows().unwrap_or(value.limit());
+        let sample_rows = sheet.offset() + sheet.schema_sample_rows().unwrap_or(sheet.limit());
 
         arrow_schema_from_column_names_and_range(
-            value.data(),
-            &value.column_names(),
-            value.offset(),
+            sheet.data(),
+            &sheet.column_names(),
+            sheet.offset(),
             // If sample_rows is higher than the sheet's limit, use the limit instead
-            std::cmp::min(sample_rows, value.limit()),
+            std::cmp::min(sample_rows, sheet.limit()),
         )
     }
 }
@@ -264,11 +264,11 @@ impl TryFrom<&ExcelSheet> for Schema {
 impl TryFrom<&ExcelSheet> for RecordBatch {
     type Error = anyhow::Error;
 
-    fn try_from(value: &ExcelSheet) -> Result<Self, Self::Error> {
-        let offset = value.offset();
-        let limit = value.limit();
-        let schema = Schema::try_from(value)
-            .with_context(|| format!("Could not build schema for sheet {}", value.name))?;
+    fn try_from(sheet: &ExcelSheet) -> Result<Self, Self::Error> {
+        let offset = sheet.offset();
+        let limit = sheet.limit();
+        let schema = Schema::try_from(sheet)
+            .with_context(|| format!("Could not build schema for sheet {}", sheet.name))?;
         let mut iter = schema
             .fields()
             .iter()
@@ -278,25 +278,25 @@ impl TryFrom<&ExcelSheet> for RecordBatch {
                     field.name(),
                     match field.data_type() {
                         ArrowDataType::Boolean => {
-                            create_boolean_array(value.data(), col_idx, offset, limit)
+                            create_boolean_array(sheet.data(), col_idx, offset, limit)
                         }
                         ArrowDataType::Int64 => {
-                            create_int_array(value.data(), col_idx, offset, limit)
+                            create_int_array(sheet.data(), col_idx, offset, limit)
                         }
                         ArrowDataType::Float64 => {
-                            create_float_array(value.data(), col_idx, offset, limit)
+                            create_float_array(sheet.data(), col_idx, offset, limit)
                         }
                         ArrowDataType::Utf8 => {
-                            create_string_array(value.data(), col_idx, offset, limit)
+                            create_string_array(sheet.data(), col_idx, offset, limit)
                         }
                         ArrowDataType::Timestamp(TimeUnit::Millisecond, None) => {
-                            create_datetime_array(value.data(), col_idx, offset, limit)
+                            create_datetime_array(sheet.data(), col_idx, offset, limit)
                         }
                         ArrowDataType::Date32 => {
-                            create_date_array(value.data(), col_idx, offset, limit)
+                            create_date_array(sheet.data(), col_idx, offset, limit)
                         }
                         ArrowDataType::Duration(TimeUnit::Millisecond) => {
-                            create_duration_array(value.data(), col_idx, offset, limit)
+                            create_duration_array(sheet.data(), col_idx, offset, limit)
                         }
                         ArrowDataType::Null => Arc::new(NullArray::new(limit - offset)),
                         _ => unreachable!(),
@@ -309,7 +309,7 @@ impl TryFrom<&ExcelSheet> for RecordBatch {
             Ok(RecordBatch::new_empty(Arc::new(schema)))
         } else {
             RecordBatch::try_from_iter(iter)
-                .with_context(|| format!("Could not convert sheet {} to RecordBatch", value.name))
+                .with_context(|| format!("Could not convert sheet {} to RecordBatch", sheet.name))
         }
     }
 }
