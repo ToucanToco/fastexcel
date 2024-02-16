@@ -4,6 +4,12 @@ use anyhow::{anyhow, Context, Result};
 use arrow::datatypes::{DataType as ArrowDataType, Field, Schema, TimeUnit};
 use calamine::{CellErrorType, Data as CalData, DataType, Range};
 
+/// All the possible string values that should be considered as NULL
+const NULL_STRING_VALUES: [&str; 19] = [
+    "", "#N/A", "#N/A N/A", "#NA", "-1.#IND", "-1.#QNAN", "-NaN", "-nan", "1.#IND", "1.#QNAN",
+    "<NA>", "N/A", "NA", "NULL", "NaN", "None", "n/a", "nan", "null",
+];
+
 fn get_cell_type(data: &Range<CalData>, row: usize, col: usize) -> Result<ArrowDataType> {
     let cell = data
         .get((row, col))
@@ -11,7 +17,10 @@ fn get_cell_type(data: &Range<CalData>, row: usize, col: usize) -> Result<ArrowD
     match cell {
         CalData::Int(_) => Ok(ArrowDataType::Int64),
         CalData::Float(_) => Ok(ArrowDataType::Float64),
-        CalData::String(_) => Ok(ArrowDataType::Utf8),
+        CalData::String(v) => match v {
+            v if NULL_STRING_VALUES.contains(&v.as_str()) => Ok(ArrowDataType::Null),
+            _ => Ok(ArrowDataType::Utf8),
+        },
         CalData::Bool(_) => Ok(ArrowDataType::Boolean),
         // Since calamine 0.24.0, a new ExcelDateTime exists for the Datetime type. It can either be
         // a duration or a datatime
@@ -148,14 +157,16 @@ mod tests {
             // First column
             Cell::new((0, 0), CalData::Bool(true)),
             Cell::new((1, 0), CalData::Bool(false)),
-            Cell::new((2, 0), CalData::Int(42)),
-            Cell::new((3, 0), CalData::Float(13.37)),
-            Cell::new((4, 0), CalData::String("hello".to_string())),
-            Cell::new((5, 0), CalData::Empty),
-            Cell::new((6, 0), CalData::Int(12)),
-            Cell::new((7, 0), CalData::Float(12.21)),
-            Cell::new((8, 0), CalData::Bool(true)),
-            Cell::new((9, 0), CalData::Int(1337)),
+            Cell::new((2, 0), CalData::String("NULL".to_string())),
+            Cell::new((3, 0), CalData::Int(42)),
+            Cell::new((4, 0), CalData::Float(13.37)),
+            Cell::new((5, 0), CalData::String("hello".to_string())),
+            Cell::new((6, 0), CalData::Empty),
+            Cell::new((7, 0), CalData::String("#N/A".to_string())),
+            Cell::new((8, 0), CalData::Int(12)),
+            Cell::new((9, 0), CalData::Float(12.21)),
+            Cell::new((10, 0), CalData::Bool(true)),
+            Cell::new((11, 0), CalData::Int(1337)),
         ])
     }
 
@@ -163,27 +174,29 @@ mod tests {
     // pure bool
     #[case(0, 2, ArrowDataType::Boolean)]
     // pure int
-    #[case(2, 3, ArrowDataType::Int64)]
+    #[case(3, 4, ArrowDataType::Int64)]
     // pure float
-    #[case(3, 4, ArrowDataType::Float64)]
+    #[case(4, 5, ArrowDataType::Float64)]
     // pure string
-    #[case(4, 5, ArrowDataType::Utf8)]
+    #[case(5, 6, ArrowDataType::Utf8)]
     // pure int + float
-    #[case(2, 4, ArrowDataType::Float64)]
+    #[case(3, 5, ArrowDataType::Float64)]
+    // null + int + float
+    #[case(2, 5, ArrowDataType::Float64)]
     // float + string
-    #[case(3, 5, ArrowDataType::Utf8)]
+    #[case(4, 6, ArrowDataType::Utf8)]
     // int + float + string
-    #[case(2, 5, ArrowDataType::Utf8)]
-    // int + float + string + empty
-    #[case(2, 6, ArrowDataType::Utf8)]
-    // int + null
-    #[case(5, 7, ArrowDataType::Int64)]
+    #[case(3, 6, ArrowDataType::Utf8)]
+    // null + int + float + string + empty + null
+    #[case(2, 8, ArrowDataType::Utf8)]
+    // empty + null + int
+    #[case(6, 9, ArrowDataType::Int64)]
     // int + float + null
-    #[case(5, 8, ArrowDataType::Float64)]
+    #[case(7, 10, ArrowDataType::Float64)]
     // int + float + bool + null
-    #[case(5, 9, ArrowDataType::Float64)]
+    #[case(7, 11, ArrowDataType::Float64)]
     // int + bool
-    #[case(8, 10, ArrowDataType::Int64)]
+    #[case(10, 12, ArrowDataType::Int64)]
     fn get_arrow_column_type_multi_dtype_ok(
         range: Range<CalData>,
         #[case] start_row: usize,

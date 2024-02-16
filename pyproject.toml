@@ -17,7 +17,6 @@ dependencies = [
 pandas = ["pandas>=1.4.4"]
 polars = ["polars>=0.16.14"]
 
-
 [project.urls]
 "Source Code" = "https://github.com/ToucanToco/fastexcel"
 Issues = "https://github.com/ToucanToco/fastexcel"
