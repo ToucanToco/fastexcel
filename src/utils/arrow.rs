@@ -4,25 +4,19 @@ use std::{collections::HashSet, sync::OnceLock};
 
 use anyhow::{anyhow, Context, Result};
 use arrow::datatypes::{DataType as ArrowDataType, Field, Schema, TimeUnit};
-use calamine::{CellErrorType, CellType, Data as CalData, DataType, Range};
+use calamine::{CellErrorType, CellType, DataType, Range};
 
-fn get_arrow_column_type<DT: CellType + DataTypeTrait + Debug>(
-    data: &Range<DT>,
-    row: usize,
-    col: usize,
-) -> Result<ArrowDataType> {
-fn get_arrow_column_type(
-    data: &Range<CalDataType>,
-    row: usize,
-    col: usize,
-) -> Result<ArrowDataType> {
 /// All the possible string values that should be considered as NULL
 const NULL_STRING_VALUES: [&str; 19] = [
     "", "#N/A", "#N/A N/A", "#NA", "-1.#IND", "-1.#QNAN", "-NaN", "-nan", "1.#IND", "1.#QNAN",
     "<NA>", "N/A", "NA", "NULL", "NaN", "None", "n/a", "nan", "null",
 ];
 
-fn get_cell_type(data: &Range<CalData>, row: usize, col: usize) -> Result<ArrowDataType> {
+fn get_cell_type<DT: CellType + Debug + DataType>(
+    data: &Range<DT>,
+    row: usize,
+    col: usize,
+) -> Result<ArrowDataType> {
     let cell = data
         .get((row, col))
         .with_context(|| format!("Could not retrieve data at ({row},{col})"))?;
@@ -31,7 +25,11 @@ fn get_cell_type(data: &Range<CalData>, row: usize, col: usize) -> Result<ArrowD
     } else if cell.is_float() {
         Ok(ArrowDataType::Float64)
     } else if cell.is_string() {
-        Ok(ArrowDataType::Utf8)
+        if NULL_STRING_VALUES.contains(&cell.get_string().unwrap()) {
+            Ok(ArrowDataType::Null)
+        } else {
+            Ok(ArrowDataType::Utf8)
+        }
     } else if cell.is_bool() {
         Ok(ArrowDataType::Boolean)
     } else if cell.is_datetime() {
@@ -48,18 +46,14 @@ fn get_cell_type(data: &Range<CalData>, row: usize, col: usize) -> Result<ArrowD
         }
     }
     // Simple durations
-    else if cell.is_duration() || cell.is_duration_iso() {
+    else if cell.is_duration_iso() {
         Ok(ArrowDataType::Duration(TimeUnit::Millisecond))
-    } else if cell.is_empty() {
-        Ok(ArrowDataType::Null)
     }
-    // Error datatype
-    else {
-        // CalData::Error(err) => match err {
-        //     CellErrorType::NA => Ok(ArrowDataType::Null),
-        //     _ => Err(anyhow!("Error in calamine cell: {err:?}")),
-        // },
-        Err(anyhow!("Error in calamine cell: {err:?}"))
+    // Empty cell or Error datatype
+    else if cell.is_empty() || matches!(cell.get_error(), Some(&CellErrorType::NA)) {
+        Ok(ArrowDataType::Null)
+    } else {
+        Err(anyhow!("Error in calamine cell: {cell:?}"))
     }
 }
 
@@ -91,8 +85,8 @@ fn string_types() -> &'static HashSet<ArrowDataType> {
     })
 }
 
-fn get_arrow_column_type(
-    data: &Range<CalData>,
+fn get_arrow_column_type<DT: CellType + Debug + DataType>(
+    data: &Range<DT>,
     start_row: usize,
     end_row: usize,
     col: usize,
@@ -143,7 +137,7 @@ fn alias_for_name(name: &str, fields: &[Field]) -> String {
     rec(name, fields, 0)
 }
 
-pub(crate) fn arrow_schema_from_column_names_and_range<DT: CellType + DataTypeTrait + Debug>(
+pub(crate) fn arrow_schema_from_column_names_and_range<DT: CellType + DataType + Debug>(
     range: &Range<DT>,
     column_names: &[String],
     row_idx: usize,
@@ -161,27 +155,46 @@ pub(crate) fn arrow_schema_from_column_names_and_range<DT: CellType + DataTypeTr
 
 #[cfg(test)]
 mod tests {
-    use calamine::Cell;
+    use calamine::{Cell, Data, DataRef};
     use rstest::{fixture, rstest};
 
     use super::*;
 
     #[fixture]
-    fn range() -> Range<CalData> {
+    fn range_data() -> Range<Data> {
         Range::from_sparse(vec![
             // First column
-            Cell::new((0, 0), CalData::Bool(true)),
-            Cell::new((1, 0), CalData::Bool(false)),
-            Cell::new((2, 0), CalData::String("NULL".to_string())),
-            Cell::new((3, 0), CalData::Int(42)),
-            Cell::new((4, 0), CalData::Float(13.37)),
-            Cell::new((5, 0), CalData::String("hello".to_string())),
-            Cell::new((6, 0), CalData::Empty),
-            Cell::new((7, 0), CalData::String("#N/A".to_string())),
-            Cell::new((8, 0), CalData::Int(12)),
-            Cell::new((9, 0), CalData::Float(12.21)),
-            Cell::new((10, 0), CalData::Bool(true)),
-            Cell::new((11, 0), CalData::Int(1337)),
+            Cell::new((0, 0), Data::Bool(true)),
+            Cell::new((1, 0), Data::Bool(false)),
+            Cell::new((2, 0), Data::String("NULL".to_string())),
+            Cell::new((3, 0), Data::Int(42)),
+            Cell::new((4, 0), Data::Float(13.37)),
+            Cell::new((5, 0), Data::String("hello".to_string())),
+            Cell::new((6, 0), Data::Empty),
+            Cell::new((7, 0), Data::String("#N/A".to_string())),
+            Cell::new((8, 0), Data::Int(12)),
+            Cell::new((9, 0), Data::Float(12.21)),
+            Cell::new((10, 0), Data::Bool(true)),
+            Cell::new((11, 0), Data::Int(1337)),
+        ])
+    }
+
+    #[fixture]
+    fn range_data_ref() -> Range<DataRef<'static>> {
+        Range::from_sparse(vec![
+            // First column
+            Cell::new((0, 0), DataRef::Bool(true)),
+            Cell::new((1, 0), DataRef::Bool(false)),
+            Cell::new((2, 0), DataRef::SharedString("NULL")),
+            Cell::new((3, 0), DataRef::Int(42)),
+            Cell::new((4, 0), DataRef::Float(13.37)),
+            Cell::new((5, 0), DataRef::SharedString("hello")),
+            Cell::new((6, 0), DataRef::Empty),
+            Cell::new((7, 0), DataRef::SharedString("#N/A")),
+            Cell::new((8, 0), DataRef::Int(12)),
+            Cell::new((9, 0), DataRef::Float(12.21)),
+            Cell::new((10, 0), DataRef::Bool(true)),
+            Cell::new((11, 0), DataRef::Int(1337)),
         ])
     }
 
@@ -213,13 +226,18 @@ mod tests {
     // int + bool
     #[case(10, 12, ArrowDataType::Int64)]
     fn get_arrow_column_type_multi_dtype_ok(
-        range: Range<CalData>,
+        range_data: Range<Data>,
+        range_data_ref: Range<DataRef>,
         #[case] start_row: usize,
         #[case] end_row: usize,
         #[case] expected: ArrowDataType,
     ) {
         assert_eq!(
-            get_arrow_column_type(&range, start_row, end_row, 0).unwrap(),
+            get_arrow_column_type(&range_data, start_row, end_row, 0).unwrap(),
+            expected
+        );
+        assert_eq!(
+            get_arrow_column_type(&range_data_ref, start_row, end_row, 0).unwrap(),
             expected
         );
     }

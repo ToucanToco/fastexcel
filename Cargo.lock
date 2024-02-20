@@ -240,8 +240,7 @@ checksum = "14c189c53d098945499cdfa7ecc63567cf3886b3332b312a5b4585d8d3a6a610"
 [[package]]
 name = "calamine"
 version = "0.24.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8a3a315226fdc5b1c3e33521073e1712a05944bc0664d665ff1f6ff0396334da"
+source = "git+https://github.com/lukapeschke/calamine?branch=add-is-error#32c75e49f2456d155417d437b896e0fa0c13a38e"
 dependencies = [
  "byteorder",
  "chrono",

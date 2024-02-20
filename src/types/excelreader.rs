@@ -4,7 +4,7 @@ use std::{fs::File, io::BufReader};
 use anyhow::{Context, Result};
 use arrow::pyarrow::PyArrowConvert;
 use arrow::record_batch::RecordBatch;
-use calamine::{open_workbook_auto, CellType, DataTypeTrait, Range, Reader, Sheets};
+use calamine::{open_workbook_auto, CellType, DataType, Range, Reader, Sheets};
 use pyo3::prelude::PyObject;
 use pyo3::{pyclass, pymethods, PyResult, Python};
 
@@ -39,7 +39,7 @@ impl ExcelReader {
         })
     }
 
-    fn load_sheet_eager<DT: CellType + DataTypeTrait + Debug>(
+    fn load_sheet_eager<DT: CellType + DataType + Debug>(
         data: Range<DT>,
         pagination: Pagination,
         header: Header,
@@ -60,7 +60,7 @@ impl ExcelReader {
                 upper_bound
             }
         };
-        let schema = arrow_schema_from_column_names_and_range(&data, &column_names, offset)
+        let schema = arrow_schema_from_column_names_and_range(&data, &column_names, offset, limit)
             .with_context(|| "could not build arrow schema")?;
 
         record_batch_from_data_and_schema(schema, &data, offset, limit)

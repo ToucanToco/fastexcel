@@ -10,8 +10,8 @@ use arrow::{
     pyarrow::PyArrowConvert,
     record_batch::RecordBatch,
 };
-use calamine::{CellType, DataType as CalDataType, DataTypeTrait, Range};
-use chrono::{NaiveDate, Timelike};
+use calamine::{CellType, Data as CalData, DataType, Range};
+use chrono::NaiveDate;
 
 use pyo3::prelude::{pyclass, pymethods, PyObject, Python};
 
@@ -83,7 +83,7 @@ pub(crate) struct ExcelSheet {
     schema_sample_rows: Option<usize>,
 }
 
-pub(crate) fn sheet_column_names_from_header_and_range<DT: CellType + DataTypeTrait>(
+pub(crate) fn sheet_column_names_from_header_and_range<DT: CellType + DataType>(
     header: &Header,
     data: &Range<DT>,
 ) -> Vec<String> {
@@ -156,7 +156,7 @@ impl ExcelSheet {
     }
 }
 
-fn create_boolean_array<DT: CellType + DataTypeTrait>(
+fn create_boolean_array<DT: CellType + DataType>(
     data: &Range<DT>,
     col: usize,
     offset: usize,
@@ -167,7 +167,7 @@ fn create_boolean_array<DT: CellType + DataTypeTrait>(
     })))
 }
 
-fn create_int_array<DT: CellType + DataTypeTrait>(
+fn create_int_array<DT: CellType + DataType>(
     data: &Range<DT>,
     col: usize,
     offset: usize,
@@ -178,7 +178,7 @@ fn create_int_array<DT: CellType + DataTypeTrait>(
     ))
 }
 
-fn create_float_array<DT: CellType + DataTypeTrait>(
+fn create_float_array<DT: CellType + DataType>(
     data: &Range<DT>,
     col: usize,
     offset: usize,
@@ -188,8 +188,14 @@ fn create_float_array<DT: CellType + DataTypeTrait>(
         (offset..limit).map(|row| data.get((row, col)).and_then(|cell| cell.as_f64())),
     ))
 }
+//  match cell {
+//     CalData::String(s) => Some(s.to_string()),
+//     CalData::Float(s) => Some(s.to_string()),
+//     CalData::Int(s) => Some(s.to_string()),
+//     _ => None,
+// }))
 
-fn create_string_array<DT: CellType + DataTypeTrait>(
+fn create_string_array<DT: CellType + DataType>(
     data: &Range<DT>,
     col: usize,
     offset: usize,
@@ -199,20 +205,21 @@ fn create_string_array<DT: CellType + DataTypeTrait>(
         // NOTE: Not using cell.as_string() here because it matches the String variant last, which
         // is slower for columns containing mostly/only strings (which we expect to meet more often than
         // mixed dtype columns containing mostly numbers)
-        data.get((row, col)).and_then(|cell| match cell {
-            CalData::String(s) => Some(s.to_string()),
-            CalData::Float(s) => Some(s.to_string()),
-            CalData::Int(s) => Some(s.to_string()),
-            _ => None,
+        data.get((row, col)).and_then(|cell| {
+            if cell.is_string() {
+                cell.get_string().map(str::to_string)
+            } else {
+                cell.as_string()
+            }
         })
     })))
 }
 
-fn duration_type_to_i64<DT: CellType + DataTypeTrait>(caldt: &DT) -> Option<i64> {
+fn duration_type_to_i64<DT: CellType + DataType>(caldt: &DT) -> Option<i64> {
     caldt.as_duration().map(|d| d.num_milliseconds())
 }
 
-fn create_date_array<DT: CellType + DataTypeTrait>(
+fn create_date_array<DT: CellType + DataType>(
     data: &Range<DT>,
     col: usize,
     offset: usize,
@@ -226,7 +233,7 @@ fn create_date_array<DT: CellType + DataTypeTrait>(
     })))
 }
 
-fn create_datetime_array<DT: CellType + DataTypeTrait>(
+fn create_datetime_array<DT: CellType + DataType>(
     data: &Range<DT>,
     col: usize,
     offset: usize,
@@ -241,7 +248,7 @@ fn create_datetime_array<DT: CellType + DataTypeTrait>(
     )))
 }
 
-fn create_duration_array<DT: CellType + DataTypeTrait>(
+fn create_duration_array<DT: CellType + DataType>(
     data: &Range<DT>,
     col: usize,
     offset: usize,
@@ -270,7 +277,7 @@ impl TryFrom<&ExcelSheet> for Schema {
     }
 }
 
-pub(crate) fn record_batch_from_data_and_schema<DT: CellType + DataTypeTrait + Debug>(
+pub(crate) fn record_batch_from_data_and_schema<DT: CellType + DataType + Debug>(
     schema: Schema,
     data: &Range<DT>,
     offset: usize,
