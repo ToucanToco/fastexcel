@@ -33,7 +33,15 @@ fn get_cell_type<DT: CellType + Debug + DataType>(
     } else if cell.is_bool() {
         Ok(ArrowDataType::Boolean)
     } else if cell.is_datetime() {
-        Ok(ArrowDataType::Timestamp(TimeUnit::Millisecond, None))
+        cell.get_datetime()
+            .ok_or(anyhow!("could not get datetime value from cell: {cell:?}"))
+            .map(|excel_datetime| {
+                if excel_datetime.is_datetime() {
+                    ArrowDataType::Timestamp(TimeUnit::Millisecond, None)
+                } else {
+                    ArrowDataType::Duration(TimeUnit::Millisecond)
+                }
+            })
     }
     // These types contain an ISO8601 representation of a date/datetime or a durat
     else if cell.is_datetime_iso() {

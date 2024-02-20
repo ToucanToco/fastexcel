@@ -188,12 +188,6 @@ fn create_float_array<DT: CellType + DataType>(
         (offset..limit).map(|row| data.get((row, col)).and_then(|cell| cell.as_f64())),
     ))
 }
-//  match cell {
-//     CalData::String(s) => Some(s.to_string()),
-//     CalData::Float(s) => Some(s.to_string()),
-//     CalData::Int(s) => Some(s.to_string()),
-//     _ => None,
-// }))
 
 fn create_string_array<DT: CellType + DataType>(
     data: &Range<DT>,
