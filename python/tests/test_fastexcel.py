@@ -1,10 +1,11 @@
+from datetime import datetime
+
 import fastexcel
 import pandas as pd
 import polars as pl
 import pytest
 from pandas.testing import assert_frame_equal as pd_assert_frame_equal
 from polars.testing import assert_frame_equal as pl_assert_frame_equal
-
 from utils import path_for_fixture
 
 
@@ -432,3 +433,93 @@ def test_sheet_with_pagination_out_of_bound():
             pl.col("Amazing").str.strptime(pl.Datetime, "%F %T").dt.cast_time_unit("ms")
         ),
     )
+
+
+def test_sheet_with_na():
+    """Test reading a sheet with #N/A cells. For now, we consider them as null"""
+    excel_reader = fastexcel.read_excel(path_for_fixture("sheet-with-na.xlsx"))
+    sheet = excel_reader.load_sheet(0)
+
+    assert sheet.name == "Sheet1"
+    assert sheet.height == sheet.total_height == 2
+    assert sheet.width == 2
+
+    expected = {
+        "Title": ["A", "B"],
+        "Amount": [None, 100.0],
+    }
+    pd_assert_frame_equal(sheet.to_pandas(), pd.DataFrame(expected))
+    pl_assert_frame_equal(sheet.to_polars(), pl.DataFrame(expected))
+
+
+@pytest.mark.parametrize("excel_file", ["sheet-null-strings.xlsx", "sheet-null-strings-empty.xlsx"])
+def test_null_strings(excel_file: str):
+    excel_reader = fastexcel.read_excel(path_for_fixture(excel_file))
+    sheet = excel_reader.load_sheet(0)
+
+    assert sheet.height == sheet.total_height == 10
+    assert sheet.width == 6
+
+    expected = {
+        "FIRST_LABEL": [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0],
+        "SECOND_LABEL": ["AA", "BB", "CC", "DD", "EE", "FF", "GG", "HH", "II", "JJ"],
+        "DATES_AND_NULLS": [
+            None,
+            None,
+            None,
+            datetime(2022, 12, 19, 0, 0),
+            datetime(2022, 8, 26, 0, 0),
+            datetime(2023, 5, 6, 0, 0),
+            datetime(2023, 3, 20, 0, 0),
+            datetime(2022, 8, 29, 0, 0),
+            None,
+            None,
+        ],
+        "TIMESTAMPS_AND_NULLS": [
+            None,
+            None,
+            datetime(2023, 2, 18, 6, 13, 56, 730000),
+            datetime(2022, 9, 20, 20, 0, 7, 50000),
+            datetime(2022, 9, 24, 17, 4, 31, 236000),
+            None,
+            None,
+            None,
+            datetime(2022, 9, 14, 1, 50, 58, 390000),
+            datetime(2022, 10, 21, 17, 20, 12, 223000),
+        ],
+        "INTS_AND_NULLS": [
+            2076.0,
+            2285.0,
+            39323.0,
+            None,
+            None,
+            None,
+            11953.0,
+            None,
+            30192.0,
+            None,
+        ],
+        "FLOATS_AND_NULLS": [
+            141.02023312814603,
+            778.0655928608671,
+            None,
+            497.60307287584106,
+            627.446112513911,
+            None,
+            None,
+            None,
+            488.3509486743364,
+            None,
+        ],
+    }
+
+    pd_df = pd.DataFrame(expected)
+    pd_df["DATES_AND_NULLS"] = pd_df["DATES_AND_NULLS"].dt.as_unit("ms")
+    pd_df["TIMESTAMPS_AND_NULLS"] = pd_df["TIMESTAMPS_AND_NULLS"].dt.as_unit("ms")
+    pd_assert_frame_equal(sheet.to_pandas(), pd_df)
+
+    pl_df = pl.DataFrame(expected).with_columns(
+        pl.col("DATES_AND_NULLS").dt.cast_time_unit("ms"),
+        pl.col("TIMESTAMPS_AND_NULLS").dt.cast_time_unit("ms"),
+    )
+    pl_assert_frame_equal(sheet.to_polars(), pl_df)

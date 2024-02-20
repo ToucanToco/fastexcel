@@ -5,10 +5,11 @@
 ruff	= ruff python/ *.py
 format	= ruff format python/ *.py
 mypy	= mypy python/ *.py
-pytest	= python -m pytest
+pytest	= pytest -v
 ## Rust
-clippy	= cargo clippy
-fmt	= cargo fmt
+clippy		= cargo clippy
+fmt		= cargo fmt
+cargo-test	= cargo test
 ## Docs
 pdoc	= pdoc -o docs python/fastexcel
 
@@ -38,6 +39,7 @@ prod-install:
 	./prod_install.sh
 
 test:
+	$(cargo-test)
 	$(pytest)
 
 doc:

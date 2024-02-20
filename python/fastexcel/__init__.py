@@ -1,8 +1,14 @@
+from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     import pandas as pd
     import polars as pl
+
+from os.path import expanduser
 
 import pyarrow as pa
 
@@ -82,17 +88,23 @@ class ExcelReader:
         column_names: list[str] | None = None,
         skip_rows: int = 0,
         n_rows: int | None = None,
+        schema_sample_rows: int | None = 1_000,
     ) -> ExcelSheet:
         """Loads a sheet by name.
 
         :param name: The name of the sheet to load.
         :param header_row: The index of the row containing the column labels, default index is 0.
                            If `None`, the sheet does not have any column labels.
-        :param column_names: Overrides headers found in the document. If `column_names` is used,
-                             `header_row` will be ignored.
-        :param n_rows: Specifies how many rows should be loaded. If `None`, all rows are loaded
-        :param skip_rows: Specifies how many should be skipped after the header. If `header_row` is
-                          `None`, it skips the number of rows from the sheet's start.
+        :param column_names: Overrides headers found in the document.
+                             If `column_names` is used, `header_row` will be ignored.
+        :param n_rows: Specifies how many rows should be loaded.
+                       If `None`, all rows are loaded
+        :param skip_rows: Specifies how many rows should be skipped after the header.
+                          If `header_row` is `None`, it skips the number of rows from the
+                          start of the sheet.
+        :param schema_sample_rows: Specifies how many rows should be used to determine
+                                   the dtype of a column.
+                                   If `None`, all rows will be used.
         """
         return ExcelSheet(
             self._reader.load_sheet_by_name(
@@ -101,6 +113,7 @@ class ExcelReader:
                 column_names=column_names,
                 skip_rows=skip_rows,
                 n_rows=n_rows,
+                schema_sample_rows=schema_sample_rows,
             )
         )
 
@@ -112,17 +125,23 @@ class ExcelReader:
         column_names: list[str] | None = None,
         skip_rows: int = 0,
         n_rows: int | None = None,
+        schema_sample_rows: int | None = 1_000,
     ) -> ExcelSheet:
         """Loads a sheet by index.
 
         :param idx: The index (starting at 0) of the sheet to load.
         :param header_row: The index of the row containing the column labels, default index is 0.
                            If `None`, the sheet does not have any column labels.
-        :param column_names: Overrides headers found in the document. If `column_names` is used,
-                             `header_row` will be ignored.
-        :param n_rows: Specifies how many rows should be loaded. If `None`, all rows are loaded
-        :param skip_rows: Specifies how many should be skipped after the header. If `header_row` is
-                          `None`, it skips the number of rows from the sheet's start.
+        :param column_names: Overrides headers found in the document.
+                             If `column_names` is used, `header_row` will be ignored.
+        :param n_rows: Specifies how many rows should be loaded.
+                       If `None`, all rows are loaded
+        :param skip_rows: Specifies how many rows should be skipped after the header.
+                          If `header_row` is `None`, it skips the number of rows from the
+                          start of the sheet.
+        :param schema_sample_rows: Specifies how many rows should be used to determine
+                                   the dtype of a column.
+                                   If `None`, all rows will be used.
         """
         if idx < 0:
             raise ValueError(f"Expected idx to be > 0, got {idx}")
@@ -133,6 +152,7 @@ class ExcelReader:
                 column_names=column_names,
                 skip_rows=skip_rows,
                 n_rows=n_rows,
+                schema_sample_rows=schema_sample_rows,
             )
         )
 
@@ -144,6 +164,7 @@ class ExcelReader:
         column_names: list[str] | None = None,
         skip_rows: int = 0,
         n_rows: int | None = None,
+        schema_sample_rows: int | None = 1_000,
     ) -> ExcelSheet:
         """Loads a sheet by name if a string is passed or by index if an integer is passed.
 
@@ -156,6 +177,7 @@ class ExcelReader:
                 column_names=column_names,
                 skip_rows=skip_rows,
                 n_rows=n_rows,
+                schema_sample_rows=schema_sample_rows,
             )
             if isinstance(idx_or_name, int)
             else self.load_sheet_by_name(
@@ -164,6 +186,7 @@ class ExcelReader:
                 column_names=column_names,
                 skip_rows=skip_rows,
                 n_rows=n_rows,
+                schema_sample_rows=schema_sample_rows,
             )
         )
 
@@ -202,12 +225,12 @@ class ExcelReader:
         return self._reader.__repr__()
 
 
-def read_excel(path: str) -> ExcelReader:
+def read_excel(path: Path | str) -> ExcelReader:
     """Opens and loads an excel file.
 
     :param path: The path to the file
     """
-    return ExcelReader(_read_excel(path))
+    return ExcelReader(_read_excel(expanduser(path)))
 
 
 __all__ = ("ExcelReader", "ExcelSheet", "read_excel", "__version__")

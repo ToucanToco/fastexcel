@@ -76,10 +76,11 @@ pub(crate) struct ExcelSheet {
     pub(crate) name: String,
     header: Header,
     pagination: Pagination,
-    data: Range<CalDataType>,
+    data: Range<CalData>,
     height: Option<usize>,
     total_height: Option<usize>,
     width: Option<usize>,
+    schema_sample_rows: Option<usize>,
 }
 
 pub(crate) fn sheet_column_names_from_header_and_range<DT: CellType + DataTypeTrait>(
@@ -111,21 +112,23 @@ pub(crate) fn sheet_column_names_from_header_and_range<DT: CellType + DataTypeTr
 }
 
 impl ExcelSheet {
-    pub(crate) fn data(&self) -> &Range<CalDataType> {
+    pub(crate) fn data(&self) -> &Range<CalData> {
         &self.data
     }
 
     pub(crate) fn new(
         name: String,
-        data: Range<CalDataType>,
+        data: Range<CalData>,
         header: Header,
         pagination: Pagination,
+        schema_sample_rows: Option<usize>,
     ) -> Self {
         ExcelSheet {
             name,
             header,
             pagination,
             data,
+            schema_sample_rows,
             height: None,
             total_height: None,
             width: None,
@@ -146,6 +149,10 @@ impl ExcelSheet {
         }
 
         upper_bound
+    }
+
+    pub(crate) fn schema_sample_rows(&self) -> &Option<usize> {
+        &self.schema_sample_rows
     }
 }
 
@@ -177,9 +184,9 @@ fn create_float_array<DT: CellType + DataTypeTrait>(
     offset: usize,
     limit: usize,
 ) -> Arc<dyn Array> {
-    Arc::new(Float64Array::from_iter((offset..limit).map(|row| {
-        data.get((row, col)).and_then(|cell| cell.get_float())
-    })))
+    Arc::new(Float64Array::from_iter(
+        (offset..limit).map(|row| data.get((row, col)).and_then(|cell| cell.as_f64())),
+    ))
 }
 
 fn create_string_array<DT: CellType + DataTypeTrait>(
@@ -189,14 +196,20 @@ fn create_string_array<DT: CellType + DataTypeTrait>(
     limit: usize,
 ) -> Arc<dyn Array> {
     Arc::new(StringArray::from_iter((offset..limit).map(|row| {
-        data.get((row, col)).and_then(|cell| cell.get_string())
+        // NOTE: Not using cell.as_string() here because it matches the String variant last, which
+        // is slower for columns containing mostly/only strings (which we expect to meet more often than
+        // mixed dtype columns containing mostly numbers)
+        data.get((row, col)).and_then(|cell| match cell {
+            CalData::String(s) => Some(s.to_string()),
+            CalData::Float(s) => Some(s.to_string()),
+            CalData::Int(s) => Some(s.to_string()),
+            _ => None,
+        })
     })))
 }
 
 fn duration_type_to_i64<DT: CellType + DataTypeTrait>(caldt: &DT) -> Option<i64> {
-    caldt
-        .as_time()
-        .map(|t| 1000 * i64::from(t.num_seconds_from_midnight()))
+    caldt.as_duration().map(|d| d.num_milliseconds())
 }
 
 fn create_date_array<DT: CellType + DataTypeTrait>(
@@ -242,11 +255,17 @@ fn create_duration_array<DT: CellType + DataTypeTrait>(
 impl TryFrom<&ExcelSheet> for Schema {
     type Error = anyhow::Error;
 
-    fn try_from(value: &ExcelSheet) -> Result<Self, Self::Error> {
+    fn try_from(sheet: &ExcelSheet) -> Result<Self, Self::Error> {
+        // Checking how many rows we want to use to determine the dtype for a column. If sample_rows is
+        // not provided, we sample limit rows, i.e on the entire column
+        let sample_rows = sheet.offset() + sheet.schema_sample_rows().unwrap_or(sheet.limit());
+
         arrow_schema_from_column_names_and_range(
-            value.data(),
-            &value.column_names(),
-            value.offset(),
+            sheet.data(),
+            &sheet.column_names(),
+            sheet.offset(),
+            // If sample_rows is higher than the sheet's limit, use the limit instead
+            std::cmp::min(sample_rows, sheet.limit()),
         )
     }
 }
@@ -294,11 +313,53 @@ pub(crate) fn record_batch_from_data_and_schema<DT: CellType + DataTypeTrait + D
 impl TryFrom<&ExcelSheet> for RecordBatch {
     type Error = anyhow::Error;
 
-    fn try_from(value: &ExcelSheet) -> Result<Self, Self::Error> {
-        let schema = Schema::try_from(value)
-            .with_context(|| format!("Could not build schema for sheet {}", value.name))?;
-        record_batch_from_data_and_schema(schema, value.data(), value.offset(), value.limit())
-            .with_context(|| format!("Could not convert sheet {} to RecordBatch", value.name))
+    fn try_from(sheet: &ExcelSheet) -> Result<Self, Self::Error> {
+        let offset = sheet.offset();
+        let limit = sheet.limit();
+        let schema = Schema::try_from(sheet)
+            .with_context(|| format!("Could not build schema for sheet {}", sheet.name))?;
+        let mut iter = schema
+            .fields()
+            .iter()
+            .enumerate()
+            .map(|(col_idx, field)| {
+                (
+                    field.name(),
+                    match field.data_type() {
+                        ArrowDataType::Boolean => {
+                            create_boolean_array(sheet.data(), col_idx, offset, limit)
+                        }
+                        ArrowDataType::Int64 => {
+                            create_int_array(sheet.data(), col_idx, offset, limit)
+                        }
+                        ArrowDataType::Float64 => {
+                            create_float_array(sheet.data(), col_idx, offset, limit)
+                        }
+                        ArrowDataType::Utf8 => {
+                            create_string_array(sheet.data(), col_idx, offset, limit)
+                        }
+                        ArrowDataType::Timestamp(TimeUnit::Millisecond, None) => {
+                            create_datetime_array(sheet.data(), col_idx, offset, limit)
+                        }
+                        ArrowDataType::Date32 => {
+                            create_date_array(sheet.data(), col_idx, offset, limit)
+                        }
+                        ArrowDataType::Duration(TimeUnit::Millisecond) => {
+                            create_duration_array(sheet.data(), col_idx, offset, limit)
+                        }
+                        ArrowDataType::Null => Arc::new(NullArray::new(limit - offset)),
+                        _ => unreachable!(),
+                    },
+                )
+            })
+            .peekable();
+        // If the iterable is empty, try_from_iter returns an Err
+        if iter.peek().is_none() {
+            Ok(RecordBatch::new_empty(Arc::new(schema)))
+        } else {
+            RecordBatch::try_from_iter(iter)
+                .with_context(|| format!("Could not convert sheet {} to RecordBatch", sheet.name))
+        }
     }
 }
 

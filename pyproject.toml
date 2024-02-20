@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "fastexcel"
-requires-python = ">=3.10"
+requires-python = ">=3.8"
 classifiers = [
     "Programming Language :: Rust",
     "Programming Language :: Python :: Implementation :: CPython",
@@ -17,7 +17,6 @@ dependencies = [
 pandas = ["pandas>=1.4.4"]
 polars = ["polars>=0.16.14"]
 
-
 [project.urls]
 "Source Code" = "https://github.com/ToucanToco/fastexcel"
 Issues = "https://github.com/ToucanToco/fastexcel"
@@ -27,7 +26,7 @@ python-source = "python"
 module-name = "fastexcel._fastexcel"
 
 [tool.mypy]
-python_version = "3.10"
+python_version = "3.8"
 follow_imports = "silent"
 ignore_missing_imports = true
 # A few custom options
@@ -43,6 +42,8 @@ testpaths = [
 
 [tool.ruff]
 line-length = 100
+target-version = "py38"
 
+[tool.ruff.lint]
 # Enable Pyflakes `E` and `F` codes by default.
-select = ["E", "F", "Q"]
+select = ["E", "F", "I", "Q", "FA102"]
