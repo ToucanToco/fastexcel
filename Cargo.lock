@@ -46,12 +46,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "anyhow"
-version = "1.0.80"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5ad32ce52e4161730f7098c077cd2ed6229b5804ccf99e5366be1ab72a98b4e1"
-
-[[package]]
 name = "arrow"
 version = "40.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -347,7 +341,6 @@ dependencies = [
 name = "fastexcel"
 version = "0.9.1"
 dependencies = [
- "anyhow",
  "arrow",
  "calamine",
  "chrono",
@@ -678,7 +671,6 @@ version = "0.18.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e3b1ac5b3731ba34fdaa9785f8d74d17448cd18f30cf19e0c7e7b1fdb5272109"
 dependencies = [
- "anyhow",
  "cfg-if",
  "indoc",
  "libc",

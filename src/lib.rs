@@ -1,14 +1,19 @@
+mod error;
 mod types;
 mod utils;
 
-use anyhow::Result;
+use error::{py_errors, ErrorContext};
 use pyo3::prelude::*;
 use types::{ExcelReader, ExcelSheet};
 
 /// Reads an excel file and returns an object allowing to access its sheets and a bit of metadata
 #[pyfunction]
-fn read_excel(path: &str) -> Result<ExcelReader> {
-    Ok(ExcelReader::try_from_path(path).unwrap())
+fn read_excel(path: &str) -> PyResult<ExcelReader> {
+    use py_errors::IntoPyResult;
+
+    ExcelReader::try_from_path(path)
+        .with_context(|| format!("could not load excel file at {path}"))
+        .into_pyresult()
 }
 
 // Taken from pydantic-core:
@@ -24,10 +29,34 @@ fn get_version() -> String {
 }
 
 #[pymodule]
-fn _fastexcel(_py: Python, m: &PyModule) -> PyResult<()> {
+fn _fastexcel(py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(read_excel, m)?)?;
     m.add_class::<ExcelSheet>()?;
     m.add_class::<ExcelReader>()?;
     m.add("__version__", get_version())?;
+    m.add("FastExcelError", py.get_type::<py_errors::FastExcelError>())?;
+    // errors
+    m.add(
+        "UnsupportedColumnTypeCombinationError",
+        py.get_type::<py_errors::UnsupportedColumnTypeCombinationError>(),
+    )?;
+    m.add(
+        "CannotRetrieveCellDataError",
+        py.get_type::<py_errors::CannotRetrieveCellDataError>(),
+    )?;
+    m.add(
+        "CalamineCellError",
+        py.get_type::<py_errors::CalamineCellError>(),
+    )?;
+    m.add("CalamineError", py.get_type::<py_errors::CalamineError>())?;
+    m.add(
+        "SheetNotFoundError",
+        py.get_type::<py_errors::SheetNotFoundError>(),
+    )?;
+    m.add("ArrowError", py.get_type::<py_errors::ArrowError>())?;
+    m.add(
+        "InvalidParametersError",
+        py.get_type::<py_errors::InvalidParametersError>(),
+    )?;
     Ok(())
 }

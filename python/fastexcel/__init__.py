@@ -12,7 +12,18 @@ from os.path import expanduser
 
 import pyarrow as pa
 
-from ._fastexcel import __version__, _ExcelReader, _ExcelSheet
+from ._fastexcel import (
+    ArrowError,
+    CalamineCellError,
+    CalamineError,
+    CannotRetrieveCellDataError,
+    FastExcelError,
+    InvalidParametersError,
+    SheetNotFoundError,
+    __version__,
+    _ExcelReader,
+    _ExcelSheet,
+)
 from ._fastexcel import read_excel as _read_excel
 
 
@@ -202,4 +213,16 @@ def read_excel(path: Path | str) -> ExcelReader:
     return ExcelReader(_read_excel(expanduser(path)))
 
 
-__all__ = ("ExcelReader", "ExcelSheet", "read_excel", "__version__")
+__all__ = (
+    "ExcelReader",
+    "ExcelSheet",
+    "read_excel",
+    "__version__",
+    "FastExcelError",
+    "CannotRetrieveCellDataError",
+    "CalamineCellError",
+    "CalamineError",
+    "SheetNotFoundError",
+    "ArrowError",
+    "InvalidParametersError",
+)
