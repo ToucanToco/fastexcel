@@ -42,6 +42,7 @@ class _ExcelReader:
         column_names: list[str] | None = None,
         skip_rows: int = 0,
         n_rows: int | None = None,
+        schema_sample_rows: int | None = 1_000,
     ) -> pa.RecordBatch: ...
     def load_sheet_by_idx(
         self,
@@ -61,6 +62,7 @@ class _ExcelReader:
         column_names: list[str] | None = None,
         skip_rows: int = 0,
         n_rows: int | None = None,
+        schema_sample_rows: int | None = 1_000,
     ) -> pa.RecordBatch: ...
     def load_sheet(
         self,

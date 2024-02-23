@@ -10,6 +10,7 @@ use pyo3::{pyclass, pymethods, PyResult, Python};
 
 use crate::types::excelsheet::sheet_column_names_from_header_and_range;
 use crate::utils::arrow::arrow_schema_from_column_names_and_range;
+use crate::utils::schema::get_schema_sample_rows;
 
 use super::excelsheet::record_batch_from_data_and_schema;
 use super::{
@@ -43,6 +44,7 @@ impl ExcelReader {
         data: Range<DT>,
         pagination: Pagination,
         header: Header,
+        sample_rows: Option<usize>,
     ) -> Result<RecordBatch> {
         let column_names = sheet_column_names_from_header_and_range(&header, &data);
 
@@ -50,18 +52,22 @@ impl ExcelReader {
         let limit = {
             let upper_bound = data.height();
             if let Some(n_rows) = pagination.n_rows() {
-                let limit = offset + n_rows;
-                if limit < upper_bound {
-                    limit
-                } else {
-                    upper_bound
-                }
+                // minimum value between (offset+n_rows) and the data's height
+                std::cmp::min(offset + n_rows, upper_bound)
             } else {
                 upper_bound
             }
         };
-        let schema = arrow_schema_from_column_names_and_range(&data, &column_names, offset, limit)
-            .with_context(|| "could not build arrow schema")?;
+
+        let schema_sample_rows = get_schema_sample_rows(sample_rows, offset, limit);
+
+        let schema = arrow_schema_from_column_names_and_range(
+            &data,
+            &column_names,
+            offset,
+            schema_sample_rows,
+        )
+        .with_context(|| "could not build arrow schema")?;
 
         record_batch_from_data_and_schema(schema, &data, offset, limit)
     }
@@ -113,8 +119,10 @@ impl ExcelReader {
         header_row = 0,
         column_names = None,
         skip_rows = 0,
-        n_rows = None
+        n_rows = None,
+        schema_sample_rows = 1_000,
     ))]
+    #[allow(clippy::too_many_arguments)]
     pub fn load_sheet_by_name_eager(
         &mut self,
         name: String,
@@ -122,6 +130,7 @@ impl ExcelReader {
         column_names: Option<Vec<String>>,
         skip_rows: usize,
         n_rows: Option<usize>,
+        schema_sample_rows: Option<usize>,
         py: Python<'_>,
     ) -> PyResult<PyObject> {
         let range = self
@@ -131,7 +140,7 @@ impl ExcelReader {
 
         let header = Header::new(header_row, column_names);
         let pagination = Pagination::new(skip_rows, n_rows, &range)?;
-        let rb = ExcelReader::load_sheet_eager(range, pagination, header)
+        let rb = ExcelReader::load_sheet_eager(range, pagination, header, schema_sample_rows)
             .with_context(|| "could not load sheet eagerly")?;
         rb.to_pyarrow(py)
     }
@@ -187,8 +196,10 @@ impl ExcelReader {
         header_row = 0,
         column_names = None,
         skip_rows = 0,
-        n_rows = None)
-    )]
+        n_rows = None,
+        schema_sample_rows = 1_000,
+    ))]
+    #[allow(clippy::too_many_arguments)]
     pub fn load_sheet_by_idx_eager(
         &mut self,
         idx: usize,
@@ -196,6 +207,7 @@ impl ExcelReader {
         column_names: Option<Vec<String>>,
         skip_rows: usize,
         n_rows: Option<usize>,
+        schema_sample_rows: Option<usize>,
         py: Python<'_>,
     ) -> PyResult<PyObject> {
         let range = self
@@ -205,7 +217,7 @@ impl ExcelReader {
             .with_context(|| format!("Error while loading sheet at idx {idx}"))?;
         let header = Header::new(header_row, column_names);
         let pagination = Pagination::new(skip_rows, n_rows, &range)?;
-        let rb = ExcelReader::load_sheet_eager(range, pagination, header)
+        let rb = ExcelReader::load_sheet_eager(range, pagination, header, schema_sample_rows)
             .with_context(|| "could not load sheet eagerly")?;
         rb.to_pyarrow(py)
     }

@@ -15,7 +15,9 @@ use chrono::NaiveDate;
 
 use pyo3::prelude::{pyclass, pymethods, PyObject, Python};
 
-use crate::utils::arrow::arrow_schema_from_column_names_and_range;
+use crate::utils::{
+    arrow::arrow_schema_from_column_names_and_range, schema::get_schema_sample_rows,
+};
 
 pub(crate) enum Header {
     None,
@@ -151,8 +153,8 @@ impl ExcelSheet {
         upper_bound
     }
 
-    pub(crate) fn schema_sample_rows(&self) -> &Option<usize> {
-        &self.schema_sample_rows
+    pub(crate) fn schema_sample_rows(&self) -> usize {
+        get_schema_sample_rows(self.schema_sample_rows, self.offset(), self.limit())
     }
 }
 
@@ -257,16 +259,12 @@ impl TryFrom<&ExcelSheet> for Schema {
     type Error = anyhow::Error;
 
     fn try_from(sheet: &ExcelSheet) -> Result<Self, Self::Error> {
-        // Checking how many rows we want to use to determine the dtype for a column. If sample_rows is
-        // not provided, we sample limit rows, i.e on the entire column
-        let sample_rows = sheet.offset() + sheet.schema_sample_rows().unwrap_or(sheet.limit());
-
         arrow_schema_from_column_names_and_range(
             sheet.data(),
             &sheet.column_names(),
             sheet.offset(),
             // If sample_rows is higher than the sheet's limit, use the limit instead
-            std::cmp::min(sample_rows, sheet.limit()),
+            sheet.schema_sample_rows(),
         )
     }
 }

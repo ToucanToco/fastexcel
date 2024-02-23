@@ -198,6 +198,7 @@ class ExcelReader:
         column_names: list[str] | None = None,
         skip_rows: int = 0,
         n_rows: int | None = None,
+        schema_sample_rows: int | None = 1_000,
     ) -> pa.RecordBatch:
         """Loads a sheet by name if a string is passed or by index if an integer is passed.
 
@@ -210,6 +211,7 @@ class ExcelReader:
                 column_names=column_names,
                 skip_rows=skip_rows,
                 n_rows=n_rows,
+                schema_sample_rows=schema_sample_rows,
             )
             if isinstance(idx_or_name, int)
             else self._reader.load_sheet_by_name_eager(
@@ -218,6 +220,7 @@ class ExcelReader:
                 column_names=column_names,
                 skip_rows=skip_rows,
                 n_rows=n_rows,
+                schema_sample_rows=schema_sample_rows,
             )
         )
 
