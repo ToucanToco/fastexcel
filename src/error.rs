@@ -125,25 +125,61 @@ pub(crate) mod py_errors {
     use pyo3::{create_exception, exceptions::PyException, PyResult};
 
     // Base fastexcel error
-    create_exception!(_fastexcel, FastExcelError, PyException);
+    create_exception!(
+        _fastexcel,
+        FastExcelError,
+        PyException,
+        "The base class for all fastexcel errors"
+    );
     // Unsupported column type
     create_exception!(
         _fastexcel,
         UnsupportedColumnTypeCombinationError,
-        FastExcelError
+        FastExcelError,
+        "Column contains an unsupported type combination"
     );
     // Cannot retrieve cell data
-    create_exception!(_fastexcel, CannotRetrieveCellDataError, FastExcelError);
+    create_exception!(
+        _fastexcel,
+        CannotRetrieveCellDataError,
+        FastExcelError,
+        "Data for a given cell cannot be retrieved"
+    );
     // Calamine cell error
-    create_exception!(_fastexcel, CalamineCellError, FastExcelError);
+    create_exception!(
+        _fastexcel,
+        CalamineCellError,
+        FastExcelError,
+        "calamine returned an error regarding the content of the cell"
+    );
     // Calamine error
-    create_exception!(_fastexcel, CalamineError, FastExcelError);
+    create_exception!(
+        _fastexcel,
+        CalamineError,
+        FastExcelError,
+        "Generic calamine error"
+    );
     // Sheet not found
-    create_exception!(_fastexcel, SheetNotFoundError, FastExcelError);
+    create_exception!(
+        _fastexcel,
+        SheetNotFoundError,
+        FastExcelError,
+        "Sheet was not found"
+    );
     // Arrow error
-    create_exception!(_fastexcel, ArrowError, FastExcelError);
+    create_exception!(
+        _fastexcel,
+        ArrowError,
+        FastExcelError,
+        "Generic arrow error"
+    );
     // Invalid parameters
-    create_exception!(_fastexcel, InvalidParametersError, FastExcelError);
+    create_exception!(
+        _fastexcel,
+        InvalidParametersError,
+        FastExcelError,
+        "Provided parameters are invalid"
+    );
 
     pub(crate) trait IntoPyResult {
         type Inner;

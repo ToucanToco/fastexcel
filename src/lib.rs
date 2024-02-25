@@ -34,29 +34,33 @@ fn _fastexcel(py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<ExcelSheet>()?;
     m.add_class::<ExcelReader>()?;
     m.add("__version__", get_version())?;
-    m.add("FastExcelError", py.get_type::<py_errors::FastExcelError>())?;
+
     // errors
-    m.add(
-        "UnsupportedColumnTypeCombinationError",
-        py.get_type::<py_errors::UnsupportedColumnTypeCombinationError>(),
-    )?;
-    m.add(
-        "CannotRetrieveCellDataError",
-        py.get_type::<py_errors::CannotRetrieveCellDataError>(),
-    )?;
-    m.add(
-        "CalamineCellError",
-        py.get_type::<py_errors::CalamineCellError>(),
-    )?;
-    m.add("CalamineError", py.get_type::<py_errors::CalamineError>())?;
-    m.add(
-        "SheetNotFoundError",
-        py.get_type::<py_errors::SheetNotFoundError>(),
-    )?;
-    m.add("ArrowError", py.get_type::<py_errors::ArrowError>())?;
-    m.add(
-        "InvalidParametersError",
-        py.get_type::<py_errors::InvalidParametersError>(),
-    )?;
-    Ok(())
+    [
+        ("FastExcelError", py.get_type::<py_errors::FastExcelError>()),
+        (
+            "UnsupportedColumnTypeCombinationError",
+            py.get_type::<py_errors::UnsupportedColumnTypeCombinationError>(),
+        ),
+        (
+            "CannotRetrieveCellDataError",
+            py.get_type::<py_errors::CannotRetrieveCellDataError>(),
+        ),
+        (
+            "CalamineCellError",
+            py.get_type::<py_errors::CalamineCellError>(),
+        ),
+        ("CalamineError", py.get_type::<py_errors::CalamineError>()),
+        (
+            "SheetNotFoundError",
+            py.get_type::<py_errors::SheetNotFoundError>(),
+        ),
+        ("ArrowError", py.get_type::<py_errors::ArrowError>()),
+        (
+            "InvalidParametersError",
+            py.get_type::<py_errors::InvalidParametersError>(),
+        ),
+    ]
+    .into_iter()
+    .try_for_each(|(exc_name, exc_type)| m.add(exc_name, exc_type))
 }

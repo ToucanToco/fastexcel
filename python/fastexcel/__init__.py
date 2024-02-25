@@ -20,6 +20,7 @@ from ._fastexcel import (
     FastExcelError,
     InvalidParametersError,
     SheetNotFoundError,
+    UnsupportedColumnTypeCombinationError,
     __version__,
     _ExcelReader,
     _ExcelSheet,
@@ -225,4 +226,5 @@ __all__ = (
     "SheetNotFoundError",
     "ArrowError",
     "InvalidParametersError",
+    "UnsupportedColumnTypeCombinationError",
 )
