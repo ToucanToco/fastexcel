@@ -24,11 +24,9 @@ impl ExcelReader {
     // NOTE: Not implementing TryFrom here, because we're aren't building the file from the passed
     // string, but rather from the file pointed by it. Semantically, try_from_path is clearer
     pub(crate) fn try_from_path(path: &str) -> FastExcelResult<Self> {
-        let sheets = match open_workbook_auto(path) {
-            Ok(ok) => Ok(ok),
-            Err(err) => Err(FastExcelErrorKind::CalamineError(err).into()),
-        }
-        .with_context(|| format!("Could not open workbook at {path}"))?;
+        let sheets = open_workbook_auto(path)
+            .map_err(|err| FastExcelErrorKind::CalamineError(err).into())
+            .with_context(|| format!("Could not open workbook at {path}"))?;
         let sheet_names = sheets.sheet_names().to_owned();
         Ok(Self {
             sheets,
