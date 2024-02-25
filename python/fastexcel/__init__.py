@@ -102,6 +102,7 @@ class ExcelReader:
         skip_rows: int = 0,
         n_rows: int | None = None,
         schema_sample_rows: int | None = 1_000,
+        use_columns: list[str] | list[int] | None = None,
     ) -> ExcelSheet:
         """Loads a sheet by name.
 
@@ -127,6 +128,7 @@ class ExcelReader:
                 skip_rows=skip_rows,
                 n_rows=n_rows,
                 schema_sample_rows=schema_sample_rows,
+                use_columns=use_columns,
             )
         )
 
@@ -139,6 +141,7 @@ class ExcelReader:
         skip_rows: int = 0,
         n_rows: int | None = None,
         schema_sample_rows: int | None = 1_000,
+        use_columns: list[str] | list[int] | None = None,
     ) -> ExcelSheet:
         """Loads a sheet by index.
 
@@ -166,6 +169,7 @@ class ExcelReader:
                 skip_rows=skip_rows,
                 n_rows=n_rows,
                 schema_sample_rows=schema_sample_rows,
+                use_columns=use_columns,
             )
         )
 
@@ -178,6 +182,7 @@ class ExcelReader:
         skip_rows: int = 0,
         n_rows: int | None = None,
         schema_sample_rows: int | None = 1_000,
+        use_columns: list[str] | list[int] | None = None,
     ) -> ExcelSheet:
         """Loads a sheet by name if a string is passed or by index if an integer is passed.
 
@@ -191,6 +196,7 @@ class ExcelReader:
                 skip_rows=skip_rows,
                 n_rows=n_rows,
                 schema_sample_rows=schema_sample_rows,
+                use_columns=use_columns,
             )
             if isinstance(idx_or_name, int)
             else self.load_sheet_by_name(
@@ -200,6 +206,7 @@ class ExcelReader:
                 skip_rows=skip_rows,
                 n_rows=n_rows,
                 schema_sample_rows=schema_sample_rows,
+                use_columns=use_columns,
             )
         )
 

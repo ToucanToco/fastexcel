@@ -10,7 +10,7 @@ impl IdxOrName {
     pub(super) fn format_message(&self) -> String {
         match self {
             Self::Idx(idx) => format!("at index {idx}"),
-            Self::Name(name) => format!("with name \"{name}\" not found"),
+            Self::Name(name) => format!("with name \"{name}\""),
         }
     }
 }
@@ -60,7 +60,7 @@ impl Display for FastExcelErrorKind {
 
 #[derive(Debug)]
 pub(crate) struct FastExcelError {
-    kind: FastExcelErrorKind,
+    pub kind: FastExcelErrorKind,
     context: Vec<String>,
 }
 
@@ -76,10 +76,6 @@ impl FastExcelError {
             kind,
             context: vec![],
         }
-    }
-
-    pub(crate) fn kind(&self) -> &FastExcelErrorKind {
-        &self.kind
     }
 }
 

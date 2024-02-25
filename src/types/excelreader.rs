@@ -1,7 +1,7 @@
 use std::{fs::File, io::BufReader};
 
 use calamine::{open_workbook_auto, Reader, Sheets};
-use pyo3::{pyclass, pymethods, PyResult};
+use pyo3::{pyclass, pymethods, types::PyList, PyResult};
 
 use crate::error::{
     py_errors::IntoPyResult, ErrorContext, FastExcelErrorKind, FastExcelResult, IdxOrName,
@@ -50,7 +50,9 @@ impl ExcelReader {
         skip_rows = 0,
         n_rows = None,
         schema_sample_rows = 1_000,
+        use_columns = None
     ))]
+    #[allow(clippy::too_many_arguments)]
     pub fn load_sheet_by_name(
         &mut self,
         name: String,
@@ -59,6 +61,7 @@ impl ExcelReader {
         skip_rows: usize,
         n_rows: Option<usize>,
         schema_sample_rows: Option<usize>,
+        use_columns: Option<&PyList>,
     ) -> PyResult<ExcelSheet> {
         let range = self
             .sheets
@@ -69,12 +72,14 @@ impl ExcelReader {
 
         let header = Header::new(header_row, column_names);
         let pagination = Pagination::new(skip_rows, n_rows, &range).into_pyresult()?;
+        let selected_columns = use_columns.try_into().with_context(|| format!("expected selected columns to be list[str] | list[int] | None, got {use_columns:?}")).into_pyresult()?;
         Ok(ExcelSheet::new(
             name,
             range,
             header,
             pagination,
             schema_sample_rows,
+            selected_columns,
         ))
     }
 
@@ -86,7 +91,9 @@ impl ExcelReader {
         skip_rows = 0,
         n_rows = None,
         schema_sample_rows = 1_000,
+        use_columns = None
     ))]
+    #[allow(clippy::too_many_arguments)]
     pub fn load_sheet_by_idx(
         &mut self,
         idx: usize,
@@ -95,6 +102,7 @@ impl ExcelReader {
         skip_rows: usize,
         n_rows: Option<usize>,
         schema_sample_rows: Option<usize>,
+        use_columns: Option<&PyList>,
     ) -> PyResult<ExcelSheet> {
         let name = self
             .sheet_names
@@ -122,12 +130,14 @@ impl ExcelReader {
 
         let header = Header::new(header_row, column_names);
         let pagination = Pagination::new(skip_rows, n_rows, &range).into_pyresult()?;
+        let selected_columns = use_columns.try_into().with_context(|| format!("expected selected columns to be list[str] | list[int] | None, got {use_columns:?}")).into_pyresult()?;
         Ok(ExcelSheet::new(
             name,
             range,
             header,
             pagination,
             schema_sample_rows,
+            selected_columns,
         ))
     }
 }

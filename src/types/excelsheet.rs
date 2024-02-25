@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use crate::error::{
     py_errors::IntoPyResult, ErrorContext, FastExcelError, FastExcelErrorKind, FastExcelResult,
+    IdxOrName,
 };
 
 use arrow::{
@@ -18,11 +19,13 @@ use chrono::NaiveDate;
 
 use pyo3::{
     prelude::{pyclass, pymethods, PyObject, Python},
+    types::PyList,
     PyResult,
 };
 
 use crate::utils::arrow::arrow_schema_from_column_names_and_range;
 
+#[derive(Debug)]
 pub(crate) enum Header {
     None,
     At(usize),
@@ -76,6 +79,100 @@ impl Pagination {
     }
 }
 
+#[derive(Debug, PartialEq)]
+pub(crate) enum SelectedColumns {
+    All,
+    ByIndex(Vec<usize>),
+    ByName(Vec<String>),
+}
+
+impl SelectedColumns {
+    pub(crate) fn validate_columns(&self, column_names: &[String]) -> FastExcelResult<()> {
+        match self {
+            SelectedColumns::All => Ok(()),
+            // If no selected indice is >= to the len of column_names, we're good
+            SelectedColumns::ByIndex(indices) => indices.iter().try_for_each(|idx| {
+                if idx >= &column_names.len() {
+                    Err(FastExcelErrorKind::ColumnNotFound(IdxOrName::Idx(*idx)).into())
+                } else {
+                    Ok(())
+                }
+            }),
+            // Every selected column must be in the provided column_names
+            SelectedColumns::ByName(selected_names) => {
+                selected_names.iter().try_for_each(|selected_name| {
+                    if column_names.contains(selected_name) {
+                        Ok(())
+                    } else {
+                        Err(FastExcelErrorKind::ColumnNotFound(IdxOrName::Name(
+                            selected_name.to_string(),
+                        ))
+                        .into())
+                    }
+                })
+            }
+        }
+    }
+
+    pub(crate) fn idx_for_column(
+        &self,
+        col_names: &[String],
+        col_name: &str,
+        col_idx: usize,
+    ) -> Option<usize> {
+        match self {
+            SelectedColumns::All => None,
+            SelectedColumns::ByIndex(indices) => {
+                if indices.contains(&col_idx) {
+                    Some(col_idx)
+                } else {
+                    None
+                }
+            }
+            SelectedColumns::ByName(names) => {
+                // cannot use .contains() because we have &String and &str
+                if names.iter().any(|name| name == col_name) {
+                    col_names.iter().position(|name| name == col_name)
+                } else {
+                    None
+                }
+            }
+        }
+    }
+}
+
+impl TryFrom<Option<&PyList>> for SelectedColumns {
+    type Error = FastExcelError;
+
+    fn try_from(value: Option<&PyList>) -> FastExcelResult<Self> {
+        use FastExcelErrorKind::InvalidParameters;
+
+        match value {
+            None => Ok(Self::All),
+            Some(py_list) => {
+                if let Ok(name_vec) = py_list.extract::<Vec<String>>() {
+                    if name_vec.is_empty() {
+                        Err(InvalidParameters("list of select columns is empty".to_string()).into())
+                    } else {
+                        Ok(Self::ByName(name_vec))
+                    }
+                } else if let Ok(index_vec) = py_list.extract::<Vec<usize>>() {
+                    if index_vec.is_empty() {
+                        Err(InvalidParameters("list of select columns is empty".to_string()).into())
+                    } else {
+                        Ok(Self::ByIndex(index_vec))
+                    }
+                } else {
+                    Err(InvalidParameters(format!(
+                        "expected list[int] | list[str], got {py_list:?}"
+                    ))
+                    .into())
+                }
+            }
+        }
+    }
+}
+
 #[pyclass(name = "_ExcelSheet")]
 pub(crate) struct ExcelSheet {
     #[pyo3(get)]
@@ -87,6 +184,7 @@ pub(crate) struct ExcelSheet {
     total_height: Option<usize>,
     width: Option<usize>,
     schema_sample_rows: Option<usize>,
+    selected_columns: SelectedColumns,
 }
 
 impl ExcelSheet {
@@ -100,6 +198,7 @@ impl ExcelSheet {
         header: Header,
         pagination: Pagination,
         schema_sample_rows: Option<usize>,
+        selected_columns: SelectedColumns,
     ) -> Self {
         ExcelSheet {
             name,
@@ -107,6 +206,7 @@ impl ExcelSheet {
             pagination,
             data,
             schema_sample_rows,
+            selected_columns,
             height: None,
             total_height: None,
             width: None,
@@ -267,6 +367,7 @@ impl TryFrom<&ExcelSheet> for Schema {
             sheet.offset(),
             // If sample_rows is higher than the sheet's limit, use the limit instead
             std::cmp::min(sample_rows, sheet.limit()),
+            &sheet.selected_columns,
         )
     }
 }
@@ -277,50 +378,76 @@ impl TryFrom<&ExcelSheet> for RecordBatch {
     fn try_from(sheet: &ExcelSheet) -> FastExcelResult<Self> {
         let offset = sheet.offset();
         let limit = sheet.limit();
+
+        let column_names = sheet.column_names();
+
+        // Ensuring selected columns are valid
+        sheet
+            .selected_columns
+            .validate_columns(&column_names)
+            .with_context(|| "selected columns are invalid")?;
+
         let schema = Schema::try_from(sheet)
-            .with_context(|| format!("Could not build schema for sheet {}", sheet.name))?;
-        let mut iter = schema
-            .fields()
+            .with_context(|| format!("could not build schema for sheet {}", sheet.name))?;
+
+        let mut iter = column_names
             .iter()
             .enumerate()
-            .map(|(col_idx, field)| {
-                (
-                    field.name(),
-                    match field.data_type() {
-                        ArrowDataType::Boolean => {
-                            create_boolean_array(sheet.data(), col_idx, offset, limit)
-                        }
-                        ArrowDataType::Int64 => {
-                            create_int_array(sheet.data(), col_idx, offset, limit)
-                        }
-                        ArrowDataType::Float64 => {
-                            create_float_array(sheet.data(), col_idx, offset, limit)
-                        }
-                        ArrowDataType::Utf8 => {
-                            create_string_array(sheet.data(), col_idx, offset, limit)
-                        }
-                        ArrowDataType::Timestamp(TimeUnit::Millisecond, None) => {
-                            create_datetime_array(sheet.data(), col_idx, offset, limit)
-                        }
-                        ArrowDataType::Date32 => {
-                            create_date_array(sheet.data(), col_idx, offset, limit)
-                        }
-                        ArrowDataType::Duration(TimeUnit::Millisecond) => {
-                            create_duration_array(sheet.data(), col_idx, offset, limit)
-                        }
-                        ArrowDataType::Null => Arc::new(NullArray::new(limit - offset)),
-                        _ => unreachable!(),
-                    },
-                )
+            .filter_map(|(idx, column_name)| {
+                // checking if the current column has been selected
+                if let Some(col_idx) = match sheet.selected_columns {
+                    // All columns selected, return the current index
+                    SelectedColumns::All => Some(idx),
+                    // Otherwise, return its index. If None is found, it means the column was not
+                    // selected, and we will just continue
+                    _ => sheet
+                        .selected_columns
+                        .idx_for_column(&column_names, column_name, idx),
+                } {
+                    // At this point, we know for sure that the column is in the schema so we can
+                    // safely unwrap
+                    let field = schema.field_with_name(column_name).unwrap();
+                    Some((
+                        field.name(),
+                        match field.data_type() {
+                            ArrowDataType::Boolean => {
+                                create_boolean_array(sheet.data(), col_idx, offset, limit)
+                            }
+                            ArrowDataType::Int64 => {
+                                create_int_array(sheet.data(), col_idx, offset, limit)
+                            }
+                            ArrowDataType::Float64 => {
+                                create_float_array(sheet.data(), col_idx, offset, limit)
+                            }
+                            ArrowDataType::Utf8 => {
+                                create_string_array(sheet.data(), col_idx, offset, limit)
+                            }
+                            ArrowDataType::Timestamp(TimeUnit::Millisecond, None) => {
+                                create_datetime_array(sheet.data(), col_idx, offset, limit)
+                            }
+                            ArrowDataType::Date32 => {
+                                create_date_array(sheet.data(), col_idx, offset, limit)
+                            }
+                            ArrowDataType::Duration(TimeUnit::Millisecond) => {
+                                create_duration_array(sheet.data(), col_idx, offset, limit)
+                            }
+                            ArrowDataType::Null => Arc::new(NullArray::new(limit - offset)),
+                            _ => unreachable!(),
+                        },
+                    ))
+                } else {
+                    None
+                }
             })
             .peekable();
+
         // If the iterable is empty, try_from_iter returns an Err
         if iter.peek().is_none() {
             Ok(RecordBatch::new_empty(Arc::new(schema)))
         } else {
             RecordBatch::try_from_iter(iter)
                 .map_err(|err| FastExcelErrorKind::ArrowError(err.to_string()).into())
-                .with_context(|| format!("Could not convert sheet {} to RecordBatch", sheet.name))
+                .with_context(|| format!("could not convert sheet {} to RecordBatch", sheet.name))
         }
     }
 }
@@ -361,14 +488,14 @@ impl ExcelSheet {
 
     pub fn to_arrow(&self, py: Python<'_>) -> PyResult<PyObject> {
         RecordBatch::try_from(self)
-            .with_context(|| format!("Could not create RecordBatch from sheet {}", self.name))
+            .with_context(|| format!("could not create RecordBatch from sheet \"{}\"", &self.name))
             .and_then(|rb| {
                 rb.to_pyarrow(py)
                     .map_err(|err| FastExcelErrorKind::ArrowError(err.to_string()).into())
             })
             .with_context(|| {
                 format!(
-                    "Could not convert RecordBatch to pyarrow for sheet {}",
+                    "could not convert RecordBatch to pyarrow for sheet \"{}\"",
                     self.name
                 )
             })
@@ -377,5 +504,71 @@ impl ExcelSheet {
 
     pub fn __repr__(&self) -> String {
         format!("ExcelSheet<{}>", self.name)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use pretty_assertions::assert_eq;
+
+    #[test]
+    fn selected_columns_from_none() {
+        assert_eq!(
+            TryInto::<SelectedColumns>::try_into(None).unwrap(),
+            SelectedColumns::All
+        )
+    }
+
+    #[test]
+    fn selected_columns_from_list_of_valid_ints() {
+        Python::with_gil(|py| {
+            let py_list = PyList::new(py, vec![0, 1, 2]);
+            assert_eq!(
+                TryInto::<SelectedColumns>::try_into(Some(py_list)).unwrap(),
+                SelectedColumns::ByIndex(vec![0, 1, 2])
+            )
+        });
+    }
+
+    #[test]
+    fn selected_columns_from_list_of_valid_strings() {
+        Python::with_gil(|py| {
+            let py_list = PyList::new(py, vec!["foo", "bar"]);
+            assert_eq!(
+                TryInto::<SelectedColumns>::try_into(Some(py_list)).unwrap(),
+                SelectedColumns::ByName(vec!["foo".to_string(), "bar".to_string()])
+            )
+        });
+    }
+
+    #[test]
+    fn selected_columns_from_invalid_ints() {
+        Python::with_gil(|py| {
+            let py_list = PyList::new(py, vec![0, 2, -1]);
+            let err = TryInto::<SelectedColumns>::try_into(Some(py_list)).unwrap_err();
+
+            assert!(matches!(err.kind, FastExcelErrorKind::InvalidParameters(_)));
+        });
+    }
+
+    #[test]
+    fn selected_columns_from_empty_int_list() {
+        Python::with_gil(|py| {
+            let py_list = PyList::new(py, Vec::<usize>::new());
+            let err = TryInto::<SelectedColumns>::try_into(Some(py_list)).unwrap_err();
+
+            assert!(matches!(err.kind, FastExcelErrorKind::InvalidParameters(_)));
+        });
+    }
+
+    #[test]
+    fn selected_columns_from_empty_string_list() {
+        Python::with_gil(|py| {
+            let py_list = PyList::new(py, Vec::<String>::new());
+            let err = TryInto::<SelectedColumns>::try_into(Some(py_list)).unwrap_err();
+
+            assert!(matches!(err.kind, FastExcelErrorKind::InvalidParameters(_)));
+        });
     }
 }
