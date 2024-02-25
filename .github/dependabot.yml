@@ -10,6 +10,11 @@ updates:
     directory: "/"
     schedule:
       interval: "daily"
+    groups:
+      prod-deps:
+        dependency-type: "production"
+      dev-deps:
+        dependency-type: "development"
   # actions
   - package-ecosystem: "github-actions"
     directory: "/"
