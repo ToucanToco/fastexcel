@@ -215,10 +215,10 @@ def read_excel(path: Path | str) -> ExcelReader:
 
 
 __all__ = (
+    "__version__",
+    "read_excel",
     "ExcelReader",
     "ExcelSheet",
-    "read_excel",
-    "__version__",
     "FastExcelError",
     "CannotRetrieveCellDataError",
     "CalamineCellError",
