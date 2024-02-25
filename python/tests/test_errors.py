@@ -51,6 +51,7 @@ Context:
             "calamine returned an error regarding the content of the cell",
         ),
         (fastexcel.CalamineError, "Generic calamine error"),
+        (fastexcel.ColumnNotFoundError, "Column was not found"),
         (fastexcel.SheetNotFoundError, "Sheet was not found"),
         (fastexcel.ArrowError, "Generic arrow error"),
         (fastexcel.InvalidParametersError, "Provided parameters are invalid"),

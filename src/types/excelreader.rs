@@ -4,7 +4,7 @@ use calamine::{open_workbook_auto, Reader, Sheets};
 use pyo3::{pyclass, pymethods, PyResult};
 
 use crate::error::{
-    py_errors::IntoPyResult, ErrorContext, FastExcelErrorKind, FastExcelResult, SheetIdxOrName,
+    py_errors::IntoPyResult, ErrorContext, FastExcelErrorKind, FastExcelResult, IdxOrName,
 };
 
 use super::{
@@ -99,7 +99,7 @@ impl ExcelReader {
         let name = self
             .sheet_names
             .get(idx)
-            .ok_or_else(|| FastExcelErrorKind::SheetNotFound(SheetIdxOrName::Idx(idx)).into())
+            .ok_or_else(|| FastExcelErrorKind::SheetNotFound(IdxOrName::Idx(idx)).into())
             .with_context(|| {
                 format!(
                     "Sheet index {idx} is out of range. File has {} sheets",
@@ -114,7 +114,7 @@ impl ExcelReader {
             .worksheet_range_at(idx)
             // Returns Option<Result<Range<Data>, Self::Error>>, so we convert the Option into a
             // SheetNotFoundError and unwrap it
-            .ok_or_else(|| FastExcelErrorKind::SheetNotFound(SheetIdxOrName::Idx(idx)).into())
+            .ok_or_else(|| FastExcelErrorKind::SheetNotFound(IdxOrName::Idx(idx)).into())
             .into_pyresult()?
             // And here, we convert the calamine error in an owned error and unwrap it
             .map_err(|err| FastExcelErrorKind::CalamineError(err).into())
