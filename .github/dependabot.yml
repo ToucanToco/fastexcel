@@ -5,6 +5,9 @@ updates:
     directory: "/"
     schedule:
       interval: "daily"
+    labels:
+      - "dependencies"
+      - ":snake: python :snake:"
   # rust
   - package-ecosystem: "cargo"
     directory: "/"
@@ -15,6 +18,9 @@ updates:
         dependency-type: "production"
       dev-deps:
         dependency-type: "development"
+    labels:
+      - "dependencies"
+      - ":crab: rust :crab:"
   # actions
   - package-ecosystem: "github-actions"
     directory: "/"
