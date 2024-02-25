@@ -7,7 +7,7 @@ use arrow::{
         NullArray, StringArray, TimestampMillisecondArray,
     },
     datatypes::{DataType as ArrowDataType, Schema, TimeUnit},
-    pyarrow::PyArrowConvert,
+    pyarrow::ToPyArrow,
     record_batch::RecordBatch,
 };
 use calamine::{Data as CalData, DataType, Range};
