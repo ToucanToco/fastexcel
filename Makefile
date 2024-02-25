@@ -9,7 +9,7 @@ pytest	= pytest -v
 ## Rust
 clippy		= cargo clippy
 fmt		= cargo fmt
-cargo-test	= cargo test --no-default-features
+cargo-test	= cargo test --no-default-features --features tests
 ## Docs
 pdoc	= pdoc -o docs python/fastexcel
 
