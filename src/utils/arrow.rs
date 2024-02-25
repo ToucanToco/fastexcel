@@ -1,8 +1,9 @@
 use std::{collections::HashSet, sync::OnceLock};
 
-use anyhow::{anyhow, Context, Result};
 use arrow::datatypes::{DataType as ArrowDataType, Field, Schema, TimeUnit};
 use calamine::{CellErrorType, Data as CalData, DataType, Range};
+
+use crate::error::{FastExcelErrorKind, FastExcelResult};
 
 /// All the possible string values that should be considered as NULL
 const NULL_STRING_VALUES: [&str; 19] = [
@@ -10,10 +11,11 @@ const NULL_STRING_VALUES: [&str; 19] = [
     "<NA>", "N/A", "NA", "NULL", "NaN", "None", "n/a", "nan", "null",
 ];
 
-fn get_cell_type(data: &Range<CalData>, row: usize, col: usize) -> Result<ArrowDataType> {
+fn get_cell_type(data: &Range<CalData>, row: usize, col: usize) -> FastExcelResult<ArrowDataType> {
     let cell = data
         .get((row, col))
-        .with_context(|| format!("Could not retrieve data at ({row},{col})"))?;
+        .ok_or_else(|| FastExcelErrorKind::CannotRetrieveCellData(row, col))?;
+
     match cell {
         CalData::Int(_) => Ok(ArrowDataType::Int64),
         CalData::Float(_) => Ok(ArrowDataType::Float64),
@@ -42,7 +44,7 @@ fn get_cell_type(data: &Range<CalData>, row: usize, col: usize) -> Result<ArrowD
         // Errors and nulls
         CalData::Error(err) => match err {
             CellErrorType::NA => Ok(ArrowDataType::Null),
-            _ => Err(anyhow!("Error in calamine cell: {err:?}")),
+            _ => Err(FastExcelErrorKind::CalamineCellError(err.to_owned()).into()),
         },
         CalData::Empty => Ok(ArrowDataType::Null),
     }
@@ -81,10 +83,10 @@ fn get_arrow_column_type(
     start_row: usize,
     end_row: usize,
     col: usize,
-) -> Result<ArrowDataType> {
+) -> FastExcelResult<ArrowDataType> {
     let mut column_types = (start_row..end_row)
         .map(|row| get_cell_type(data, row, col))
-        .collect::<Result<HashSet<_>>>()?;
+        .collect::<FastExcelResult<HashSet<_>>>()?;
 
     // All columns are nullable anyway so we're not taking Null into account here
     column_types.remove(&ArrowDataType::Null);
@@ -106,9 +108,10 @@ fn get_arrow_column_type(
         Ok(ArrowDataType::Utf8)
     } else {
         // NOTE: Not being too smart about multi-types columns for now
-        Err(anyhow!(
-            "could not figure out column type for following type combination: {column_types:?}"
-        ))
+        Err(
+            FastExcelErrorKind::UnsupportedColumnTypeCombination(format!("{column_types:?}"))
+                .into(),
+        )
     }
 }
 
@@ -133,7 +136,7 @@ pub(crate) fn arrow_schema_from_column_names_and_range(
     column_names: &[String],
     row_idx: usize,
     row_limit: usize,
-) -> Result<Schema> {
+) -> FastExcelResult<Schema> {
     let mut fields = Vec::with_capacity(column_names.len());
 
     for (col_idx, name) in column_names.iter().enumerate() {

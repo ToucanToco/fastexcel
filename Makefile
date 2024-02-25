@@ -22,6 +22,7 @@ format:
 	$(ruff) --fix
 	$(format)
 	$(fmt)
+	$(clippy) --fix --lib -p fastexcel --allow-dirty --allow-staged
 
 install-test-requirements:
 	pip install -U -r test-requirements.txt -r build-requirements.txt
