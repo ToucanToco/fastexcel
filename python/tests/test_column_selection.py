@@ -218,7 +218,7 @@ Context:
 def test_single_sheet_invalid_column_indices_empty_list(
     excel_reader_single_sheet_with_unnamed_columns: fastexcel.ExcelReader,
 ) -> None:
-    expected_message = """invalid parameters: list of select columns is empty
+    expected_message = """invalid parameters: list of selected columns is empty
 Context:
     0: expected selected columns to be list[str] | list[int] | None, got Some([])
 """

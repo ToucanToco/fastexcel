@@ -150,18 +150,12 @@ impl TryFrom<Option<&PyList>> for SelectedColumns {
         match value {
             None => Ok(Self::All),
             Some(py_list) => {
-                if let Ok(name_vec) = py_list.extract::<Vec<String>>() {
-                    if name_vec.is_empty() {
-                        Err(InvalidParameters("list of select columns is empty".to_string()).into())
-                    } else {
-                        Ok(Self::ByName(name_vec))
-                    }
+                if py_list.is_empty() {
+                    Err(InvalidParameters("list of selected columns is empty".to_string()).into())
+                } else if let Ok(name_vec) = py_list.extract::<Vec<String>>() {
+                    Ok(Self::ByName(name_vec))
                 } else if let Ok(index_vec) = py_list.extract::<Vec<usize>>() {
-                    if index_vec.is_empty() {
-                        Err(InvalidParameters("list of select columns is empty".to_string()).into())
-                    } else {
-                        Ok(Self::ByIndex(index_vec))
-                    }
+                    Ok(Self::ByIndex(index_vec))
                 } else {
                     Err(InvalidParameters(format!(
                         "expected list[int] | list[str], got {py_list:?}"
