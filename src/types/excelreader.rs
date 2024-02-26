@@ -1,13 +1,9 @@
 use std::fmt::Debug;
 use std::{fs::File, io::BufReader};
 
-use arrow::record_batch::RecordBatch;
+use arrow::{pyarrow::ToPyArrow, record_batch::RecordBatch};
 use calamine::{open_workbook_auto, CellType, DataType, Range, Reader, Sheets};
-use calamine::{open_workbook_auto, Reader, Sheets};
-use calamine::{open_workbook_auto, Reader, Sheets};
-use pyo3::prelude::PyObject;
-use pyo3::{pyclass, pymethods, PyResult};
-use pyo3::{pyclass, pymethods, PyResult, Python};
+use pyo3::{prelude::PyObject, pyclass, pymethods, PyResult, Python};
 
 use crate::error::{
     py_errors::IntoPyResult, ErrorContext, FastExcelErrorKind, FastExcelResult, SheetIdxOrName,
@@ -51,7 +47,7 @@ impl ExcelReader {
         pagination: Pagination,
         header: Header,
         sample_rows: Option<usize>,
-    ) -> Result<RecordBatch> {
+    ) -> FastExcelResult<RecordBatch> {
         let column_names = sheet_column_names_from_header_and_range(&header, &data);
 
         let offset = header.offset() + pagination.offset();
@@ -144,12 +140,15 @@ impl ExcelReader {
         let range = self
             .sheets
             .worksheet_range(&name)
-            .with_context(|| format!("Error while loading sheet {name}"))?;
+            .map_err(|err| FastExcelErrorKind::CalamineError(err).into())
+            .with_context(|| format!("Error while loading sheet {name}"))
+            .into_pyresult()?;
 
         let header = Header::new(header_row, column_names);
-        let pagination = Pagination::new(skip_rows, n_rows, &range)?;
+        let pagination = Pagination::new(skip_rows, n_rows, &range).into_pyresult()?;
         let rb = ExcelReader::load_sheet_eager(range, pagination, header, schema_sample_rows)
-            .with_context(|| "could not load sheet eagerly")?;
+            .with_context(|| "could not load sheet eagerly")
+            .into_pyresult()?;
         rb.to_pyarrow(py)
     }
 
@@ -229,12 +228,18 @@ impl ExcelReader {
         let range = self
             .sheets
             .worksheet_range_at(idx)
-            .with_context(|| format!("Sheet at idx {idx} not found"))?
-            .with_context(|| format!("Error while loading sheet at idx {idx}"))?;
+            // Returns Option<Result<Range<Data>, Self::Error>>, so we convert the Option into a
+            // SheetNotFoundError and unwrap it
+            .ok_or_else(|| FastExcelErrorKind::SheetNotFound(SheetIdxOrName::Idx(idx)).into())
+            .into_pyresult()?
+            // And here, we convert the calamine error in an owned error and unwrap it
+            .map_err(|err| FastExcelErrorKind::CalamineError(err).into())
+            .into_pyresult()?;
         let header = Header::new(header_row, column_names);
-        let pagination = Pagination::new(skip_rows, n_rows, &range)?;
+        let pagination = Pagination::new(skip_rows, n_rows, &range).into_pyresult()?;
         let rb = ExcelReader::load_sheet_eager(range, pagination, header, schema_sample_rows)
-            .with_context(|| "could not load sheet eagerly")?;
+            .with_context(|| "could not load sheet eagerly")
+            .into_pyresult()?;
         rb.to_pyarrow(py)
     }
 }

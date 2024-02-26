@@ -19,6 +19,7 @@ pub(crate) enum FastExcelErrorKind {
     // the actual type has not much value for us, so we just store a string context
     ArrowError(String),
     InvalidParameters(String),
+    Internal(String),
 }
 
 impl Display for FastExcelErrorKind {
@@ -47,6 +48,7 @@ impl Display for FastExcelErrorKind {
             }
             FastExcelErrorKind::ArrowError(err) => write!(f, "arrow error: {err}"),
             FastExcelErrorKind::InvalidParameters(err) => write!(f, "invalid parameters: {err}"),
+            FastExcelErrorKind::Internal(err) => write!(f, "fastexcel error: {err}"),
         }
     }
 }
@@ -180,6 +182,13 @@ pub(crate) mod py_errors {
         FastExcelError,
         "Provided parameters are invalid"
     );
+    // Internal error
+    create_exception!(
+        _fastexcel,
+        InternalError,
+        FastExcelError,
+        "Internal fastexcel error"
+    );
 
     pub(crate) trait IntoPyResult {
         type Inner;
@@ -213,6 +222,7 @@ pub(crate) mod py_errors {
                         FastExcelErrorKind::InvalidParameters(_) => {
                             InvalidParametersError::new_err(message)
                         }
+                        FastExcelErrorKind::Internal(_) => ArrowError::new_err(message),
                     })
                 }
             }

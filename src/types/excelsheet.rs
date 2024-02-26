@@ -284,7 +284,7 @@ pub(crate) fn record_batch_from_data_and_schema<DT: CellType + DataType + Debug>
     data: &Range<DT>,
     offset: usize,
     limit: usize,
-) -> Result<RecordBatch> {
+) -> FastExcelResult<RecordBatch> {
     let mut iter = schema
         .fields()
         .iter()
@@ -315,6 +315,7 @@ pub(crate) fn record_batch_from_data_and_schema<DT: CellType + DataType + Debug>
         Ok(RecordBatch::new_empty(Arc::new(schema)))
     } else {
         RecordBatch::try_from_iter(iter)
+            .map_err(|err| FastExcelErrorKind::ArrowError(err.to_string()).into())
             .with_context(|| "could not create RecordBatch from iterable")
     }
 }

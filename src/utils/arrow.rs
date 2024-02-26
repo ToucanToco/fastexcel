@@ -20,7 +20,8 @@ fn get_cell_type<DT: CellType + Debug + DataType>(
 ) -> FastExcelResult<ArrowDataType> {
     let cell = data
         .get((row, col))
-        .with_context(|| format!("Could not retrieve data at ({row},{col})"))?;
+        .ok_or_else(|| FastExcelErrorKind::CannotRetrieveCellData(row, col))?;
+
     if cell.is_int() {
         Ok(ArrowDataType::Int64)
     } else if cell.is_float() {
@@ -36,15 +37,14 @@ fn get_cell_type<DT: CellType + Debug + DataType>(
     } else if cell.is_datetime() {
         // Since calamine 0.24.0, a new ExcelDateTime exists for the Datetime type. It can either be
         // a duration or a datatime
-        cell.get_datetime()
-            .ok_or(anyhow!("could not get datetime value from cell: {cell:?}"))
-            .map(|excel_datetime| {
-                if excel_datetime.is_datetime() {
-                    ArrowDataType::Timestamp(TimeUnit::Millisecond, None)
-                } else {
-                    ArrowDataType::Duration(TimeUnit::Millisecond)
-                }
-            })
+        let excel_datetime = cell
+            .get_datetime()
+            .expect("calamine indicated that cell is a datetime but get_datetime returned None");
+        Ok(if excel_datetime.is_datetime() {
+            ArrowDataType::Timestamp(TimeUnit::Millisecond, None)
+        } else {
+            ArrowDataType::Duration(TimeUnit::Millisecond)
+        })
     }
     // These types contain an ISO8601 representation of a date/datetime or a durat
     else if cell.is_datetime_iso() {
@@ -60,11 +60,21 @@ fn get_cell_type<DT: CellType + Debug + DataType>(
     else if cell.is_duration_iso() {
         Ok(ArrowDataType::Duration(TimeUnit::Millisecond))
     }
-    // Empty cell or Error datatype
-    else if cell.is_empty() || matches!(cell.get_error(), Some(&CellErrorType::NA)) {
+    // Empty cell
+    else if cell.is_empty() {
         Ok(ArrowDataType::Null)
+    } else if cell.is_error() {
+        match cell.get_error() {
+            // considering cells with #N/A! as null
+            Some(CellErrorType::NA) => Ok(ArrowDataType::Null),
+            Some(err) => Err(FastExcelErrorKind::CalamineCellError(err.to_owned()).into()),
+            None => Err(FastExcelErrorKind::Internal(format!(
+                "cell is an error but get_error returned None: {cell:?}"
+            ))
+            .into()),
+        }
     } else {
-        Err(anyhow!("Error in calamine cell: {cell:?}"))
+        Err(FastExcelErrorKind::Internal(format!("unsupported cell type: {cell:?}")).into())
     }
 }
 
