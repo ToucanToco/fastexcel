@@ -21,6 +21,7 @@ def test_single_sheet_all_columns(excel_reader_single_sheet: fastexcel.ExcelRead
     sheet = excel_reader_single_sheet.load_sheet(0)
 
     sheet_explicit_arg = excel_reader_single_sheet.load_sheet(0, use_columns=None)
+    assert sheet.selected_columns is None
 
     expected = {"Month": [1.0, 2.0], "Year": [2019.0, 2020.0]}
     expected_pd_df = pd.DataFrame(expected)
@@ -45,6 +46,7 @@ def test_single_sheet_subset_by_str(excel_reader_single_sheet: fastexcel.ExcelRe
     for sheet_name_or_idx in sheets:
         for col in ["Month", "Year"]:
             sheet = excel_reader_single_sheet.load_sheet(sheet_name_or_idx, use_columns=[col])
+            assert sheet.selected_columns == [col]
 
             pd_df = sheet.to_pandas()
             pd_assert_frame_equal(pd_df, pd.DataFrame({col: expected[col]}))
@@ -60,6 +62,7 @@ def test_single_sheet_subset_by_index(excel_reader_single_sheet: fastexcel.Excel
     for sheet_name_or_idx in sheets:
         for idx, col_name in enumerate(["Month", "Year"]):
             sheet = excel_reader_single_sheet.load_sheet(sheet_name_or_idx, use_columns=[idx])
+            assert sheet.selected_columns == [idx]
 
             pd_df = sheet.to_pandas()
             pd_assert_frame_equal(pd_df, pd.DataFrame({col_name: expected[col_name]}))
@@ -97,6 +100,7 @@ def test_single_sheet_with_unnamed_columns(
     sheet = excel_reader_single_sheet_with_unnamed_columns.load_sheet(
         "With unnamed columns", use_columns=use_columns_str
     )
+    assert sheet.selected_columns == use_columns_str
 
     pd_assert_frame_equal(sheet.to_pandas(), pd.DataFrame(expected))
     pl_assert_frame_equal(sheet.to_polars(), pl.DataFrame(expected))
@@ -104,6 +108,7 @@ def test_single_sheet_with_unnamed_columns(
     sheet = excel_reader_single_sheet_with_unnamed_columns.load_sheet(
         "With unnamed columns", use_columns=use_columns_idx
     )
+    assert sheet.selected_columns == use_columns_idx
 
     pd_assert_frame_equal(sheet.to_pandas(), pd.DataFrame(expected))
     pl_assert_frame_equal(sheet.to_polars(), pl.DataFrame(expected))

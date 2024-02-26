@@ -55,6 +55,11 @@ class ExcelSheet:
         """The sheet's total height"""
         return self._sheet.total_height
 
+    @property
+    def selected_columns(self) -> list[str] | list[int] | None:
+        """The sheet's selected columns"""
+        return self._sheet.selected_columns
+
     def to_arrow(self) -> pa.RecordBatch:
         """Converts the sheet to a pyarrow `RecordBatch`"""
         return self._sheet.to_arrow()

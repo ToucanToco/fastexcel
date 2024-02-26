@@ -139,6 +139,14 @@ impl SelectedColumns {
             }
         }
     }
+
+    pub(crate) fn to_python<'p>(&self, py: Python<'p>) -> Option<&'p PyList> {
+        match self {
+            SelectedColumns::All => None,
+            SelectedColumns::ByIndex(idx_vec) => Some(PyList::new(py, idx_vec)),
+            SelectedColumns::ByName(name_vec) => Some(PyList::new(py, name_vec)),
+        }
+    }
 }
 
 impl TryFrom<Option<&PyList>> for SelectedColumns {
@@ -478,6 +486,11 @@ impl ExcelSheet {
     #[getter]
     pub fn offset(&self) -> usize {
         self.header.offset() + self.pagination.offset()
+    }
+
+    #[getter]
+    pub fn selected_columns<'p>(&'p self, py: Python<'p>) -> Option<&PyList> {
+        self.selected_columns.to_python(py)
     }
 
     pub fn to_arrow(&self, py: Python<'_>) -> PyResult<PyObject> {

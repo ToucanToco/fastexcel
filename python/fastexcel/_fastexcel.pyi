@@ -18,6 +18,9 @@ class _ExcelSheet:
     @property
     def offset(self) -> int:
         """The sheet's offset before data starts"""
+    @property
+    def selected_columns(self) -> list[str] | list[int] | None:
+        """The sheet's selected columns"""
     def to_arrow(self) -> pa.RecordBatch:
         """Converts the sheet to a pyarrow `RecordBatch`"""
 
