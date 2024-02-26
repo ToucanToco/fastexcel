@@ -30,5 +30,5 @@ rstest = { version = "0.18.2", default-features = false }
 extension-module = ["pyo3/extension-module"]
 default = ["extension-module"]
 # feature for tests only. This makes Python::with_gil auto-initialize Python
-# interpreters, which allows us ot instantiate Python objects in tests
+# interpreters, which allows us to instantiate Python objects in tests
 tests = ["pyo3/auto-initialize"]
