@@ -187,6 +187,7 @@ pub(crate) struct ExcelSheet {
     width: Option<usize>,
     schema_sample_rows: Option<usize>,
     selected_columns: SelectedColumns,
+    available_columns: Vec<String>,
 }
 
 impl ExcelSheet {
@@ -194,15 +195,15 @@ impl ExcelSheet {
         &self.data
     }
 
-    pub(crate) fn new(
+    pub(crate) fn try_new(
         name: String,
         data: Range<CalData>,
         header: Header,
         pagination: Pagination,
         schema_sample_rows: Option<usize>,
         selected_columns: SelectedColumns,
-    ) -> Self {
-        ExcelSheet {
+    ) -> FastExcelResult<Self> {
+        let mut sheet = ExcelSheet {
             name,
             header,
             pagination,
@@ -212,10 +213,27 @@ impl ExcelSheet {
             height: None,
             total_height: None,
             width: None,
-        }
+            // an empty vec as it will be replaced
+            available_columns: Vec::with_capacity(0),
+        };
+
+        let available_columns = sheet.get_available_columns();
+
+        // Ensuring selected columns are valid
+        sheet
+            .selected_columns
+            .validate_columns(&available_columns)
+            .with_context(|| {
+                format!(
+                    "selected columns are invalid, available columns are: {available_columns:?}"
+                )
+            })?;
+
+        sheet.available_columns = available_columns;
+        Ok(sheet)
     }
 
-    pub(crate) fn column_names(&self) -> Vec<String> {
+    fn get_available_columns(&self) -> Vec<String> {
         let width = self.data.width();
         match &self.header {
             Header::None => (0..width)
@@ -365,7 +383,7 @@ impl TryFrom<&ExcelSheet> for Schema {
 
         arrow_schema_from_column_names_and_range(
             sheet.data(),
-            &sheet.column_names(),
+            &sheet.available_columns,
             sheet.offset(),
             // If sample_rows is higher than the sheet's limit, use the limit instead
             std::cmp::min(sample_rows, sheet.limit()),
@@ -381,18 +399,11 @@ impl TryFrom<&ExcelSheet> for RecordBatch {
         let offset = sheet.offset();
         let limit = sheet.limit();
 
-        let column_names = sheet.column_names();
-
-        // Ensuring selected columns are valid
-        sheet
-            .selected_columns
-            .validate_columns(&column_names)
-            .with_context(|| "selected columns are invalid")?;
-
         let schema = Schema::try_from(sheet)
             .with_context(|| format!("could not build schema for sheet {}", sheet.name))?;
 
-        let mut iter = column_names
+        let mut iter = sheet
+            .available_columns
             .iter()
             .enumerate()
             .filter_map(|(idx, column_name)| {
@@ -402,9 +413,11 @@ impl TryFrom<&ExcelSheet> for RecordBatch {
                     SelectedColumns::All => Some(idx),
                     // Otherwise, return its index. If None is found, it means the column was not
                     // selected, and we will just continue
-                    _ => sheet
-                        .selected_columns
-                        .idx_for_column(&column_names, column_name, idx),
+                    _ => sheet.selected_columns.idx_for_column(
+                        &sheet.available_columns,
+                        column_name,
+                        idx,
+                    ),
                 } {
                     // At this point, we know for sure that the column is in the schema so we can
                     // safely unwrap

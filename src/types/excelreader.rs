@@ -73,14 +73,15 @@ impl ExcelReader {
         let header = Header::new(header_row, column_names);
         let pagination = Pagination::new(skip_rows, n_rows, &range).into_pyresult()?;
         let selected_columns = use_columns.try_into().with_context(|| format!("expected selected columns to be list[str] | list[int] | None, got {use_columns:?}")).into_pyresult()?;
-        Ok(ExcelSheet::new(
+        ExcelSheet::try_new(
             name,
             range,
             header,
             pagination,
             schema_sample_rows,
             selected_columns,
-        ))
+        )
+        .into_pyresult()
     }
 
     #[pyo3(signature = (
@@ -131,13 +132,14 @@ impl ExcelReader {
         let header = Header::new(header_row, column_names);
         let pagination = Pagination::new(skip_rows, n_rows, &range).into_pyresult()?;
         let selected_columns = use_columns.try_into().with_context(|| format!("expected selected columns to be list[str] | list[int] | None, got {use_columns:?}")).into_pyresult()?;
-        Ok(ExcelSheet::new(
+        ExcelSheet::try_new(
             name,
             range,
             header,
             pagination,
             schema_sample_rows,
             selected_columns,
-        ))
+        )
+        .into_pyresult()
     }
 }

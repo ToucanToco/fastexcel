@@ -236,14 +236,10 @@ def test_single_sheet_invalid_column_indices_column_does_not_exist_str(
 ) -> None:
     expected_message = """column with name "nope" not found
 Context:
-    0: selected columns are invalid
-    1: could not create RecordBatch from sheet "January"
-    2: could not convert RecordBatch to pyarrow for sheet "January"
+    0: selected columns are invalid, available columns are: ["Month", "Year"]
 """
     with pytest.raises(fastexcel.ColumnNotFoundError, match=re.escape(expected_message)):
-        excel_reader_single_sheet_with_unnamed_columns.load_sheet(
-            0, use_columns=["nope"]
-        ).to_arrow()
+        excel_reader_single_sheet_with_unnamed_columns.load_sheet(0, use_columns=["nope"])
 
 
 def test_single_sheet_invalid_column_indices_column_does_not_exist_int(
@@ -251,9 +247,7 @@ def test_single_sheet_invalid_column_indices_column_does_not_exist_int(
 ) -> None:
     expected_message = """column at index 42 not found
 Context:
-    0: selected columns are invalid
-    1: could not create RecordBatch from sheet "January"
-    2: could not convert RecordBatch to pyarrow for sheet "January"
+    0: selected columns are invalid, available columns are: ["Month", "Year"]
 """
     with pytest.raises(fastexcel.ColumnNotFoundError, match=re.escape(expected_message)):
-        excel_reader_single_sheet_with_unnamed_columns.load_sheet(0, use_columns=[42]).to_arrow()
+        excel_reader_single_sheet_with_unnamed_columns.load_sheet(0, use_columns=[42])
