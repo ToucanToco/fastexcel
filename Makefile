@@ -16,9 +16,9 @@ pdoc	= pdoc -o docs python/fastexcel
 lint-python:
 	$(ruff)
 	$(format)  --check --diff
+	$(mypy)
 
 lint-rust:
-	$(mypy)
 	$(clippy)
 
 lint: lint-rust lint-python
