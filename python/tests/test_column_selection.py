@@ -40,9 +40,11 @@ def test_single_sheet_all_columns(excel_reader_single_sheet: fastexcel.ExcelRead
 def test_single_sheet_subset_by_str(excel_reader_single_sheet: fastexcel.ExcelReader) -> None:
     expected = {"Month": [1.0, 2.0], "Year": [2019.0, 2020.0]}
 
-    for sheet_name_or_idx in [0, "January"]:
+    # looks like mypy 1.8 became more stupid
+    sheets: list[str | int] = [0, "January"]
+    for sheet_name_or_idx in sheets:
         for col in ["Month", "Year"]:
-            sheet = excel_reader_single_sheet.load_sheet(0, use_columns=[col])
+            sheet = excel_reader_single_sheet.load_sheet(sheet_name_or_idx, use_columns=[col])
 
             pd_df = sheet.to_pandas()
             pd_assert_frame_equal(pd_df, pd.DataFrame({col: expected[col]}))
@@ -54,9 +56,10 @@ def test_single_sheet_subset_by_str(excel_reader_single_sheet: fastexcel.ExcelRe
 def test_single_sheet_subset_by_index(excel_reader_single_sheet: fastexcel.ExcelReader) -> None:
     expected = {"Month": [1.0, 2.0], "Year": [2019.0, 2020.0]}
 
-    for sheet_name_or_idx in [0, "January"]:
+    sheets: list[str | int] = [0, "January"]
+    for sheet_name_or_idx in sheets:
         for idx, col_name in enumerate(["Month", "Year"]):
-            sheet = excel_reader_single_sheet.load_sheet(0, use_columns=[idx])
+            sheet = excel_reader_single_sheet.load_sheet(sheet_name_or_idx, use_columns=[idx])
 
             pd_df = sheet.to_pandas()
             pd_assert_frame_equal(pd_df, pd.DataFrame({col_name: expected[col_name]}))
