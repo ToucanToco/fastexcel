@@ -2,9 +2,10 @@ use std::fmt::Debug;
 
 use std::{collections::HashSet, sync::OnceLock};
 
-use anyhow::{anyhow, Context, Result};
 use arrow::datatypes::{DataType as ArrowDataType, Field, Schema, TimeUnit};
 use calamine::{CellErrorType, CellType, DataType, Range};
+
+use crate::error::{FastExcelErrorKind, FastExcelResult};
 
 /// All the possible string values that should be considered as NULL
 const NULL_STRING_VALUES: [&str; 19] = [
@@ -16,7 +17,7 @@ fn get_cell_type<DT: CellType + Debug + DataType>(
     data: &Range<DT>,
     row: usize,
     col: usize,
-) -> Result<ArrowDataType> {
+) -> FastExcelResult<ArrowDataType> {
     let cell = data
         .get((row, col))
         .with_context(|| format!("Could not retrieve data at ({row},{col})"))?;
@@ -33,6 +34,8 @@ fn get_cell_type<DT: CellType + Debug + DataType>(
     } else if cell.is_bool() {
         Ok(ArrowDataType::Boolean)
     } else if cell.is_datetime() {
+        // Since calamine 0.24.0, a new ExcelDateTime exists for the Datetime type. It can either be
+        // a duration or a datatime
         cell.get_datetime()
             .ok_or(anyhow!("could not get datetime value from cell: {cell:?}"))
             .map(|excel_datetime| {
@@ -98,10 +101,10 @@ fn get_arrow_column_type<DT: CellType + Debug + DataType>(
     start_row: usize,
     end_row: usize,
     col: usize,
-) -> Result<ArrowDataType> {
+) -> FastExcelResult<ArrowDataType> {
     let mut column_types = (start_row..end_row)
         .map(|row| get_cell_type(data, row, col))
-        .collect::<Result<HashSet<_>>>()?;
+        .collect::<FastExcelResult<HashSet<_>>>()?;
 
     // All columns are nullable anyway so we're not taking Null into account here
     column_types.remove(&ArrowDataType::Null);
@@ -123,9 +126,10 @@ fn get_arrow_column_type<DT: CellType + Debug + DataType>(
         Ok(ArrowDataType::Utf8)
     } else {
         // NOTE: Not being too smart about multi-types columns for now
-        Err(anyhow!(
-            "could not figure out column type for following type combination: {column_types:?}"
-        ))
+        Err(
+            FastExcelErrorKind::UnsupportedColumnTypeCombination(format!("{column_types:?}"))
+                .into(),
+        )
     }
 }
 
@@ -150,7 +154,7 @@ pub(crate) fn arrow_schema_from_column_names_and_range<DT: CellType + DataType +
     column_names: &[String],
     row_idx: usize,
     row_limit: usize,
-) -> Result<Schema> {
+) -> FastExcelResult<Schema> {
     let mut fields = Vec::with_capacity(column_names.len());
 
     for (col_idx, name) in column_names.iter().enumerate() {

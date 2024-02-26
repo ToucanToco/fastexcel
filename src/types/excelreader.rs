@@ -1,12 +1,17 @@
 use std::fmt::Debug;
 use std::{fs::File, io::BufReader};
 
-use anyhow::{Context, Result};
-use arrow::pyarrow::PyArrowConvert;
 use arrow::record_batch::RecordBatch;
 use calamine::{open_workbook_auto, CellType, DataType, Range, Reader, Sheets};
+use calamine::{open_workbook_auto, Reader, Sheets};
+use calamine::{open_workbook_auto, Reader, Sheets};
 use pyo3::prelude::PyObject;
+use pyo3::{pyclass, pymethods, PyResult};
 use pyo3::{pyclass, pymethods, PyResult, Python};
+
+use crate::error::{
+    py_errors::IntoPyResult, ErrorContext, FastExcelErrorKind, FastExcelResult, SheetIdxOrName,
+};
 
 use crate::types::excelsheet::sheet_column_names_from_header_and_range;
 use crate::utils::arrow::arrow_schema_from_column_names_and_range;
@@ -29,8 +34,9 @@ pub(crate) struct ExcelReader {
 impl ExcelReader {
     // NOTE: Not implementing TryFrom here, because we're aren't building the file from the passed
     // string, but rather from the file pointed by it. Semantically, try_from_path is clearer
-    pub(crate) fn try_from_path(path: &str) -> Result<Self> {
+    pub(crate) fn try_from_path(path: &str) -> FastExcelResult<Self> {
         let sheets = open_workbook_auto(path)
+            .map_err(|err| FastExcelErrorKind::CalamineError(err).into())
             .with_context(|| format!("Could not open workbook at {path}"))?;
         let sheet_names = sheets.sheet_names().to_owned();
         Ok(Self {
@@ -96,14 +102,16 @@ impl ExcelReader {
         skip_rows: usize,
         n_rows: Option<usize>,
         schema_sample_rows: Option<usize>,
-    ) -> Result<ExcelSheet> {
+    ) -> PyResult<ExcelSheet> {
         let range = self
             .sheets
             .worksheet_range(&name)
-            .with_context(|| format!("Error while loading sheet {name}"))?;
+            .map_err(|err| FastExcelErrorKind::CalamineError(err).into())
+            .with_context(|| format!("Error while loading sheet {name}"))
+            .into_pyresult()?;
 
         let header = Header::new(header_row, column_names);
-        let pagination = Pagination::new(skip_rows, n_rows, &range)?;
+        let pagination = Pagination::new(skip_rows, n_rows, &range).into_pyresult()?;
         Ok(ExcelSheet::new(
             name,
             range,
@@ -162,25 +170,33 @@ impl ExcelReader {
         skip_rows: usize,
         n_rows: Option<usize>,
         schema_sample_rows: Option<usize>,
-    ) -> Result<ExcelSheet> {
+    ) -> PyResult<ExcelSheet> {
         let name = self
             .sheet_names
             .get(idx)
+            .ok_or_else(|| FastExcelErrorKind::SheetNotFound(SheetIdxOrName::Idx(idx)).into())
             .with_context(|| {
                 format!(
                     "Sheet index {idx} is out of range. File has {} sheets",
                     self.sheet_names.len()
                 )
-            })?
+            })
+            .into_pyresult()?
             .to_owned();
+
         let range = self
             .sheets
             .worksheet_range_at(idx)
-            .with_context(|| format!("Sheet at idx {idx} not found"))?
-            .with_context(|| format!("Error while loading sheet at idx {idx}"))?;
+            // Returns Option<Result<Range<Data>, Self::Error>>, so we convert the Option into a
+            // SheetNotFoundError and unwrap it
+            .ok_or_else(|| FastExcelErrorKind::SheetNotFound(SheetIdxOrName::Idx(idx)).into())
+            .into_pyresult()?
+            // And here, we convert the calamine error in an owned error and unwrap it
+            .map_err(|err| FastExcelErrorKind::CalamineError(err).into())
+            .into_pyresult()?;
 
         let header = Header::new(header_row, column_names);
-        let pagination = Pagination::new(skip_rows, n_rows, &range)?;
+        let pagination = Pagination::new(skip_rows, n_rows, &range).into_pyresult()?;
         Ok(ExcelSheet::new(
             name,
             range,

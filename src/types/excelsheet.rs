@@ -1,19 +1,25 @@
 use std::{fmt::Debug, sync::Arc};
 
-use anyhow::{anyhow, bail, Context, Result};
+use crate::error::{
+    py_errors::IntoPyResult, ErrorContext, FastExcelError, FastExcelErrorKind, FastExcelResult,
+};
+
 use arrow::{
     array::{
         Array, BooleanArray, Date32Array, DurationMillisecondArray, Float64Array, Int64Array,
         NullArray, StringArray, TimestampMillisecondArray,
     },
     datatypes::{DataType as ArrowDataType, Schema, TimeUnit},
-    pyarrow::PyArrowConvert,
+    pyarrow::ToPyArrow,
     record_batch::RecordBatch,
 };
 use calamine::{CellType, Data as CalData, DataType, Range};
 use chrono::NaiveDate;
 
-use pyo3::prelude::{pyclass, pymethods, PyObject, Python};
+use pyo3::{
+    prelude::{pyclass, pymethods, PyObject, Python},
+    PyResult,
+};
 
 use crate::utils::{
     arrow::arrow_schema_from_column_names_and_range, schema::get_schema_sample_rows,
@@ -55,12 +61,16 @@ impl Pagination {
         skip_rows: usize,
         n_rows: Option<usize>,
         range: &Range<CT>,
-    ) -> Result<Self> {
+    ) -> FastExcelResult<Self> {
         let max_height = range.height();
         if max_height < skip_rows {
-            bail!("To many rows skipped. Max height is {max_height}");
+            Err(FastExcelErrorKind::InvalidParameters(format!(
+                "Too many rows skipped. Max height is {max_height}"
+            ))
+            .into())
+        } else {
+            Ok(Self { skip_rows, n_rows })
         }
-        Ok(Self { skip_rows, n_rows })
     }
 
     pub(crate) fn offset(&self) -> usize {
@@ -256,7 +266,7 @@ fn create_duration_array<DT: CellType + DataType>(
 }
 
 impl TryFrom<&ExcelSheet> for Schema {
-    type Error = anyhow::Error;
+    type Error = FastExcelError;
 
     fn try_from(sheet: &ExcelSheet) -> Result<Self, Self::Error> {
         arrow_schema_from_column_names_and_range(
@@ -310,9 +320,9 @@ pub(crate) fn record_batch_from_data_and_schema<DT: CellType + DataType + Debug>
 }
 
 impl TryFrom<&ExcelSheet> for RecordBatch {
-    type Error = anyhow::Error;
+    type Error = FastExcelError;
 
-    fn try_from(sheet: &ExcelSheet) -> Result<Self, Self::Error> {
+    fn try_from(sheet: &ExcelSheet) -> FastExcelResult<Self> {
         let offset = sheet.offset();
         let limit = sheet.limit();
         let schema = Schema::try_from(sheet)
@@ -357,6 +367,7 @@ impl TryFrom<&ExcelSheet> for RecordBatch {
             Ok(RecordBatch::new_empty(Arc::new(schema)))
         } else {
             RecordBatch::try_from_iter(iter)
+                .map_err(|err| FastExcelErrorKind::ArrowError(err.to_string()).into())
                 .with_context(|| format!("Could not convert sheet {} to RecordBatch", sheet.name))
         }
     }
@@ -396,16 +407,20 @@ impl ExcelSheet {
         self.header.offset() + self.pagination.offset()
     }
 
-    pub fn to_arrow(&self, py: Python<'_>) -> Result<PyObject> {
+    pub fn to_arrow(&self, py: Python<'_>) -> PyResult<PyObject> {
         RecordBatch::try_from(self)
             .with_context(|| format!("Could not create RecordBatch from sheet {}", self.name))
-            .and_then(|rb| match rb.to_pyarrow(py) {
-                Err(e) => Err(anyhow!(
-                    "Could not convert RecordBatch to pyarrow for sheet {}: {e}",
-                    self.name
-                )),
-                Ok(pyobj) => Ok(pyobj),
+            .and_then(|rb| {
+                rb.to_pyarrow(py)
+                    .map_err(|err| FastExcelErrorKind::ArrowError(err.to_string()).into())
             })
+            .with_context(|| {
+                format!(
+                    "Could not convert RecordBatch to pyarrow for sheet {}",
+                    self.name
+                )
+            })
+            .into_pyresult()
     }
 
     pub fn __repr__(&self) -> String {

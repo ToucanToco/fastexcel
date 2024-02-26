@@ -86,7 +86,9 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
+        # Only testing the build on the smallest supported Python version
+        # since we're building abi3 wheels
+        python-version: ["3.8"]
         os: ["ubuntu-latest", "macos-latest", "windows-latest"]
         architecture: [x86-64, aarch64]
         exclude:
@@ -108,3 +110,31 @@ jobs:
         command: build
         args: "-o dist --interpreter python${{ matrix.python-version }}"
         target: ${{ steps.target.outputs.target }}
+
+  check-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Set up rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+
+          # venv required by maturin
+          python3 -m venv .venv
+          source .venv/bin/activate
+
+          make install-test-requirements
+          make install-doc-requirements
+          # Required for pdoc to be able to import the sources
+          make dev-install
+          make doc

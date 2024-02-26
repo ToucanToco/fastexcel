@@ -387,7 +387,9 @@ def test_sheet_with_pagination_out_of_bound():
     excel_reader = fastexcel.read_excel(path_for_fixture("fixture-single-sheet-with-types.xlsx"))
     assert excel_reader.sheet_names == ["Sheet1"]
 
-    with pytest.raises(RuntimeError, match="To many rows skipped. Max height is 4"):
+    with pytest.raises(
+        fastexcel.InvalidParametersError, match="Too many rows skipped. Max height is 4"
+    ):
         excel_reader.load_sheet(
             0,
             skip_rows=1000000,
