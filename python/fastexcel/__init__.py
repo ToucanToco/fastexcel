@@ -119,6 +119,9 @@ class ExcelReader:
         :param schema_sample_rows: Specifies how many rows should be used to determine
                                    the dtype of a column.
                                    If `None`, all rows will be used.
+        :param use_columns: Specifies the columns to use. Can either be a list of column names, or
+                            a list of column indices (starting at 0).
+                            If `None`, all columns will be used.
         """
         return ExcelSheet(
             self._reader.load_sheet_by_name(
@@ -158,6 +161,9 @@ class ExcelReader:
         :param schema_sample_rows: Specifies how many rows should be used to determine
                                    the dtype of a column.
                                    If `None`, all rows will be used.
+        :param use_columns: Specifies the columns to use. Can either be a list of column names, or
+                            a list of column indices (starting at 0).
+                            If `None`, all columns will be used.
         """
         if idx < 0:
             raise ValueError(f"Expected idx to be > 0, got {idx}")
