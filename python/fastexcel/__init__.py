@@ -60,6 +60,11 @@ class ExcelSheet:
         """The sheet's selected columns"""
         return self._sheet.selected_columns
 
+    @property
+    def available_columns(self) -> list[str]:
+        """The columns available for the given sheet"""
+        return self._sheet.available_columns
+
     def to_arrow(self) -> pa.RecordBatch:
         """Converts the sheet to a pyarrow `RecordBatch`"""
         return self._sheet.to_arrow()

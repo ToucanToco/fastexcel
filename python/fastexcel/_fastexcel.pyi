@@ -21,6 +21,9 @@ class _ExcelSheet:
     @property
     def selected_columns(self) -> list[str] | list[int] | None:
         """The sheet's selected columns"""
+    @property
+    def available_columns(self) -> list[str]:
+        """The columns available for the given sheet"""
     def to_arrow(self) -> pa.RecordBatch:
         """Converts the sheet to a pyarrow `RecordBatch`"""
 

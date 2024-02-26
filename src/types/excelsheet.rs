@@ -506,6 +506,11 @@ impl ExcelSheet {
         self.selected_columns.to_python(py)
     }
 
+    #[getter]
+    pub fn available_columns<'p>(&'p self, py: Python<'p>) -> &PyList {
+        PyList::new(py, &self.available_columns)
+    }
+
     pub fn to_arrow(&self, py: Python<'_>) -> PyResult<PyObject> {
         RecordBatch::try_from(self)
             .with_context(|| format!("could not create RecordBatch from sheet \"{}\"", &self.name))
