@@ -249,7 +249,6 @@ impl SelectedColumns {
     }
 }
 
-// Does not support columns beyond 26 for now
 impl FromStr for SelectedColumns {
     type Err = FastExcelError;
 
