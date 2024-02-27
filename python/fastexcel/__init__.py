@@ -129,11 +129,13 @@ class ExcelReader:
         :param schema_sample_rows: Specifies how many rows should be used to determine
                                    the dtype of a column.
                                    If `None`, all rows will be used.
-        :param use_columns: Specifies the columns to use. Can either be a list of column names, a
-                            a list of column indices (starting at 0), or a list of columns and
-                            ranges as column names indices in excel form. For example, `"A,C:E,F"`
-                            will select columns `A,C,D,F`.
-                            If `None`, all columns will be used.
+        :param use_columns: Specifies the columns to use. Can either be:
+                            - `None` to select all columns
+                            - a list of strings, the column names
+                            - a list of ints, the column indices (starting at 0)
+                            - a string, a comma separated list of Excel column letters and column
+                              ranges (e.g. `“A:E”` or `“A,C,E:F”`, which would result in
+                              `A,B,C,D,E` and `A,C,E,F`)
         """
         return ExcelSheet(
             self._reader.load_sheet_by_name(
@@ -173,11 +175,13 @@ class ExcelReader:
         :param schema_sample_rows: Specifies how many rows should be used to determine
                                    the dtype of a column.
                                    If `None`, all rows will be used.
-        :param use_columns: Specifies the columns to use. Can either be a list of column names, a
-                            a list of column indices (starting at 0), or a list of columns and
-                            ranges as column names indices in excel form. For example, `"A,C:E,F"`
-                            will select columns `A,C,D,F`.
-                            If `None`, all columns will be used.
+        :param use_columns: Specifies the columns to use. Can either be:
+                            - `None` to select all columns
+                            - a list of strings, the column names
+                            - a list of ints, the column indices (starting at 0)
+                            - a string, a comma separated list of Excel column letters and column
+                              ranges (e.g. `“A:E”` or `“A,C,E:F”`, which would result in
+                              `A,B,C,D,E` and `A,C,E,F`)
         """
         if idx < 0:
             raise ValueError(f"Expected idx to be > 0, got {idx}")
