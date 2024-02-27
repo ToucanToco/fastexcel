@@ -118,20 +118,23 @@ fn get_arrow_column_type(
     }
 }
 
-fn alias_for_name(name: &str, fields: &[Field]) -> String {
-    fn rec(name: &str, fields: &[Field], depth: usize) -> String {
+pub(crate) fn alias_for_name(name: &str, existing_names: &[String]) -> String {
+    fn rec(name: &str, existing_names: &[String], depth: usize) -> String {
         let alias = if depth == 0 {
             name.to_owned()
         } else {
             format!("{name}_{depth}")
         };
-        match fields.iter().any(|f| f.name() == &alias) {
-            true => rec(name, fields, depth + 1),
+        match existing_names
+            .iter()
+            .any(|existing_name| existing_name == &alias)
+        {
+            true => rec(name, existing_names, depth + 1),
             false => alias,
         }
     }
 
-    rec(name, fields, 0)
+    rec(name, existing_names, 0)
 }
 
 pub(crate) fn arrow_schema_from_column_names_and_range(
@@ -142,6 +145,7 @@ pub(crate) fn arrow_schema_from_column_names_and_range(
     selected_columns: &SelectedColumns,
 ) -> FastExcelResult<Schema> {
     let mut fields = Vec::with_capacity(column_names.len());
+    let mut existing_names = Vec::with_capacity(column_names.len());
 
     for (idx, name) in column_names.iter().enumerate() {
         // If we have an index for the given column, extract it and add it to the schema. Otherwise,
@@ -151,7 +155,9 @@ pub(crate) fn arrow_schema_from_column_names_and_range(
             _ => selected_columns.idx_for_column(column_names, name, idx),
         } {
             let col_type = get_arrow_column_type(range, row_idx, row_limit, col_idx)?;
-            fields.push(Field::new(&alias_for_name(name, &fields), col_type, true));
+            let aliased_name = alias_for_name(name, &existing_names);
+            fields.push(Field::new(&aliased_name, col_type, true));
+            existing_names.push(aliased_name);
         }
     }
 
