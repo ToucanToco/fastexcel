@@ -230,7 +230,7 @@ impl SelectedColumns {
                 .with_context(|| format!("invalid end element for range \"{col_range}\""))?;
 
             match start.cmp(&end) {
-                cmp::Ordering::Less => Ok((start..end).collect()),
+                cmp::Ordering::Less => Ok((start..=end).collect()),
                 cmp::Ordering::Greater => Err(InvalidParameters(format!(
                     "end of range is before start: \"{col_range}\""
                 ))
@@ -735,12 +735,12 @@ mod tests {
     // Standard unique columns
     #[case("A,B,D", vec![0, 1, 3])]
     // Standard unique columns + range
-    #[case("A,B:E,Y", vec![0, 1, 2, 3, 24])]
+    #[case("A,B:E,Y", vec![0, 1, 2, 3, 4, 24])]
     // Standard unique column + ranges with mixed case
-    #[case("A:c,b:E,w,Y:z", vec![0, 1, 2, 3, 22, 24])]
+    #[case("A:c,b:E,w,Y:z", vec![0, 1, 2, 3, 4, 22, 24, 25])]
     // Ranges beyond Z
-    #[case("A,y:AB", vec![0, 24, 25, 26])]
-    #[case("BB:BE,DDC:DDF", vec![53, 54, 55, 2810, 2811, 2812])]
+    #[case("A,y:AB", vec![0, 24, 25, 26, 27])]
+    #[case("BB:BE,DDC:DDF", vec![53, 54, 55, 56, 2810, 2811, 2812, 2813])]
     fn selected_columns_from_valid_ranges(#[case] raw: &str, #[case] expected: Vec<usize>) {
         Python::with_gil(|py| {
             let expected_range = SelectedColumns::ByIndex(expected);
