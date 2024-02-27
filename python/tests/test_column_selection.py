@@ -227,11 +227,11 @@ def test_single_sheet_with_unnamed_columns_and_str_range(
     single_sheet_with_unnamed_columns_expected: dict[str, list[Any]],
 ) -> None:
     use_columns_str = "A,C:E"
-    use_columns_idx = [0, 2, 3]
+    use_columns_idx = [0, 2, 3, 4]
     expected = {
         k: v
         for k, v in single_sheet_with_unnamed_columns_expected.items()
-        if k in ["col1", "col3", "__UNNAMED__3"]
+        if k in ["col1", "col3", "__UNNAMED__3", "col5"]
     }
     sheet = excel_reader_single_sheet_with_unnamed_columns.load_sheet(
         "With unnamed columns", use_columns=use_columns_str
