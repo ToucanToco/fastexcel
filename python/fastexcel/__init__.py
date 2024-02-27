@@ -17,6 +17,7 @@ from ._fastexcel import (
     CalamineCellError,
     CalamineError,
     CannotRetrieveCellDataError,
+    ColumnNotFoundError,
     FastExcelError,
     InvalidParametersError,
     SheetNotFoundError,
@@ -53,6 +54,16 @@ class ExcelSheet:
     def total_height(self) -> int:
         """The sheet's total height"""
         return self._sheet.total_height
+
+    @property
+    def selected_columns(self) -> list[str] | list[int] | None:
+        """The sheet's selected columns"""
+        return self._sheet.selected_columns
+
+    @property
+    def available_columns(self) -> list[str]:
+        """The columns available for the given sheet"""
+        return self._sheet.available_columns
 
     def to_arrow(self) -> pa.RecordBatch:
         """Converts the sheet to a pyarrow `RecordBatch`"""
@@ -101,6 +112,7 @@ class ExcelReader:
         skip_rows: int = 0,
         n_rows: int | None = None,
         schema_sample_rows: int | None = 1_000,
+        use_columns: list[str] | list[int] | None = None,
     ) -> ExcelSheet:
         """Loads a sheet by name.
 
@@ -117,6 +129,9 @@ class ExcelReader:
         :param schema_sample_rows: Specifies how many rows should be used to determine
                                    the dtype of a column.
                                    If `None`, all rows will be used.
+        :param use_columns: Specifies the columns to use. Can either be a list of column names, or
+                            a list of column indices (starting at 0).
+                            If `None`, all columns will be used.
         """
         return ExcelSheet(
             self._reader.load_sheet_by_name(
@@ -126,6 +141,7 @@ class ExcelReader:
                 skip_rows=skip_rows,
                 n_rows=n_rows,
                 schema_sample_rows=schema_sample_rows,
+                use_columns=use_columns,
             )
         )
 
@@ -138,6 +154,7 @@ class ExcelReader:
         skip_rows: int = 0,
         n_rows: int | None = None,
         schema_sample_rows: int | None = 1_000,
+        use_columns: list[str] | list[int] | None = None,
     ) -> ExcelSheet:
         """Loads a sheet by index.
 
@@ -154,6 +171,9 @@ class ExcelReader:
         :param schema_sample_rows: Specifies how many rows should be used to determine
                                    the dtype of a column.
                                    If `None`, all rows will be used.
+        :param use_columns: Specifies the columns to use. Can either be a list of column names, or
+                            a list of column indices (starting at 0).
+                            If `None`, all columns will be used.
         """
         if idx < 0:
             raise ValueError(f"Expected idx to be > 0, got {idx}")
@@ -165,6 +185,7 @@ class ExcelReader:
                 skip_rows=skip_rows,
                 n_rows=n_rows,
                 schema_sample_rows=schema_sample_rows,
+                use_columns=use_columns,
             )
         )
 
@@ -177,6 +198,7 @@ class ExcelReader:
         skip_rows: int = 0,
         n_rows: int | None = None,
         schema_sample_rows: int | None = 1_000,
+        use_columns: list[str] | list[int] | None = None,
     ) -> ExcelSheet:
         """Loads a sheet by name if a string is passed or by index if an integer is passed.
 
@@ -190,6 +212,7 @@ class ExcelReader:
                 skip_rows=skip_rows,
                 n_rows=n_rows,
                 schema_sample_rows=schema_sample_rows,
+                use_columns=use_columns,
             )
             if isinstance(idx_or_name, int)
             else self.load_sheet_by_name(
@@ -199,6 +222,7 @@ class ExcelReader:
                 skip_rows=skip_rows,
                 n_rows=n_rows,
                 schema_sample_rows=schema_sample_rows,
+                use_columns=use_columns,
             )
         )
 
@@ -258,6 +282,7 @@ __all__ = (
     "CalamineCellError",
     "CalamineError",
     "SheetNotFoundError",
+    "ColumnNotFoundError",
     "ArrowError",
     "InvalidParametersError",
     "UnsupportedColumnTypeCombinationError",

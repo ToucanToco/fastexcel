@@ -1,11 +1,18 @@
 use std::{error::Error, fmt::Display};
 
 #[derive(Debug)]
-pub(crate) enum SheetIdxOrName {
+pub(crate) enum IdxOrName {
     Idx(usize),
-    // Leaving this variant if someday we want to check if a name exists before calling worksheet_range
-    #[allow(dead_code)]
     Name(String),
+}
+
+impl IdxOrName {
+    pub(super) fn format_message(&self) -> String {
+        match self {
+            Self::Idx(idx) => format!("at index {idx}"),
+            Self::Name(name) => format!("with name \"{name}\""),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -14,7 +21,8 @@ pub(crate) enum FastExcelErrorKind {
     CannotRetrieveCellData(usize, usize),
     CalamineCellError(calamine::CellErrorType),
     CalamineError(calamine::Error),
-    SheetNotFound(SheetIdxOrName),
+    SheetNotFound(IdxOrName),
+    ColumnNotFound(IdxOrName),
     // Arrow errors can be of several different types (arrow::error::Error, PyError), and having
     // the actual type has not much value for us, so we just store a string context
     ArrowError(String),
@@ -38,13 +46,12 @@ impl Display for FastExcelErrorKind {
                 write!(f, "calamine error: {calamine_error}")
             }
             FastExcelErrorKind::SheetNotFound(idx_or_name) => {
-                let message = {
-                    match idx_or_name {
-                        SheetIdxOrName::Idx(idx) => format!("at index {idx}"),
-                        SheetIdxOrName::Name(name) => format!("with name \"{name}\" not found"),
-                    }
-                };
+                let message = idx_or_name.format_message();
                 write!(f, "sheet {message} not found")
+            }
+            FastExcelErrorKind::ColumnNotFound(idx_or_name) => {
+                let message = idx_or_name.format_message();
+                write!(f, "column {message} not found")
             }
             FastExcelErrorKind::ArrowError(err) => write!(f, "arrow error: {err}"),
             FastExcelErrorKind::InvalidParameters(err) => write!(f, "invalid parameters: {err}"),
@@ -55,7 +62,7 @@ impl Display for FastExcelErrorKind {
 
 #[derive(Debug)]
 pub(crate) struct FastExcelError {
-    kind: FastExcelErrorKind,
+    pub kind: FastExcelErrorKind,
     context: Vec<String>,
 }
 
@@ -168,6 +175,13 @@ pub(crate) mod py_errors {
         FastExcelError,
         "Sheet was not found"
     );
+    // Sheet not found
+    create_exception!(
+        _fastexcel,
+        ColumnNotFoundError,
+        FastExcelError,
+        "Column was not found"
+    );
     // Arrow error
     create_exception!(
         _fastexcel,
@@ -217,6 +231,9 @@ pub(crate) mod py_errors {
                         FastExcelErrorKind::CalamineError(_) => CalamineError::new_err(message),
                         FastExcelErrorKind::SheetNotFound(_) => {
                             SheetNotFoundError::new_err(message)
+                        }
+                        FastExcelErrorKind::ColumnNotFound(_) => {
+                            ColumnNotFoundError::new_err(message)
                         }
                         FastExcelErrorKind::ArrowError(_) => ArrowError::new_err(message),
                         FastExcelErrorKind::InvalidParameters(_) => {

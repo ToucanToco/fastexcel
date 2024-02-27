@@ -5,7 +5,10 @@ use std::{collections::HashSet, sync::OnceLock};
 use arrow::datatypes::{DataType as ArrowDataType, Field, Schema, TimeUnit};
 use calamine::{CellErrorType, CellType, DataType, Range};
 
-use crate::error::{FastExcelErrorKind, FastExcelResult};
+use crate::{
+    error::{FastExcelErrorKind, FastExcelResult},
+    types::excelsheet::SelectedColumns,
+};
 
 /// All the possible string values that should be considered as NULL
 const NULL_STRING_VALUES: [&str; 19] = [
@@ -164,12 +167,20 @@ pub(crate) fn arrow_schema_from_column_names_and_range<DT: CellType + DataType +
     column_names: &[String],
     row_idx: usize,
     row_limit: usize,
+    selected_columns: &SelectedColumns,
 ) -> FastExcelResult<Schema> {
     let mut fields = Vec::with_capacity(column_names.len());
 
-    for (col_idx, name) in column_names.iter().enumerate() {
-        let col_type = get_arrow_column_type(range, row_idx, row_limit, col_idx)?;
-        fields.push(Field::new(&alias_for_name(name, &fields), col_type, true));
+    for (idx, name) in column_names.iter().enumerate() {
+        // If we have an index for the given column, extract it and add it to the schema. Otherwise,
+        // just ignore it
+        if let Some(col_idx) = match selected_columns {
+            SelectedColumns::All => Some(idx),
+            _ => selected_columns.idx_for_column(column_names, name, idx),
+        } {
+            let col_type = get_arrow_column_type(range, row_idx, row_limit, col_idx)?;
+            fields.push(Field::new(&alias_for_name(name, &fields), col_type, true));
+        }
     }
 
     Ok(Schema::new(fields))
