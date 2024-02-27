@@ -16,7 +16,7 @@ def main():
     use_columns = args.column or None
 
     for sheet_name in excel_file.sheet_names:
-        excel_file.load_sheet_by_name(sheet_name, use_columns=use_columns).to_arrow()
+        excel_file.load_sheet(sheet_name, use_columns=use_columns).to_arrow()
 
 
 if __name__ == "__main__":

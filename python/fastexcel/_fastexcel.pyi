@@ -39,7 +39,7 @@ class _ExcelReader:
         skip_rows: int = 0,
         n_rows: int | None = None,
         schema_sample_rows: int | None = 1_000,
-        use_columns: list[str] | list[int] | None = None,
+        use_columns: list[str] | list[int] | str | None = None,
     ) -> _ExcelSheet: ...
     def load_sheet_by_name_eager(
         self,
@@ -61,7 +61,7 @@ class _ExcelReader:
         skip_rows: int = 0,
         n_rows: int | None = None,
         schema_sample_rows: int | None = 1_000,
-        use_columns: list[str] | list[int] | None = None,
+        use_columns: list[str] | list[int] | str | None = None,
     ) -> _ExcelSheet: ...
     def load_sheet_by_idx_eager(
         self,

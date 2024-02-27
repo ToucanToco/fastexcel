@@ -1,8 +1,11 @@
-use std::{fmt::Debug, sync::Arc};
+use std::{cmp, collections::HashSet, fmt::Debug, str::FromStr, sync::Arc};
 
-use crate::error::{
-    py_errors::IntoPyResult, ErrorContext, FastExcelError, FastExcelErrorKind, FastExcelResult,
-    IdxOrName,
+use crate::{
+    error::{
+        py_errors::IntoPyResult, ErrorContext, FastExcelError, FastExcelErrorKind, FastExcelResult,
+        IdxOrName,
+    },
+    utils::arrow::alias_for_name,
 };
 
 use arrow::{
@@ -19,8 +22,8 @@ use chrono::NaiveDate;
 
 use pyo3::{
     prelude::{pyclass, pymethods, PyObject, Python},
-    types::PyList,
-    PyResult,
+    types::{PyList, PyString},
+    PyAny, PyResult,
 };
 
 use crate::utils::{
@@ -155,28 +158,161 @@ impl SelectedColumns {
     }
 }
 
-impl TryFrom<Option<&PyList>> for SelectedColumns {
+impl TryFrom<&PyList> for SelectedColumns {
     type Error = FastExcelError;
 
-    fn try_from(value: Option<&PyList>) -> FastExcelResult<Self> {
+    fn try_from(py_list: &PyList) -> FastExcelResult<Self> {
         use FastExcelErrorKind::InvalidParameters;
 
-        match value {
-            None => Ok(Self::All),
-            Some(py_list) => {
-                if py_list.is_empty() {
-                    Err(InvalidParameters("list of selected columns is empty".to_string()).into())
-                } else if let Ok(name_vec) = py_list.extract::<Vec<String>>() {
-                    Ok(Self::ByName(name_vec))
-                } else if let Ok(index_vec) = py_list.extract::<Vec<usize>>() {
-                    Ok(Self::ByIndex(index_vec))
+        if py_list.is_empty() {
+            Err(InvalidParameters("list of selected columns is empty".to_string()).into())
+        } else if let Ok(name_vec) = py_list.extract::<Vec<String>>() {
+            Ok(Self::ByName(name_vec))
+        } else if let Ok(index_vec) = py_list.extract::<Vec<usize>>() {
+            Ok(Self::ByIndex(index_vec))
+        } else {
+            Err(
+                InvalidParameters(format!("expected list[int] | list[str], got {py_list:?}"))
+                    .into(),
+            )
+        }
+    }
+}
+
+impl SelectedColumns {
+    const ALPHABET: [char; 26] = [
+        'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R',
+        'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
+    ];
+
+    fn col_idx_for_col_as_letter(col: &str) -> FastExcelResult<usize> {
+        use FastExcelErrorKind::InvalidParameters;
+
+        if col.is_empty() {
+            return Err(InvalidParameters(
+                "a column should have at least one character, got none".to_string(),
+            )
+            .into());
+        }
+
+        col.chars()
+            //  iterating over all chars reversed, to have a power based on their rank
+            .rev()
+            .enumerate()
+            //  Parses every char, checks its position and returns its numeric equivalent based on
+            //  its rank. For example, AB becomes 27 (26 + 1)
+            .map(|(idx, col_chr)| {
+                let pos_in_alphabet = Self::ALPHABET
+                    .iter()
+                    .position(|chr| chr == &col_chr)
+                    .ok_or_else(|| {
+                        FastExcelError::from(InvalidParameters(format!(
+                            "Char is not a valid column name: {col_chr}"
+                        )))
+                    })?;
+
+                Ok(match idx {
+                    // in case it's the last char, just return its position
+                    0 => pos_in_alphabet,
+                    // otherwise, 26^idx * (position + 1)
+                    // For example, CBA is 2081:
+                    // A -> 0
+                    // B -> 26 (53^1 * (1 + 1))
+                    // C -> 2028 (26^2 * (2 + 1))
+                    _ => 26usize.pow(idx as u32) * (pos_in_alphabet + 1),
+                })
+            })
+            // Sums all previously obtained ranks
+            .try_fold(0usize, |acc, elem_result| {
+                elem_result.map(|elem| acc + elem)
+            })
+    }
+
+    fn col_indices_for_letter_range(col_range: &str) -> FastExcelResult<Vec<usize>> {
+        use FastExcelErrorKind::InvalidParameters;
+
+        let col_elements = col_range.split(':').collect::<Vec<_>>();
+        if col_elements.len() == 2 {
+            let start = Self::col_idx_for_col_as_letter(col_elements[0])
+                .with_context(|| format!("invalid start element for range \"{col_range}\""))?;
+            let end = Self::col_idx_for_col_as_letter(col_elements[1])
+                .with_context(|| format!("invalid end element for range \"{col_range}\""))?;
+
+            match start.cmp(&end) {
+                cmp::Ordering::Less => Ok((start..=end).collect()),
+                cmp::Ordering::Greater => Err(InvalidParameters(format!(
+                    "end of range is before start: \"{col_range}\""
+                ))
+                .into()),
+                cmp::Ordering::Equal => {
+                    Err(InvalidParameters(format!("empty range: \"{col_range}\"")).into())
+                }
+            }
+        } else {
+            Err(InvalidParameters(format!(
+                "expected range to contain exactly 2 elements, got {n_elements}: \"{col_range}\"",
+                n_elements = col_elements.len()
+            ))
+            .into())
+        }
+    }
+}
+
+impl FromStr for SelectedColumns {
+    type Err = FastExcelError;
+
+    fn from_str(s: &str) -> FastExcelResult<Self> {
+        let unique_col_indices: HashSet<usize> = s
+            .to_uppercase()
+            .split(',')
+            .map(|col_or_range| {
+                if col_or_range.contains(':') {
+                    Self::col_indices_for_letter_range(col_or_range)
                 } else {
-                    Err(InvalidParameters(format!(
-                        "expected list[int] | list[str], got {py_list:?}"
+                    Self::col_idx_for_col_as_letter(col_or_range).map(|idx| vec![idx])
+                }
+            })
+            .collect::<FastExcelResult<Vec<_>>>()?
+            .into_iter()
+            .flatten()
+            .collect();
+        let mut sorted_col_indices: Vec<usize> = unique_col_indices.into_iter().collect();
+        sorted_col_indices.sort();
+        Ok(Self::ByIndex(sorted_col_indices))
+    }
+}
+
+impl TryFrom<Option<&PyAny>> for SelectedColumns {
+    type Error = FastExcelError;
+
+    fn try_from(py_any_opt: Option<&PyAny>) -> FastExcelResult<Self> {
+        match py_any_opt {
+            None => Ok(Self::All),
+            Some(py_any) => {
+                // Not trying to downcast to PyNone here as we assume that this would result in
+                // py_any_opt being None
+                if let Ok(py_str) = py_any.downcast::<PyString>() {
+                    py_str
+                        .to_str()
+                        .map_err(|err| {
+                            FastExcelErrorKind::InvalidParameters(format!(
+                                "provided string is not valid unicode: {err}"
+                            ))
+                        })?
+                        .parse()
+                } else if let Ok(py_list) = py_any.downcast::<PyList>() {
+                    py_list.try_into()
+                } else {
+                    Err(FastExcelErrorKind::InvalidParameters(format!(
+                        "unsupported object type {object_type}",
+                        object_type = py_any.get_type()
                     ))
                     .into())
                 }
             }
+            .with_context(|| {
+                format!("could not determine selected columns from provided object: {py_any}")
+            }),
         }
     }
 }
@@ -253,17 +389,23 @@ impl ExcelSheet {
 
         let available_columns = sheet.get_available_columns();
 
+        let mut aliased_available_columns = Vec::with_capacity(available_columns.len());
+
+        available_columns.iter().for_each(|column_name| {
+            aliased_available_columns.push(alias_for_name(column_name, &aliased_available_columns))
+        });
+
         // Ensuring selected columns are valid
         sheet
             .selected_columns
-            .validate_columns(&available_columns)
+            .validate_columns(&aliased_available_columns)
             .with_context(|| {
                 format!(
                     "selected columns are invalid, available columns are: {available_columns:?}"
                 )
             })?;
 
-        sheet.available_columns = available_columns;
+        sheet.available_columns = aliased_available_columns;
         Ok(sheet)
     }
 
@@ -607,6 +749,7 @@ impl ExcelSheet {
 mod tests {
     use super::*;
     use pretty_assertions::assert_eq;
+    use rstest::rstest;
 
     #[test]
     fn selected_columns_from_none() {
@@ -619,7 +762,7 @@ mod tests {
     #[test]
     fn selected_columns_from_list_of_valid_ints() {
         Python::with_gil(|py| {
-            let py_list = PyList::new(py, vec![0, 1, 2]);
+            let py_list = PyList::new(py, vec![0, 1, 2]).as_ref();
             assert_eq!(
                 TryInto::<SelectedColumns>::try_into(Some(py_list)).unwrap(),
                 SelectedColumns::ByIndex(vec![0, 1, 2])
@@ -630,7 +773,7 @@ mod tests {
     #[test]
     fn selected_columns_from_list_of_valid_strings() {
         Python::with_gil(|py| {
-            let py_list = PyList::new(py, vec!["foo", "bar"]);
+            let py_list = PyList::new(py, vec!["foo", "bar"]).as_ref();
             assert_eq!(
                 TryInto::<SelectedColumns>::try_into(Some(py_list)).unwrap(),
                 SelectedColumns::ByName(vec!["foo".to_string(), "bar".to_string()])
@@ -641,7 +784,7 @@ mod tests {
     #[test]
     fn selected_columns_from_invalid_ints() {
         Python::with_gil(|py| {
-            let py_list = PyList::new(py, vec![0, 2, -1]);
+            let py_list = PyList::new(py, vec![0, 2, -1]).as_ref();
             let err = TryInto::<SelectedColumns>::try_into(Some(py_list)).unwrap_err();
 
             assert!(matches!(err.kind, FastExcelErrorKind::InvalidParameters(_)));
@@ -651,7 +794,7 @@ mod tests {
     #[test]
     fn selected_columns_from_empty_int_list() {
         Python::with_gil(|py| {
-            let py_list = PyList::new(py, Vec::<usize>::new());
+            let py_list = PyList::new(py, Vec::<usize>::new()).as_ref();
             let err = TryInto::<SelectedColumns>::try_into(Some(py_list)).unwrap_err();
 
             assert!(matches!(err.kind, FastExcelErrorKind::InvalidParameters(_)));
@@ -661,10 +804,63 @@ mod tests {
     #[test]
     fn selected_columns_from_empty_string_list() {
         Python::with_gil(|py| {
-            let py_list = PyList::new(py, Vec::<String>::new());
+            let py_list = PyList::new(py, Vec::<String>::new()).as_ref();
             let err = TryInto::<SelectedColumns>::try_into(Some(py_list)).unwrap_err();
 
             assert!(matches!(err.kind, FastExcelErrorKind::InvalidParameters(_)));
         });
+    }
+
+    #[rstest]
+    // Standard unique columns
+    #[case("A,B,D", vec![0, 1, 3])]
+    // Standard unique columns + range
+    #[case("A,B:E,Y", vec![0, 1, 2, 3, 4, 24])]
+    // Standard unique column + ranges with mixed case
+    #[case("A:c,b:E,w,Y:z", vec![0, 1, 2, 3, 4, 22, 24, 25])]
+    // Ranges beyond Z
+    #[case("A,y:AB", vec![0, 24, 25, 26, 27])]
+    #[case("BB:BE,DDC:DDF", vec![53, 54, 55, 56, 2810, 2811, 2812, 2813])]
+    fn selected_columns_from_valid_ranges(#[case] raw: &str, #[case] expected: Vec<usize>) {
+        Python::with_gil(|py| {
+            let expected_range = SelectedColumns::ByIndex(expected);
+            let input = PyString::new(py, raw).as_ref();
+
+            let range = TryInto::<SelectedColumns>::try_into(Some(input))
+                .expect("expected a valid column selection");
+
+            assert_eq!(range, expected_range)
+        })
+    }
+
+    #[rstest]
+    // Standard unique columns
+    #[case("", "at least one character")]
+    // empty range
+    #[case("a:a,b:d,e", "empty range")]
+    // end before start
+    #[case("b:a", "end of range is before start")]
+    // no start
+    #[case(":a", "at least one character, got none")]
+    // no end
+    #[case("a:", "at least one character, got none")]
+    // too many elements
+    #[case("a:b:e", "exactly 2 elements, got 3")]
+    fn selected_columns_from_invalid_ranges(#[case] raw: &str, #[case] message: &str) {
+        Python::with_gil(|py| {
+            let input = PyString::new(py, raw).as_ref();
+
+            let err =
+                TryInto::<SelectedColumns>::try_into(Some(input)).expect_err("expected an error");
+
+            match err.kind {
+                FastExcelErrorKind::InvalidParameters(detail) => {
+                    if !detail.contains(message) {
+                        panic!("expected \"{detail}\" to contain \"{message}\"")
+                    }
+                }
+                _ => panic!("Expected error to be InvalidParameters, got {err:?}"),
+            }
+        })
     }
 }

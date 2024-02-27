@@ -112,7 +112,7 @@ class ExcelReader:
         skip_rows: int = 0,
         n_rows: int | None = None,
         schema_sample_rows: int | None = 1_000,
-        use_columns: list[str] | list[int] | None = None,
+        use_columns: list[str] | list[int] | str | None = None,
     ) -> ExcelSheet:
         """Loads a sheet by name.
 
@@ -129,9 +129,13 @@ class ExcelReader:
         :param schema_sample_rows: Specifies how many rows should be used to determine
                                    the dtype of a column.
                                    If `None`, all rows will be used.
-        :param use_columns: Specifies the columns to use. Can either be a list of column names, or
-                            a list of column indices (starting at 0).
-                            If `None`, all columns will be used.
+        :param use_columns: Specifies the columns to use. Can either be:
+                            - `None` to select all columns
+                            - a list of strings, the column names
+                            - a list of ints, the column indices (starting at 0)
+                            - a string, a comma separated list of Excel column letters and column
+                              ranges (e.g. `“A:E”` or `“A,C,E:F”`, which would result in
+                              `A,B,C,D,E` and `A,C,E,F`)
         """
         return ExcelSheet(
             self._reader.load_sheet_by_name(
@@ -154,7 +158,7 @@ class ExcelReader:
         skip_rows: int = 0,
         n_rows: int | None = None,
         schema_sample_rows: int | None = 1_000,
-        use_columns: list[str] | list[int] | None = None,
+        use_columns: list[str] | list[int] | str | None = None,
     ) -> ExcelSheet:
         """Loads a sheet by index.
 
@@ -171,9 +175,13 @@ class ExcelReader:
         :param schema_sample_rows: Specifies how many rows should be used to determine
                                    the dtype of a column.
                                    If `None`, all rows will be used.
-        :param use_columns: Specifies the columns to use. Can either be a list of column names, or
-                            a list of column indices (starting at 0).
-                            If `None`, all columns will be used.
+        :param use_columns: Specifies the columns to use. Can either be:
+                            - `None` to select all columns
+                            - a list of strings, the column names
+                            - a list of ints, the column indices (starting at 0)
+                            - a string, a comma separated list of Excel column letters and column
+                              ranges (e.g. `“A:E”` or `“A,C,E:F”`, which would result in
+                              `A,B,C,D,E` and `A,C,E,F`)
         """
         if idx < 0:
             raise ValueError(f"Expected idx to be > 0, got {idx}")
@@ -198,7 +206,7 @@ class ExcelReader:
         skip_rows: int = 0,
         n_rows: int | None = None,
         schema_sample_rows: int | None = 1_000,
-        use_columns: list[str] | list[int] | None = None,
+        use_columns: list[str] | list[int] | str | None = None,
     ) -> ExcelSheet:
         """Loads a sheet by name if a string is passed or by index if an integer is passed.
 

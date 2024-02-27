@@ -3,7 +3,7 @@ use std::{fs::File, io::BufReader};
 
 use arrow::{pyarrow::ToPyArrow, record_batch::RecordBatch};
 use calamine::{open_workbook_auto, CellType, DataType, Range, Reader, Sheets};
-use pyo3::{prelude::PyObject, pyclass, pymethods, types::PyList, PyResult, Python};
+use pyo3::{prelude::PyObject, pyclass, pymethods, PyAny, PyResult, Python};
 
 use crate::error::{
     py_errors::IntoPyResult, ErrorContext, FastExcelErrorKind, FastExcelResult, IdxOrName,
@@ -28,7 +28,7 @@ pub(crate) struct ExcelReader {
 }
 
 impl ExcelReader {
-    fn build_selected_columns(use_columns: Option<&PyList>) -> PyResult<SelectedColumns> {
+    fn build_selected_columns(use_columns: Option<&PyAny>) -> PyResult<SelectedColumns> {
         use_columns.try_into().with_context(|| format!("expected selected columns to be list[str] | list[int] | None, got {use_columns:?}")).into_pyresult()
     }
 
@@ -106,7 +106,8 @@ impl ExcelReader {
         skip_rows: usize,
         n_rows: Option<usize>,
         schema_sample_rows: Option<usize>,
-        use_columns: Option<&PyList>,
+        // pyo3 forces us to take an Option in case the default value is None
+        use_columns: Option<&PyAny>,
     ) -> PyResult<ExcelSheet> {
         let range = self
             .sheets
@@ -148,27 +149,47 @@ impl ExcelReader {
         skip_rows: usize,
         n_rows: Option<usize>,
         schema_sample_rows: Option<usize>,
-        use_columns: Option<&PyList>,
+        use_columns: Option<&PyAny>,
         py: Python<'_>,
     ) -> PyResult<PyObject> {
-        let range = self
-            .sheets
-            .worksheet_range(&name)
-            .map_err(|err| FastExcelErrorKind::CalamineError(err).into())
-            .with_context(|| format!("Error while loading sheet {name}"))
-            .into_pyresult()?;
-
         let header = Header::new(header_row, column_names);
-        let pagination = Pagination::new(skip_rows, n_rows, &range).into_pyresult()?;
-        let selected_columns = Self::build_selected_columns(use_columns)?;
-        let rb = ExcelReader::load_sheet_eager(
-            range,
-            pagination,
-            header,
-            schema_sample_rows,
-            &selected_columns,
-        )
-        .with_context(|| "could not load sheet eagerly")
+
+        let rb = if let Sheets::Xlsx(ref mut xlsx) = self.sheets {
+            let range = xlsx
+                .worksheet_range_ref(&name)
+                .map_err(|err| FastExcelErrorKind::CalamineError(calamine::Error::Xlsx(err)).into())
+                .with_context(|| format!("Error while loading sheet {name}"))
+                .into_pyresult()?;
+
+            let pagination = Pagination::new(skip_rows, n_rows, &range).into_pyresult()?;
+            let selected_columns = Self::build_selected_columns(use_columns)?;
+            ExcelReader::load_sheet_eager(
+                range,
+                pagination,
+                header,
+                schema_sample_rows,
+                &selected_columns,
+            )
+            .with_context(|| "could not load sheet eagerly")
+        } else {
+            let range = self
+                .sheets
+                .worksheet_range(&name)
+                .map_err(|err| FastExcelErrorKind::CalamineError(err).into())
+                .with_context(|| format!("Error while loading sheet {name}"))
+                .into_pyresult()?;
+
+            let pagination = Pagination::new(skip_rows, n_rows, &range).into_pyresult()?;
+            let selected_columns = Self::build_selected_columns(use_columns)?;
+            ExcelReader::load_sheet_eager(
+                range,
+                pagination,
+                header,
+                schema_sample_rows,
+                &selected_columns,
+            )
+            .with_context(|| "could not load sheet eagerly")
+        }
         .into_pyresult()?;
         rb.to_pyarrow(py)
     }
@@ -192,7 +213,7 @@ impl ExcelReader {
         skip_rows: usize,
         n_rows: Option<usize>,
         schema_sample_rows: Option<usize>,
-        use_columns: Option<&PyList>,
+        use_columns: Option<&PyAny>,
     ) -> PyResult<ExcelSheet> {
         let name = self
             .sheet_names
@@ -252,7 +273,7 @@ impl ExcelReader {
         skip_rows: usize,
         n_rows: Option<usize>,
         schema_sample_rows: Option<usize>,
-        use_columns: Option<&PyList>,
+        use_columns: Option<&PyAny>,
         py: Python<'_>,
     ) -> PyResult<PyObject> {
         let range = self

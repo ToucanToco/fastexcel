@@ -250,7 +250,7 @@ checksum = "a2bd12c1caf447e69cd4528f47f94d203fd2582878ecb9e9465484c4148a8223"
 [[package]]
 name = "calamine"
 version = "0.24.0"
-source = "git+https://github.com/lukapeschke/calamine?branch=add-is-error#32c75e49f2456d155417d437b896e0fa0c13a38e"
+source = "git+https://github.com/lukapeschke/calamine?branch=master#e53b0cbaa44bd24b3b93bc326ffb45a0cbd235ae"
 dependencies = [
  "byteorder",
  "chrono",
