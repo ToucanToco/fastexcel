@@ -222,12 +222,33 @@ def test_single_sheet_with_unnamed_columns_and_pagination_and_column_names(
     pl_assert_frame_equal(sheet.to_polars(), pl.DataFrame(expected_first_row_skipped))
 
 
+def test_single_sheet_with_unnamed_columns_and_str_range(
+    excel_reader_single_sheet_with_unnamed_columns: fastexcel.ExcelReader,
+    single_sheet_with_unnamed_columns_expected: dict[str, list[Any]],
+) -> None:
+    use_columns_str = "A,C:E"
+    use_columns_idx = [0, 2, 3]
+    expected = {
+        k: v
+        for k, v in single_sheet_with_unnamed_columns_expected.items()
+        if k in ["col1", "col3", "__UNNAMED__3"]
+    }
+    sheet = excel_reader_single_sheet_with_unnamed_columns.load_sheet(
+        "With unnamed columns", use_columns=use_columns_str
+    )
+    assert sheet.selected_columns == use_columns_idx
+    assert sheet.available_columns == ["col1", "__UNNAMED__1", "col3", "__UNNAMED__3", "col5"]
+    pd_assert_frame_equal(sheet.to_pandas(), pd.DataFrame(expected))
+    pl_assert_frame_equal(sheet.to_polars(), pl.DataFrame(expected))
+
+
 def test_single_sheet_invalid_column_indices_negative_integer(
     excel_reader_single_sheet_with_unnamed_columns: fastexcel.ExcelReader,
 ) -> None:
     expected_message = """invalid parameters: expected list[int] | list[str], got [-2]
 Context:
-    0: expected selected columns to be list[str] | list[int] | None, got Some([-2])
+    0: could not determine selected columns from provided object: [-2]
+    1: expected selected columns to be list[str] | list[int] | str | None, got Some([-2])
 """
     with pytest.raises(fastexcel.InvalidParametersError, match=re.escape(expected_message)):
         excel_reader_single_sheet_with_unnamed_columns.load_sheet(0, use_columns=[-2])
@@ -238,7 +259,8 @@ def test_single_sheet_invalid_column_indices_empty_list(
 ) -> None:
     expected_message = """invalid parameters: list of selected columns is empty
 Context:
-    0: expected selected columns to be list[str] | list[int] | None, got Some([])
+    0: could not determine selected columns from provided object: []
+    1: expected selected columns to be list[str] | list[int] | str | None, got Some([])
 """
     with pytest.raises(fastexcel.InvalidParametersError, match=re.escape(expected_message)):
         excel_reader_single_sheet_with_unnamed_columns.load_sheet(0, use_columns=[])

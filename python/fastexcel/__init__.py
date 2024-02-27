@@ -112,7 +112,7 @@ class ExcelReader:
         skip_rows: int = 0,
         n_rows: int | None = None,
         schema_sample_rows: int | None = 1_000,
-        use_columns: list[str] | list[int] | None = None,
+        use_columns: list[str] | list[int] | str | None = None,
     ) -> ExcelSheet:
         """Loads a sheet by name.
 
@@ -129,8 +129,10 @@ class ExcelReader:
         :param schema_sample_rows: Specifies how many rows should be used to determine
                                    the dtype of a column.
                                    If `None`, all rows will be used.
-        :param use_columns: Specifies the columns to use. Can either be a list of column names, or
-                            a list of column indices (starting at 0).
+        :param use_columns: Specifies the columns to use. Can either be a list of column names, a
+                            a list of column indices (starting at 0), or a list of columns and
+                            ranges as column names indices in excel form. For example, `"A,C:E,F"`
+                            will select columns `A,C,D,F`.
                             If `None`, all columns will be used.
         """
         return ExcelSheet(
@@ -154,7 +156,7 @@ class ExcelReader:
         skip_rows: int = 0,
         n_rows: int | None = None,
         schema_sample_rows: int | None = 1_000,
-        use_columns: list[str] | list[int] | None = None,
+        use_columns: list[str] | list[int] | str | None = None,
     ) -> ExcelSheet:
         """Loads a sheet by index.
 
@@ -171,8 +173,10 @@ class ExcelReader:
         :param schema_sample_rows: Specifies how many rows should be used to determine
                                    the dtype of a column.
                                    If `None`, all rows will be used.
-        :param use_columns: Specifies the columns to use. Can either be a list of column names, or
-                            a list of column indices (starting at 0).
+        :param use_columns: Specifies the columns to use. Can either be a list of column names, a
+                            a list of column indices (starting at 0), or a list of columns and
+                            ranges as column names indices in excel form. For example, `"A,C:E,F"`
+                            will select columns `A,C,D,F`.
                             If `None`, all columns will be used.
         """
         if idx < 0:
@@ -198,7 +202,7 @@ class ExcelReader:
         skip_rows: int = 0,
         n_rows: int | None = None,
         schema_sample_rows: int | None = 1_000,
-        use_columns: list[str] | list[int] | None = None,
+        use_columns: list[str] | list[int] | str | None = None,
     ) -> ExcelSheet:
         """Loads a sheet by name if a string is passed or by index if an integer is passed.
 

@@ -1,7 +1,7 @@
 use std::{fs::File, io::BufReader};
 
 use calamine::{open_workbook_auto, Reader, Sheets};
-use pyo3::{pyclass, pymethods, types::PyList, PyResult};
+use pyo3::{pyclass, pymethods, PyAny, PyResult};
 
 use crate::error::{
     py_errors::IntoPyResult, ErrorContext, FastExcelErrorKind, FastExcelResult, IdxOrName,
@@ -61,7 +61,8 @@ impl ExcelReader {
         skip_rows: usize,
         n_rows: Option<usize>,
         schema_sample_rows: Option<usize>,
-        use_columns: Option<&PyList>,
+        // pyo3 forces us to take an Option in case the default value is None
+        use_columns: Option<&PyAny>,
     ) -> PyResult<ExcelSheet> {
         let range = self
             .sheets
@@ -72,7 +73,7 @@ impl ExcelReader {
 
         let header = Header::new(header_row, column_names);
         let pagination = Pagination::new(skip_rows, n_rows, &range).into_pyresult()?;
-        let selected_columns = use_columns.try_into().with_context(|| format!("expected selected columns to be list[str] | list[int] | None, got {use_columns:?}")).into_pyresult()?;
+        let selected_columns = use_columns.try_into().with_context(|| format!("expected selected columns to be list[str] | list[int] | str | None, got {use_columns:?}")).into_pyresult()?;
         ExcelSheet::try_new(
             name,
             range,
@@ -103,7 +104,7 @@ impl ExcelReader {
         skip_rows: usize,
         n_rows: Option<usize>,
         schema_sample_rows: Option<usize>,
-        use_columns: Option<&PyList>,
+        use_columns: Option<&PyAny>,
     ) -> PyResult<ExcelSheet> {
         let name = self
             .sheet_names
@@ -131,7 +132,7 @@ impl ExcelReader {
 
         let header = Header::new(header_row, column_names);
         let pagination = Pagination::new(skip_rows, n_rows, &range).into_pyresult()?;
-        let selected_columns = use_columns.try_into().with_context(|| format!("expected selected columns to be list[str] | list[int] | None, got {use_columns:?}")).into_pyresult()?;
+        let selected_columns = use_columns.try_into().with_context(|| format!("expected selected columns to be list[str] | list[int] | str | None, got {use_columns:?}")).into_pyresult()?;
         ExcelSheet::try_new(
             name,
             range,
