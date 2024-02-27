@@ -179,27 +179,43 @@ impl SelectedColumns {
     fn col_idx_for_col_as_letter(col: &str) -> FastExcelResult<usize> {
         use FastExcelErrorKind::InvalidParameters;
 
-        if col.len() != 1 {
-            return Err(InvalidParameters(format!(
-                "a column should be exactly one character, got {n_chars}",
-                n_chars = col.len()
-            ))
+        if col.is_empty() {
+            return Err(InvalidParameters(
+                "a column should have at least one character, got none".to_string(),
+            )
             .into());
         }
 
         col.chars()
-            .next()
-            .ok_or_else(|| {
-                InvalidParameters(format!("could not get first char of column \"{col}\"")).into()
-            })
-            .and_then(|col_name| {
-                Self::ALPHABET
+            //  iterating over all chars reversed, to have a power based on their rank
+            .rev()
+            .enumerate()
+            //  Parses every char, checks its position and returns its numeric equivalent based on
+            //  its rank. For example, AB becomes 27 (26 + 1)
+            .map(|(idx, col_chr)| {
+                let pos_in_alphabet = Self::ALPHABET
                     .iter()
-                    .position(|chr| chr == &col_name)
+                    .position(|chr| chr == &col_chr)
                     .ok_or_else(|| {
-                        InvalidParameters(format!("Char is not a valid column name: {col_name}"))
-                            .into()
-                    })
+                        FastExcelError::from(InvalidParameters(format!(
+                            "Char is not a valid column name: {col_chr}"
+                        )))
+                    })?;
+
+                Ok(match idx {
+                    // in case it's the last char, just return its position
+                    0 => pos_in_alphabet,
+                    // otherwise, 26^idx * (position + 1)
+                    // For example, CBA is 2081:
+                    // A -> 0
+                    // B -> 26 (53^1 * (1 + 1))
+                    // C -> 2028 (26^2 * (2 + 1))
+                    _ => 26usize.pow(idx as u32) * (pos_in_alphabet + 1),
+                })
+            })
+            // Sums all previously obtained ranks
+            .try_fold(0usize, |acc, elem_result| {
+                elem_result.map(|elem| acc + elem)
             })
     }
 
@@ -723,6 +739,9 @@ mod tests {
     #[case("A,B:E,Y", vec![0, 1, 2, 3, 24])]
     // Standard unique column + ranges with mixed case
     #[case("A:c,b:E,w,Y:z", vec![0, 1, 2, 3, 22, 24])]
+    // Ranges beyond Z
+    #[case("A,y:AB", vec![0, 24, 25, 26])]
+    #[case("BB:BE,DDC:DDF", vec![53, 54, 55, 2810, 2811, 2812])]
     fn selected_columns_from_valid_ranges(#[case] raw: &str, #[case] expected: Vec<usize>) {
         Python::with_gil(|py| {
             let expected_range = SelectedColumns::ByIndex(expected);
@@ -737,15 +756,15 @@ mod tests {
 
     #[rstest]
     // Standard unique columns
-    #[case("", "exactly one character")]
+    #[case("", "at least one character")]
     // empty range
     #[case("a:a,b:d,e", "empty range")]
     // end before start
     #[case("b:a", "end of range is before start")]
     // no start
-    #[case(":a", "exactly one character, got 0")]
+    #[case(":a", "at least one character, got none")]
     // no end
-    #[case("a:", "exactly one character, got 0")]
+    #[case("a:", "at least one character, got none")]
     // too many elements
     #[case("a:b:e", "exactly 2 elements, got 3")]
     fn selected_columns_from_invalid_ranges(#[case] raw: &str, #[case] message: &str) {
