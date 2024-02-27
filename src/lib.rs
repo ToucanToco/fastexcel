@@ -55,6 +55,10 @@ fn _fastexcel(py: Python, m: &PyModule) -> PyResult<()> {
             "SheetNotFoundError",
             py.get_type::<py_errors::SheetNotFoundError>(),
         ),
+        (
+            "ColumnNotFoundError",
+            py.get_type::<py_errors::ColumnNotFoundError>(),
+        ),
         ("ArrowError", py.get_type::<py_errors::ArrowError>()),
         (
             "InvalidParametersError",
