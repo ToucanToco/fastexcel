@@ -1,8 +1,11 @@
 use std::{cmp, collections::HashSet, str::FromStr, sync::Arc};
 
-use crate::error::{
-    py_errors::IntoPyResult, ErrorContext, FastExcelError, FastExcelErrorKind, FastExcelResult,
-    IdxOrName,
+use crate::{
+    error::{
+        py_errors::IntoPyResult, ErrorContext, FastExcelError, FastExcelErrorKind, FastExcelResult,
+        IdxOrName,
+    },
+    utils::arrow::alias_for_name,
 };
 
 use arrow::{
@@ -352,17 +355,23 @@ impl ExcelSheet {
 
         let available_columns = sheet.get_available_columns();
 
+        let mut aliased_available_columns = Vec::with_capacity(available_columns.len());
+
+        available_columns.iter().for_each(|column_name| {
+            aliased_available_columns.push(alias_for_name(column_name, &aliased_available_columns))
+        });
+
         // Ensuring selected columns are valid
         sheet
             .selected_columns
-            .validate_columns(&available_columns)
+            .validate_columns(&aliased_available_columns)
             .with_context(|| {
                 format!(
                     "selected columns are invalid, available columns are: {available_columns:?}"
                 )
             })?;
 
-        sheet.available_columns = available_columns;
+        sheet.available_columns = aliased_available_columns;
         Ok(sheet)
     }
 
