@@ -416,8 +416,7 @@ impl TryFrom<&ExcelSheet> for Schema {
             sheet.data(),
             &sheet.available_columns,
             sheet.offset(),
-            // If sample_rows is higher than the sheet's limit, use the limit instead
-            std::cmp::min(sample_rows, sheet.limit()),
+            sheet.schema_sample_rows(),
             &sheet.selected_columns,
         )
     }

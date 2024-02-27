@@ -50,6 +50,7 @@ class _ExcelReader:
         skip_rows: int = 0,
         n_rows: int | None = None,
         schema_sample_rows: int | None = 1_000,
+        use_columns: list[str] | list[int] | None = None,
     ) -> pa.RecordBatch: ...
     def load_sheet_by_idx(
         self,
@@ -62,6 +63,17 @@ class _ExcelReader:
         schema_sample_rows: int | None = 1_000,
         use_columns: list[str] | list[int] | None = None,
     ) -> _ExcelSheet: ...
+    def load_sheet_by_idx_eager(
+        self,
+        idx: int,
+        *,
+        header_row: int | None = 0,
+        column_names: list[str] | None = None,
+        skip_rows: int = 0,
+        n_rows: int | None = None,
+        schema_sample_rows: int | None = 1_000,
+        use_columns: list[str] | list[int] | None = None,
+    ) -> pa.RecordBatch: ...
     @property
     def sheet_names(self) -> list[str]: ...
 
