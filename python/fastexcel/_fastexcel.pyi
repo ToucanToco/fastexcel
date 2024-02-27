@@ -18,6 +18,12 @@ class _ExcelSheet:
     @property
     def offset(self) -> int:
         """The sheet's offset before data starts"""
+    @property
+    def selected_columns(self) -> list[str] | list[int] | None:
+        """The sheet's selected columns"""
+    @property
+    def available_columns(self) -> list[str]:
+        """The columns available for the given sheet"""
     def to_arrow(self) -> pa.RecordBatch:
         """Converts the sheet to a pyarrow `RecordBatch`"""
 
@@ -33,6 +39,7 @@ class _ExcelReader:
         skip_rows: int = 0,
         n_rows: int | None = None,
         schema_sample_rows: int | None = 1_000,
+        use_columns: list[str] | list[int] | None = None,
     ) -> _ExcelSheet: ...
     def load_sheet_by_idx(
         self,
@@ -43,16 +50,7 @@ class _ExcelReader:
         skip_rows: int = 0,
         n_rows: int | None = None,
         schema_sample_rows: int | None = 1_000,
-    ) -> _ExcelSheet: ...
-    def load_sheet(
-        self,
-        idx_or_name: int | str,
-        *,
-        header_row: int | None = 0,
-        column_names: list[str] | None = None,
-        skip_rows: int = 0,
-        n_rows: int | None = None,
-        schema_sample_rows: int | None = 1_000,
+        use_columns: list[str] | list[int] | None = None,
     ) -> _ExcelSheet: ...
     @property
     def sheet_names(self) -> list[str]: ...
@@ -69,5 +67,6 @@ class CannotRetrieveCellDataError(FastExcelError): ...
 class CalamineCellError(FastExcelError): ...
 class CalamineError(FastExcelError): ...
 class SheetNotFoundError(FastExcelError): ...
+class ColumnNotFoundError(FastExcelError): ...
 class ArrowError(FastExcelError): ...
 class InvalidParametersError(FastExcelError): ...

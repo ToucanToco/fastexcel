@@ -11,7 +11,8 @@ crate-type = ["cdylib"]
 [dependencies]
 calamine = { version = "0.24.0", features = ["dates"] }
 chrono = { version = "0.4.34", default-features = false }
-pyo3 = { version = "0.20.3", features = ["extension-module", "abi3-py38"] }
+# NOTE: "extension-module" is actually required, see comments on features below
+pyo3 = { version = "0.20.3", features = ["abi3-py38"] }
 
 [dependencies.arrow]
 version = "50.0.0"
@@ -20,4 +21,14 @@ default-features = false
 features = ["pyarrow"]
 
 [dev-dependencies]
+pretty_assertions = "1.4.0"
 rstest = { version = "0.18.2", default-features = false }
+
+# NOTE: This is a hack to bypass pyo3 limitations when testing:
+# https://pyo3.rs/v0.20.3/faq.html#i-cant-run-cargo-test-or-i-cant-build-in-a-cargo-workspace-im-having-linker-issues-like-symbol-not-found-or-undefined-reference-to-_pyexc_systemerror
+[features]
+extension-module = ["pyo3/extension-module"]
+default = ["extension-module"]
+# feature for tests only. This makes Python::with_gil auto-initialize Python
+# interpreters, which allows us to instantiate Python objects in tests
+tests = ["pyo3/auto-initialize"]

@@ -9,20 +9,29 @@ pytest	= pytest -v
 ## Rust
 clippy		= cargo clippy
 fmt		= cargo fmt
-cargo-test	= cargo test
+cargo-test	= cargo test --no-default-features --features tests
 ## Docs
 pdoc	= pdoc -o docs python/fastexcel
 
-lint:
+lint-python:
 	$(ruff)
 	$(format)  --check --diff
 	$(mypy)
+
+lint-rust:
 	$(clippy)
-format:
+
+lint: lint-rust lint-python
+
+format-python:
 	$(ruff) --fix
 	$(format)
+
+format-rust:
 	$(fmt)
 	$(clippy) --fix --lib -p fastexcel --allow-dirty --allow-staged
+
+format: format-rust format-python
 
 install-test-requirements:
 	pip install -U -r test-requirements.txt -r build-requirements.txt
@@ -39,9 +48,13 @@ dev-install:
 prod-install:
 	./prod_install.sh
 
-test:
+test-rust:
 	$(cargo-test)
+
+test-python:
 	$(pytest)
+
+test: test-rust test-python
 
 doc:
 	$(pdoc)
