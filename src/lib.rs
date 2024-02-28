@@ -15,7 +15,7 @@ fn read_excel(source: &PyAny) -> PyResult<ExcelReader> {
         ExcelReader::try_from_path(path)
             .with_context(|| format!("could not load excel file at {path}"))
             .into_pyresult()
-    } else if let Ok(bytes) = source.extract::<&[u8]>() {
+    } else if let Ok(bytes) = source.extract::<Vec<u8>>() {
         ExcelReader::try_from(bytes)
             .with_context(|| "could not load excel file for those bytes")
             .into_pyresult()

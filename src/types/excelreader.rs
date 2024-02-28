@@ -18,12 +18,12 @@ use super::{
     ExcelSheet,
 };
 
-enum ExcelSheets<'a> {
+enum ExcelSheets {
     File(Sheets<BufReader<File>>),
-    Bytes(Sheets<Cursor<&'a [u8]>>),
+    Bytes(Sheets<Cursor<Vec<u8>>>),
 }
 
-impl<'a> ExcelSheets<'a> {
+impl ExcelSheets {
     fn worksheet_range(&mut self, name: &str) -> Result<Range<Data>, Error> {
         match self {
             Self::File(sheets) => sheets.worksheet_range(name),
@@ -49,7 +49,7 @@ impl<'a> ExcelSheets<'a> {
 
 #[pyclass(name = "_ExcelReader")]
 pub(crate) struct ExcelReader {
-    sheets: ExcelSheets<'static>,
+    sheets: ExcelSheets,
     #[pyo3(get)]
     sheet_names: Vec<String>,
     source: String,
@@ -71,11 +71,10 @@ impl ExcelReader {
     }
 }
 
-impl TryFrom<&[u8]> for ExcelReader {
+impl TryFrom<Vec<u8>> for ExcelReader {
     type Error = FastExcelError;
 
-    fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
-        let bytes: &'static [u8] = Box::leak(bytes.into());
+    fn try_from(bytes: Vec<u8>) -> Result<Self, Self::Error> {
         let cursor = Cursor::new(bytes);
         let sheets = open_workbook_auto_from_rs(cursor)
             .map_err(|err| FastExcelErrorKind::CalamineError(err).into())
