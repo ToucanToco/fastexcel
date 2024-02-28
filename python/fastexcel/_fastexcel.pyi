@@ -55,7 +55,7 @@ class _ExcelReader:
     @property
     def sheet_names(self) -> list[str]: ...
 
-def read_excel(path: str) -> _ExcelReader:
+def read_excel(source: str | bytes) -> _ExcelReader:
     """Reads an excel file and returns an ExcelReader"""
 
 __version__: str
