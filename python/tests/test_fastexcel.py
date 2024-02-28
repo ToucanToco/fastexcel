@@ -31,6 +31,29 @@ def test_single_sheet():
     pl_assert_frame_equal(sheet_by_idx.to_polars(), pl_expected)
 
 
+def test_single_sheet_bytes():
+    with open(path_for_fixture("fixture-single-sheet.xlsx"), "rb") as f:
+        excel_reader = fastexcel.read_excel(f.read())
+    assert excel_reader.sheet_names == ["January"]
+    sheet_by_name = excel_reader.load_sheet("January")
+    sheet_by_idx = excel_reader.load_sheet(0)
+
+    # Metadata
+    assert sheet_by_name.name == sheet_by_idx.name == "January"
+    assert sheet_by_name.height == sheet_by_idx.height == 2
+    assert sheet_by_name.width == sheet_by_idx.width == 2
+
+    expected = {"Month": [1.0, 2.0], "Year": [2019.0, 2020.0]}
+
+    pd_expected = pd.DataFrame(expected)
+    pd_assert_frame_equal(sheet_by_name.to_pandas(), pd_expected)
+    pd_assert_frame_equal(sheet_by_idx.to_pandas(), pd_expected)
+
+    pl_expected = pl.DataFrame(expected)
+    pl_assert_frame_equal(sheet_by_name.to_polars(), pl_expected)
+    pl_assert_frame_equal(sheet_by_idx.to_polars(), pl_expected)
+
+
 def test_single_sheet_with_types():
     excel_reader = fastexcel.read_excel(path_for_fixture("fixture-single-sheet-with-types.xlsx"))
     assert excel_reader.sheet_names == ["Sheet1"]

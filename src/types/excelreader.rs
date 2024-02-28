@@ -1,10 +1,16 @@
-use std::{fs::File, io::BufReader};
+use std::{
+    fs::File,
+    io::{BufReader, Cursor},
+};
 
-use calamine::{open_workbook_auto, Reader, Sheets};
+use calamine::{
+    open_workbook_auto, open_workbook_auto_from_rs, Data, Error, Range, Reader, Sheets,
+};
 use pyo3::{pyclass, pymethods, PyAny, PyResult};
 
 use crate::error::{
-    py_errors::IntoPyResult, ErrorContext, FastExcelErrorKind, FastExcelResult, IdxOrName,
+    py_errors::IntoPyResult, ErrorContext, FastExcelError, FastExcelErrorKind, FastExcelResult,
+    IdxOrName,
 };
 
 use super::{
@@ -12,12 +18,41 @@ use super::{
     ExcelSheet,
 };
 
+enum ExcelSheets<'a> {
+    File(Sheets<BufReader<File>>),
+    Bytes(Sheets<Cursor<&'a [u8]>>),
+}
+
+impl<'a> ExcelSheets<'a> {
+    fn worksheet_range(&mut self, name: &str) -> Result<Range<Data>, Error> {
+        match self {
+            Self::File(sheets) => sheets.worksheet_range(name),
+            Self::Bytes(sheets) => sheets.worksheet_range(name),
+        }
+    }
+
+    fn worksheet_range_at(&mut self, idx: usize) -> Option<Result<Range<Data>, Error>> {
+        match self {
+            Self::File(sheets) => sheets.worksheet_range_at(idx),
+            Self::Bytes(sheets) => sheets.worksheet_range_at(idx),
+        }
+    }
+
+    #[allow(dead_code)]
+    fn sheet_names(&self) -> Vec<String> {
+        match self {
+            Self::File(sheets) => sheets.sheet_names(),
+            Self::Bytes(sheets) => sheets.sheet_names(),
+        }
+    }
+}
+
 #[pyclass(name = "_ExcelReader")]
 pub(crate) struct ExcelReader {
-    sheets: Sheets<BufReader<File>>,
+    sheets: ExcelSheets<'static>,
     #[pyo3(get)]
     sheet_names: Vec<String>,
-    path: String,
+    source: String,
 }
 
 impl ExcelReader {
@@ -29,9 +64,27 @@ impl ExcelReader {
             .with_context(|| format!("Could not open workbook at {path}"))?;
         let sheet_names = sheets.sheet_names().to_owned();
         Ok(Self {
-            sheets,
+            sheets: ExcelSheets::File(sheets),
             sheet_names,
-            path: path.to_owned(),
+            source: path.to_owned(),
+        })
+    }
+}
+
+impl TryFrom<&[u8]> for ExcelReader {
+    type Error = FastExcelError;
+
+    fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
+        let bytes: &'static [u8] = Box::leak(bytes.into());
+        let cursor = Cursor::new(bytes);
+        let sheets = open_workbook_auto_from_rs(cursor)
+            .map_err(|err| FastExcelErrorKind::CalamineError(err).into())
+            .with_context(|| "Could not open workbook from bytes")?;
+        let sheet_names = sheets.sheet_names().to_owned();
+        Ok(Self {
+            sheets: ExcelSheets::Bytes(sheets),
+            sheet_names,
+            source: "bytes".to_owned(),
         })
     }
 }
@@ -39,7 +92,7 @@ impl ExcelReader {
 #[pymethods]
 impl ExcelReader {
     pub fn __repr__(&self) -> String {
-        format!("ExcelReader<{}>", &self.path)
+        format!("ExcelReader<{}>", &self.source)
     }
 
     #[pyo3(signature = (

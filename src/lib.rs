@@ -8,12 +8,22 @@ use types::{ExcelReader, ExcelSheet};
 
 /// Reads an excel file and returns an object allowing to access its sheets and a bit of metadata
 #[pyfunction]
-fn read_excel(path: &str) -> PyResult<ExcelReader> {
+fn read_excel(source: &PyAny) -> PyResult<ExcelReader> {
     use py_errors::IntoPyResult;
 
-    ExcelReader::try_from_path(path)
-        .with_context(|| format!("could not load excel file at {path}"))
-        .into_pyresult()
+    if let Ok(path) = source.extract::<&str>() {
+        ExcelReader::try_from_path(path)
+            .with_context(|| format!("could not load excel file at {path}"))
+            .into_pyresult()
+    } else if let Ok(bytes) = source.extract::<&[u8]>() {
+        ExcelReader::try_from(bytes)
+            .with_context(|| "could not load excel file for those bytes")
+            .into_pyresult()
+    } else {
+        Err(PyErr::new::<py_errors::InvalidParametersError, &str>(
+            "source must be a string, a Path or bytes",
+        ))
+    }
 }
 
 // Taken from pydantic-core:
