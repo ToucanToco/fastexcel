@@ -9,5 +9,6 @@ __pycache__
 .python-version
 .venv
 docs
+.vscode
 .idea
 .benchmarks

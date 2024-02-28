@@ -5,6 +5,12 @@ import pytest
 from utils import path_for_fixture
 
 
+def test_read_excel_bad_type() -> None:
+    expected_message = "source must be a string or bytes"
+    with pytest.raises(fastexcel.InvalidParametersError, match=expected_message):
+        fastexcel.read_excel(42)  # type: ignore[arg-type]
+
+
 def test_does_not_exist() -> None:
     expected_message = """calamine error: Cannot detect file format
 Context:
