@@ -71,11 +71,11 @@ impl ExcelReader {
     }
 }
 
-impl TryFrom<Vec<u8>> for ExcelReader {
+impl TryFrom<&[u8]> for ExcelReader {
     type Error = FastExcelError;
 
-    fn try_from(bytes: Vec<u8>) -> Result<Self, Self::Error> {
-        let cursor = Cursor::new(bytes);
+    fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
+        let cursor = Cursor::new(bytes.to_vec());
         let sheets = open_workbook_auto_from_rs(cursor)
             .map_err(|err| FastExcelErrorKind::CalamineError(err).into())
             .with_context(|| "Could not open workbook from bytes")?;
