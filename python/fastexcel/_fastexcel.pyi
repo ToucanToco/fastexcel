@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from pathlib import Path
-
 import pyarrow as pa
 
 class _ExcelSheet:
@@ -57,7 +55,7 @@ class _ExcelReader:
     @property
     def sheet_names(self) -> list[str]: ...
 
-def read_excel(source: str | Path | bytes) -> _ExcelReader:
+def read_excel(source: str | bytes) -> _ExcelReader:
     """Reads an excel file and returns an ExcelReader"""
 
 __version__: str

@@ -20,8 +20,8 @@ fn read_excel(source: &PyAny) -> PyResult<ExcelReader> {
             .with_context(|| "could not load excel file for those bytes")
             .into_pyresult()
     } else {
-        Err(PyErr::new::<py_errors::InvalidParametersError, &str>(
-            "source must be a string, a Path or bytes",
+        Err(py_errors::InvalidParametersError::new_err(
+            "source must be a string or bytes",
         ))
     }
 }
