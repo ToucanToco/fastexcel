@@ -29,7 +29,7 @@ pub(crate) struct ExcelReader {
 
 impl ExcelReader {
     fn build_selected_columns(use_columns: Option<&PyAny>) -> PyResult<SelectedColumns> {
-        use_columns.try_into().with_context(|| format!("expected selected columns to be list[str] | list[int] | None, got {use_columns:?}")).into_pyresult()
+        use_columns.try_into().with_context(|| format!("expected selected columns to be list[str] | list[int] | str | None, got {use_columns:?}")).into_pyresult()
     }
 
     // NOTE: Not implementing TryFrom here, because we're aren't building the file from the passed
