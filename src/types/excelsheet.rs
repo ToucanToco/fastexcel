@@ -28,6 +28,8 @@ use pyo3::{
 
 use crate::utils::arrow::arrow_schema_from_column_names_and_range;
 
+use super::dtype::DTypeMap;
+
 #[derive(Debug)]
 pub(crate) enum Header {
     None,
@@ -324,6 +326,7 @@ pub(crate) struct ExcelSheet {
     schema_sample_rows: Option<usize>,
     selected_columns: SelectedColumns,
     available_columns: Vec<String>,
+    dtypes: Option<DTypeMap>,
 }
 
 impl ExcelSheet {
@@ -338,7 +341,16 @@ impl ExcelSheet {
         pagination: Pagination,
         schema_sample_rows: Option<usize>,
         selected_columns: SelectedColumns,
+        dtypes: Option<DTypeMap>,
     ) -> FastExcelResult<Self> {
+        // Ensuring dtypes are compatible with selected columns
+        match (&dtypes, &selected_columns) {
+            (None, _) | (_, SelectedColumns::All) => Ok::<(), FastExcelError>(()),
+            (Some(DTypeMap::ByIndex(_)), SelectedColumns::ByIndex(_)) => Ok(()),
+            (Some(DTypeMap::ByName(_)), SelectedColumns::ByName(_)) => Ok(()),
+            (Some(other), selected_columns) => Err(FastExcelErrorKind::InvalidParameters(format!("invalid dtypes and selected column combiantion, got \"{other:?}\" and \"{selected_columns:?}\"")).into())
+        }?;
+
         let mut sheet = ExcelSheet {
             name,
             header,
@@ -346,6 +358,7 @@ impl ExcelSheet {
             data,
             schema_sample_rows,
             selected_columns,
+            dtypes,
             height: None,
             total_height: None,
             width: None,
@@ -530,6 +543,7 @@ impl TryFrom<&ExcelSheet> for Schema {
             // If sample_rows is higher than the sheet's limit, use the limit instead
             cmp::min(sample_rows, sheet.limit()),
             &sheet.selected_columns,
+            sheet.dtypes.as_ref(),
         )
     }
 }
