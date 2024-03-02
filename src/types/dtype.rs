@@ -1,7 +1,10 @@
 use std::{collections::HashMap, str::FromStr};
 
 use arrow::datatypes::{DataType as ArrowDataType, TimeUnit};
-use pyo3::types::PyDict;
+use pyo3::{
+    types::{IntoPyDict, PyDict},
+    PyObject, Python, ToPyObject,
+};
 
 use crate::error::{FastExcelError, FastExcelErrorKind, FastExcelResult};
 
@@ -35,6 +38,22 @@ impl FromStr for DType {
             ))
             .into()),
         }
+    }
+}
+
+impl ToPyObject for DType {
+    fn to_object(&self, py: Python<'_>) -> PyObject {
+        match self {
+            DType::Null => "null",
+            DType::Int => "int",
+            DType::Float => "float",
+            DType::String => "string",
+            DType::Bool => "boolean",
+            DType::DateTime => "datetime",
+            DType::Date => "date",
+            DType::Duration => "duration",
+        }
+        .to_object(py)
     }
 }
 
@@ -122,6 +141,24 @@ impl From<&DType> for ArrowDataType {
             DType::DateTime => ArrowDataType::Timestamp(TimeUnit::Millisecond, None),
             DType::Date => ArrowDataType::Date32,
             DType::Duration => ArrowDataType::Duration(TimeUnit::Millisecond),
+        }
+    }
+}
+
+impl ToPyObject for DTypeMap {
+    fn to_object(&self, py: Python<'_>) -> PyObject {
+        match self {
+            DTypeMap::ByIndex(idx_map) => idx_map
+                .iter()
+                .map(|(k, v)| (k, v.to_object(py)))
+                .into_py_dict(py)
+                .into(),
+
+            DTypeMap::ByName(name_map) => name_map
+                .iter()
+                .map(|(k, v)| (k, v.to_object(py)))
+                .into_py_dict(py)
+                .into(),
         }
     }
 }

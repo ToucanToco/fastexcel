@@ -23,7 +23,7 @@ use chrono::NaiveDate;
 use pyo3::{
     prelude::{pyclass, pymethods, PyObject, Python},
     types::{PyList, PyString},
-    PyAny, PyResult,
+    PyAny, PyResult, ToPyObject,
 };
 
 use crate::utils::arrow::arrow_schema_from_column_names_and_range;
@@ -439,7 +439,12 @@ fn create_boolean_array(
     limit: usize,
 ) -> Arc<dyn Array> {
     Arc::new(BooleanArray::from_iter((offset..limit).map(|row| {
-        data.get((row, col)).and_then(|cell| cell.get_bool())
+        data.get((row, col)).and_then(|cell| match cell {
+            CalData::Bool(b) => Some(*b),
+            CalData::Int(i) => Some(*i != 0),
+            CalData::Float(f) => Some(*f != 0.0),
+            _ => None,
+        })
     })))
 }
 
@@ -450,7 +455,7 @@ fn create_int_array(
     limit: usize,
 ) -> Arc<dyn Array> {
     Arc::new(Int64Array::from_iter(
-        (offset..limit).map(|row| data.get((row, col)).and_then(|cell| cell.get_int())),
+        (offset..limit).map(|row| data.get((row, col)).and_then(|cell| cell.as_i64())),
     ))
 }
 
@@ -479,6 +484,8 @@ fn create_string_array(
             CalData::String(s) => Some(s.to_string()),
             CalData::Float(s) => Some(s.to_string()),
             CalData::Int(s) => Some(s.to_string()),
+            CalData::DateTime(dt) => dt.as_datetime().map(|dt| dt.to_string()),
+            CalData::DateTimeIso(dt) => Some(dt.to_string()),
             _ => None,
         })
     })))
@@ -665,6 +672,11 @@ impl ExcelSheet {
     #[getter]
     pub fn available_columns<'p>(&'p self, py: Python<'p>) -> &PyList {
         PyList::new(py, &self.available_columns)
+    }
+
+    #[getter]
+    pub fn dtypes<'p>(&'p self, py: Python<'p>) -> Option<PyObject> {
+        self.dtypes.as_ref().map(|dtypes| dtypes.to_object(py))
     }
 
     pub fn to_arrow(&self, py: Python<'_>) -> PyResult<PyObject> {

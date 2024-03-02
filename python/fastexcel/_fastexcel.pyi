@@ -1,6 +1,12 @@
 from __future__ import annotations
 
+from typing import Literal
+
 import pyarrow as pa
+
+_DType = Literal["null", "int", "float", "string", "boolean", "datetime", "date", "duration"]
+
+_DTypeMap = dict[str, _DType] | dict[int, _DType]
 
 class _ExcelSheet:
     @property
@@ -24,6 +30,9 @@ class _ExcelSheet:
     @property
     def available_columns(self) -> list[str]:
         """The columns available for the given sheet"""
+    @property
+    def dtypes(self) -> _DTypeMap | None:
+        """The dtypes specified for the sheet"""
     def to_arrow(self) -> pa.RecordBatch:
         """Converts the sheet to a pyarrow `RecordBatch`"""
 
@@ -40,6 +49,7 @@ class _ExcelReader:
         n_rows: int | None = None,
         schema_sample_rows: int | None = 1_000,
         use_columns: list[str] | list[int] | str | None = None,
+        dtypes: _DTypeMap | None = None,
     ) -> _ExcelSheet: ...
     def load_sheet_by_idx(
         self,
@@ -51,6 +61,7 @@ class _ExcelReader:
         n_rows: int | None = None,
         schema_sample_rows: int | None = 1_000,
         use_columns: list[str] | list[int] | str | None = None,
+        dtypes: _DTypeMap | None = None,
     ) -> _ExcelSheet: ...
     @property
     def sheet_names(self) -> list[str]: ...

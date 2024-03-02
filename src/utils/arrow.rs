@@ -177,7 +177,6 @@ pub(crate) fn arrow_schema_from_column_names_and_range(
             SelectedColumns::All => Some(idx),
             _ => selected_columns.idx_for_column(column_names, name, idx),
         } {
-            // let col_type = get_arrow_column_type(range, row_idx, row_limit, col_idx)?;
             let col_type = arrow_type_for_column(col_idx, name)?;
             let aliased_name = alias_for_name(name, &existing_names);
             fields.push(Field::new(&aliased_name, col_type, true));
