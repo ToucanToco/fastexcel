@@ -196,6 +196,8 @@ class ExcelReader:
                             - a string, a comma separated list of Excel column letters and column
                               ranges (e.g. `“A:E”` or `“A,C,E:F”`, which would result in
                               `A,B,C,D,E` and `A,C,E,F`)
+        :param dtypes: An optional dict of dtypes. Keys can either be indices (in case `use_columns`
+                       is a list of ints or an Excel range), or column names
         """
         if idx < 0:
             raise ValueError(f"Expected idx to be > 0, got {idx}")
