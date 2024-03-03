@@ -2,7 +2,7 @@
 
 # Commands
 ## Python
-ruff	= ruff python/ *.py
+ruff	= ruff check python/ *.py
 format	= ruff format python/ *.py
 mypy	= mypy python/ *.py
 pytest	= pytest -v
