@@ -473,11 +473,16 @@ fn create_boolean_array<DT: CellType + DataType>(
     limit: usize,
 ) -> Arc<dyn Array> {
     Arc::new(BooleanArray::from_iter((offset..limit).map(|row| {
-        data.get((row, col)).and_then(|cell| match cell {
-            CalData::Bool(b) => Some(*b),
-            CalData::Int(i) => Some(*i != 0),
-            CalData::Float(f) => Some(*f != 0.0),
-            _ => None,
+        data.get((row, col)).and_then(|cell| {
+            if let Some(b) = cell.get_bool() {
+                Some(b)
+            } else if let Some(i) = cell.get_int() {
+                Some(i != 0)
+            }
+            // clippy formats else if let Some(blah) = ... { Some(x) } else { None } to the .map form
+            else {
+                cell.get_float().map(|f| f != 0.0)
+            }
         })
     })))
 }

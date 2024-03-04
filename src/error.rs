@@ -1,5 +1,7 @@
 use std::{error::Error, fmt::Display};
 
+use calamine::XlsxError;
+
 #[derive(Debug)]
 pub(crate) enum IdxOrName {
     Idx(usize),
@@ -111,6 +113,12 @@ impl ErrorContext for FastExcelError {
 impl From<FastExcelErrorKind> for FastExcelError {
     fn from(kind: FastExcelErrorKind) -> Self {
         FastExcelError::new(kind)
+    }
+}
+
+impl From<XlsxError> for FastExcelError {
+    fn from(err: XlsxError) -> Self {
+        FastExcelErrorKind::CalamineError(calamine::Error::Xlsx(err)).into()
     }
 }
 
