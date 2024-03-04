@@ -23,12 +23,14 @@ use chrono::NaiveDate;
 use pyo3::{
     prelude::{pyclass, pymethods, PyObject, Python},
     types::{PyList, PyString},
-    PyAny, PyResult,
+    PyAny, PyResult, ToPyObject,
 };
 
 use crate::utils::{
     arrow::arrow_schema_from_column_names_and_range, schema::get_schema_sample_rows,
 };
+
+use super::dtype::DTypeMap;
 
 #[derive(Debug)]
 pub(crate) enum Header {
@@ -330,6 +332,7 @@ pub(crate) struct ExcelSheet {
     schema_sample_rows: Option<usize>,
     selected_columns: SelectedColumns,
     available_columns: Vec<String>,
+    dtypes: Option<DTypeMap>,
 }
 
 pub(crate) fn sheet_column_names_from_header_and_range<DT: CellType + DataType>(
@@ -372,7 +375,16 @@ impl ExcelSheet {
         pagination: Pagination,
         schema_sample_rows: Option<usize>,
         selected_columns: SelectedColumns,
+        dtypes: Option<DTypeMap>,
     ) -> FastExcelResult<Self> {
+        // Ensuring dtypes are compatible with selected columns
+        match (&dtypes, &selected_columns) {
+            (None, _) | (_, SelectedColumns::All) => Ok::<(), FastExcelError>(()),
+            (Some(DTypeMap::ByIndex(_)), SelectedColumns::ByIndex(_)) => Ok(()),
+            (Some(DTypeMap::ByName(_)), SelectedColumns::ByName(_)) => Ok(()),
+            (Some(other), selected_columns) => Err(FastExcelErrorKind::InvalidParameters(format!("invalid dtypes and selected column combiantion, got \"{other:?}\" and \"{selected_columns:?}\"")).into())
+        }?;
+
         let mut sheet = ExcelSheet {
             name,
             header,
@@ -380,6 +392,7 @@ impl ExcelSheet {
             data,
             schema_sample_rows,
             selected_columns,
+            dtypes,
             height: None,
             total_height: None,
             width: None,
@@ -460,7 +473,12 @@ fn create_boolean_array<DT: CellType + DataType>(
     limit: usize,
 ) -> Arc<dyn Array> {
     Arc::new(BooleanArray::from_iter((offset..limit).map(|row| {
-        data.get((row, col)).and_then(|cell| cell.get_bool())
+        data.get((row, col)).and_then(|cell| match cell {
+            CalData::Bool(b) => Some(*b),
+            CalData::Int(i) => Some(*i != 0),
+            CalData::Float(f) => Some(*f != 0.0),
+            _ => None,
+        })
     })))
 }
 
@@ -471,7 +489,7 @@ fn create_int_array<DT: CellType + DataType>(
     limit: usize,
 ) -> Arc<dyn Array> {
     Arc::new(Int64Array::from_iter(
-        (offset..limit).map(|row| data.get((row, col)).and_then(|cell| cell.get_int())),
+        (offset..limit).map(|row| data.get((row, col)).and_then(|cell| cell.as_i64())),
     ))
 }
 
@@ -493,12 +511,15 @@ fn create_string_array<DT: CellType + DataType>(
     limit: usize,
 ) -> Arc<dyn Array> {
     Arc::new(StringArray::from_iter((offset..limit).map(|row| {
-        // NOTE: Not using cell.as_string() here because it matches the String variant last, which
-        // is slower for columns containing mostly/only strings (which we expect to meet more often than
-        // mixed dtype columns containing mostly numbers)
         data.get((row, col)).and_then(|cell| {
             if cell.is_string() {
                 cell.get_string().map(str::to_string)
+            } else if cell.is_datetime() {
+                cell.get_datetime()
+                    .and_then(|dt| dt.as_datetime())
+                    .map(|dt| dt.to_string())
+            } else if cell.is_datetime_iso() {
+                cell.get_datetime_iso().map(str::to_string)
             } else {
                 cell.as_string()
             }
@@ -560,6 +581,7 @@ impl TryFrom<&ExcelSheet> for Schema {
             sheet.offset(),
             sheet.schema_sample_rows(),
             &sheet.selected_columns,
+            sheet.dtypes.as_ref(),
         )
     }
 }
@@ -722,6 +744,11 @@ impl ExcelSheet {
     #[getter]
     pub fn available_columns<'p>(&'p self, py: Python<'p>) -> &PyList {
         PyList::new(py, &self.available_columns)
+    }
+
+    #[getter]
+    pub fn specified_dtypes<'p>(&'p self, py: Python<'p>) -> Option<PyObject> {
+        self.dtypes.as_ref().map(|dtypes| dtypes.to_object(py))
     }
 
     pub fn to_arrow(&self, py: Python<'_>) -> PyResult<PyObject> {

@@ -9,7 +9,7 @@ from polars.testing import assert_frame_equal as pl_assert_frame_equal
 from utils import path_for_fixture
 
 
-def test_single_sheet_to_pandas():
+def test_single_sheet():
     excel_reader = fastexcel.read_excel(path_for_fixture("fixture-single-sheet.xlsx"))
     assert excel_reader.sheet_names == ["January"]
     sheet_by_name = excel_reader.load_sheet("January")
@@ -31,7 +31,30 @@ def test_single_sheet_to_pandas():
     pl_assert_frame_equal(sheet_by_idx.to_polars(), pl_expected)
 
 
-def test_single_sheet_with_types_to_pandas():
+def test_single_sheet_bytes():
+    with open(path_for_fixture("fixture-single-sheet.xlsx"), "rb") as f:
+        excel_reader = fastexcel.read_excel(f.read())
+    assert excel_reader.sheet_names == ["January"]
+    sheet_by_name = excel_reader.load_sheet("January")
+    sheet_by_idx = excel_reader.load_sheet(0)
+
+    # Metadata
+    assert sheet_by_name.name == sheet_by_idx.name == "January"
+    assert sheet_by_name.height == sheet_by_idx.height == 2
+    assert sheet_by_name.width == sheet_by_idx.width == 2
+
+    expected = {"Month": [1.0, 2.0], "Year": [2019.0, 2020.0]}
+
+    pd_expected = pd.DataFrame(expected)
+    pd_assert_frame_equal(sheet_by_name.to_pandas(), pd_expected)
+    pd_assert_frame_equal(sheet_by_idx.to_pandas(), pd_expected)
+
+    pl_expected = pl.DataFrame(expected)
+    pl_assert_frame_equal(sheet_by_name.to_polars(), pl_expected)
+    pl_assert_frame_equal(sheet_by_idx.to_polars(), pl_expected)
+
+
+def test_single_sheet_with_types():
     excel_reader = fastexcel.read_excel(path_for_fixture("fixture-single-sheet-with-types.xlsx"))
     assert excel_reader.sheet_names == ["Sheet1"]
 
@@ -67,7 +90,7 @@ def test_single_sheet_with_types_to_pandas():
     )
 
 
-def test_multiple_sheets_to_pandas():
+def test_multiple_sheets():
     excel_reader = fastexcel.read_excel(path_for_fixture("fixture-multi-sheet.xlsx"))
     assert excel_reader.sheet_names == ["January", "February", "With unnamed columns"]
 
