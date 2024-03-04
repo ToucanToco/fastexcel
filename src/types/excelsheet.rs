@@ -675,7 +675,7 @@ impl ExcelSheet {
     }
 
     #[getter]
-    pub fn dtypes<'p>(&'p self, py: Python<'p>) -> Option<PyObject> {
+    pub fn specified_dtypes<'p>(&'p self, py: Python<'p>) -> Option<PyObject> {
         self.dtypes.as_ref().map(|dtypes| dtypes.to_object(py))
     }
 

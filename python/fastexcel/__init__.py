@@ -70,9 +70,9 @@ class ExcelSheet:
         return self._sheet.available_columns
 
     @property
-    def dtypes(self) -> DTypeMap | None:
+    def specified_dtypes(self) -> DTypeMap | None:
         """The dtypes specified for the sheet"""
-        return self._sheet.dtypes
+        return self._sheet.specified_dtypes
 
     def to_arrow(self) -> pa.RecordBatch:
         """Converts the sheet to a pyarrow `RecordBatch`"""

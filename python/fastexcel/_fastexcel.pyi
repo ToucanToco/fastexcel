@@ -31,7 +31,7 @@ class _ExcelSheet:
     def available_columns(self) -> list[str]:
         """The columns available for the given sheet"""
     @property
-    def dtypes(self) -> _DTypeMap | None:
+    def specified_dtypes(self) -> _DTypeMap | None:
         """The dtypes specified for the sheet"""
     def to_arrow(self) -> pa.RecordBatch:
         """Converts the sheet to a pyarrow `RecordBatch`"""
