@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
+
+from typing_extensions import TypeAlias
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -26,6 +28,9 @@ from ._fastexcel import (
     _ExcelSheet,
 )
 from ._fastexcel import read_excel as _read_excel
+
+DType = Literal["null", "int", "float", "string", "boolean", "datetime", "date", "duration"]
+DTypeMap: TypeAlias = "dict[str, DType] | dict[int, DType]"
 
 
 class ExcelSheet:
@@ -63,6 +68,11 @@ class ExcelSheet:
     def available_columns(self) -> list[str]:
         """The columns available for the given sheet"""
         return self._sheet.available_columns
+
+    @property
+    def specified_dtypes(self) -> DTypeMap | None:
+        """The dtypes specified for the sheet"""
+        return self._sheet.specified_dtypes
 
     def to_arrow(self) -> pa.RecordBatch:
         """Converts the sheet to a pyarrow `RecordBatch`"""
@@ -112,6 +122,7 @@ class ExcelReader:
         n_rows: int | None = None,
         schema_sample_rows: int | None = 1_000,
         use_columns: list[str] | list[int] | str | None = None,
+        dtypes: DTypeMap | None = None,
     ) -> ExcelSheet:
         """Loads a sheet by name.
 
@@ -135,6 +146,8 @@ class ExcelReader:
                             - a string, a comma separated list of Excel column letters and column
                               ranges (e.g. `“A:E”` or `“A,C,E:F”`, which would result in
                               `A,B,C,D,E` and `A,C,E,F`)
+        :param dtypes: An optional dict of dtypes. Keys can either be indices (in case `use_columns`
+                       is a list of ints or an Excel range), or column names
         """
         return ExcelSheet(
             self._reader.load_sheet_by_name(
@@ -145,6 +158,7 @@ class ExcelReader:
                 n_rows=n_rows,
                 schema_sample_rows=schema_sample_rows,
                 use_columns=use_columns,
+                dtypes=dtypes,
             )
         )
 
@@ -158,6 +172,7 @@ class ExcelReader:
         n_rows: int | None = None,
         schema_sample_rows: int | None = 1_000,
         use_columns: list[str] | list[int] | str | None = None,
+        dtypes: DTypeMap | None = None,
     ) -> ExcelSheet:
         """Loads a sheet by index.
 
@@ -181,6 +196,8 @@ class ExcelReader:
                             - a string, a comma separated list of Excel column letters and column
                               ranges (e.g. `“A:E”` or `“A,C,E:F”`, which would result in
                               `A,B,C,D,E` and `A,C,E,F`)
+        :param dtypes: An optional dict of dtypes. Keys can either be indices (in case `use_columns`
+                       is a list of ints or an Excel range), or column names
         """
         if idx < 0:
             raise ValueError(f"Expected idx to be > 0, got {idx}")
@@ -193,6 +210,7 @@ class ExcelReader:
                 n_rows=n_rows,
                 schema_sample_rows=schema_sample_rows,
                 use_columns=use_columns,
+                dtypes=dtypes,
             )
         )
 
@@ -206,6 +224,7 @@ class ExcelReader:
         n_rows: int | None = None,
         schema_sample_rows: int | None = 1_000,
         use_columns: list[str] | list[int] | str | None = None,
+        dtypes: DTypeMap | None = None,
     ) -> ExcelSheet:
         """Loads a sheet by name if a string is passed or by index if an integer is passed.
 
@@ -220,6 +239,7 @@ class ExcelReader:
                 n_rows=n_rows,
                 schema_sample_rows=schema_sample_rows,
                 use_columns=use_columns,
+                dtypes=dtypes,
             )
             if isinstance(idx_or_name, int)
             else self.load_sheet_by_name(
@@ -230,6 +250,7 @@ class ExcelReader:
                 n_rows=n_rows,
                 schema_sample_rows=schema_sample_rows,
                 use_columns=use_columns,
+                dtypes=dtypes,
             )
         )
 
