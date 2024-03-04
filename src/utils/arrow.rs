@@ -1,11 +1,11 @@
-use std::{collections::HashSet, sync::OnceLock};
+use std::{collections::HashSet, sync::OnceLock, usize};
 
 use arrow::datatypes::{DataType as ArrowDataType, Field, Schema, TimeUnit};
 use calamine::{CellErrorType, Data as CalData, DataType, Range};
 
 use crate::{
     error::{FastExcelErrorKind, FastExcelResult},
-    types::excelsheet::SelectedColumns,
+    types::{dtype::DTypeMap, excelsheet::SelectedColumns},
 };
 
 /// All the possible string values that should be considered as NULL
@@ -143,7 +143,46 @@ pub(crate) fn arrow_schema_from_column_names_and_range(
     row_idx: usize,
     row_limit: usize,
     selected_columns: &SelectedColumns,
+    dtypes: Option<&DTypeMap>,
 ) -> FastExcelResult<Schema> {
+    // clippy suggests to split this type annotation into type declaration, but that would make it
+    // less clear IMO
+    #[allow(clippy::type_complexity)]
+    let arrow_type_for_column: Box<dyn Fn(usize, &String) -> FastExcelResult<ArrowDataType>> =
+        match selected_columns {
+            // In case all columns are selected, we look up the dtype for the column by name,
+            // fallback on a lookup by index, and finally on get_arrow_column_type
+            SelectedColumns::All => Box::new(|col_idx, col_name| match dtypes {
+                None => get_arrow_column_type(range, row_idx, row_limit, col_idx),
+                Some(dts) => {
+                    if let Some(dtype_by_name) = dts.dtype_for_col_name(col_name) {
+                        Ok(dtype_by_name.into())
+                    } else if let Some(dtype_by_idx) = dts.dtype_for_col_idx(col_idx) {
+                        Ok(dtype_by_idx.into())
+                    } else {
+                        get_arrow_column_type(range, row_idx, row_limit, col_idx)
+                    }
+                }
+            }),
+            // If columns are selected by name, look up the dtype by name and fallback on
+            // get_arrow_column_type
+            SelectedColumns::ByName(_) => Box::new(|col_idx, col_name| {
+                dtypes
+                    .and_then(|dtypes| dtypes.dtype_for_col_name(col_name))
+                    .map(|dtype| Ok(dtype.into()))
+                    .unwrap_or_else(|| get_arrow_column_type(range, row_idx, row_limit, col_idx))
+            }),
+
+            // If columns are selected by index, look up the dtype by name and fallback on
+            // get_arrow_column_type
+            SelectedColumns::ByIndex(_) => Box::new(|col_idx, _col_name| {
+                dtypes
+                    .and_then(|dtypes| dtypes.dtype_for_col_idx(col_idx))
+                    .map(|dtype| Ok(dtype.into()))
+                    .unwrap_or_else(|| get_arrow_column_type(range, row_idx, row_limit, col_idx))
+            }),
+        };
+
     let mut fields = Vec::with_capacity(column_names.len());
     let mut existing_names = Vec::with_capacity(column_names.len());
 
@@ -154,7 +193,7 @@ pub(crate) fn arrow_schema_from_column_names_and_range(
             SelectedColumns::All => Some(idx),
             _ => selected_columns.idx_for_column(column_names, name, idx),
         } {
-            let col_type = get_arrow_column_type(range, row_idx, row_limit, col_idx)?;
+            let col_type = arrow_type_for_column(col_idx, name)?;
             let aliased_name = alias_for_name(name, &existing_names);
             fields.push(Field::new(&aliased_name, col_type, true));
             existing_names.push(aliased_name);

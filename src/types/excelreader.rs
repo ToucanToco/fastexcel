@@ -6,7 +6,7 @@ use std::{
 use calamine::{
     open_workbook_auto, open_workbook_auto_from_rs, Data, Error, Range, Reader, Sheets,
 };
-use pyo3::{pyclass, pymethods, PyAny, PyResult};
+use pyo3::{pyclass, pymethods, types::PyDict, PyAny, PyResult};
 
 use crate::error::{
     py_errors::IntoPyResult, ErrorContext, FastExcelError, FastExcelErrorKind, FastExcelResult,
@@ -14,6 +14,7 @@ use crate::error::{
 };
 
 use super::{
+    dtype::DTypeMap,
     excelsheet::{Header, Pagination},
     ExcelSheet,
 };
@@ -69,6 +70,14 @@ impl ExcelReader {
             source: path.to_owned(),
         })
     }
+
+    fn build_dtypes(raw_dtypes: Option<&PyDict>) -> FastExcelResult<Option<DTypeMap>> {
+        match raw_dtypes {
+            None => Ok(None),
+            Some(py_dict) => py_dict.try_into().map(Some),
+        }
+        .with_context(|| "could not parse provided dtypes")
+    }
 }
 
 impl TryFrom<&[u8]> for ExcelReader {
@@ -102,7 +111,8 @@ impl ExcelReader {
         skip_rows = 0,
         n_rows = None,
         schema_sample_rows = 1_000,
-        use_columns = None
+        use_columns = None,
+        dtypes = None,
     ))]
     #[allow(clippy::too_many_arguments)]
     pub fn load_sheet_by_name(
@@ -115,6 +125,7 @@ impl ExcelReader {
         schema_sample_rows: Option<usize>,
         // pyo3 forces us to take an Option in case the default value is None
         use_columns: Option<&PyAny>,
+        dtypes: Option<&PyDict>,
     ) -> PyResult<ExcelSheet> {
         let range = self
             .sheets
@@ -126,6 +137,7 @@ impl ExcelReader {
         let header = Header::new(header_row, column_names);
         let pagination = Pagination::new(skip_rows, n_rows, &range).into_pyresult()?;
         let selected_columns = use_columns.try_into().with_context(|| format!("expected selected columns to be list[str] | list[int] | str | None, got {use_columns:?}")).into_pyresult()?;
+        let dtypes = Self::build_dtypes(dtypes).into_pyresult()?;
         ExcelSheet::try_new(
             name,
             range,
@@ -133,6 +145,7 @@ impl ExcelReader {
             pagination,
             schema_sample_rows,
             selected_columns,
+            dtypes,
         )
         .into_pyresult()
     }
@@ -145,7 +158,8 @@ impl ExcelReader {
         skip_rows = 0,
         n_rows = None,
         schema_sample_rows = 1_000,
-        use_columns = None
+        use_columns = None,
+        dtypes = None,
     ))]
     #[allow(clippy::too_many_arguments)]
     pub fn load_sheet_by_idx(
@@ -157,6 +171,7 @@ impl ExcelReader {
         n_rows: Option<usize>,
         schema_sample_rows: Option<usize>,
         use_columns: Option<&PyAny>,
+        dtypes: Option<&PyDict>,
     ) -> PyResult<ExcelSheet> {
         let name = self
             .sheet_names
@@ -185,6 +200,7 @@ impl ExcelReader {
         let header = Header::new(header_row, column_names);
         let pagination = Pagination::new(skip_rows, n_rows, &range).into_pyresult()?;
         let selected_columns = use_columns.try_into().with_context(|| format!("expected selected columns to be list[str] | list[int] | str | None, got {use_columns:?}")).into_pyresult()?;
+        let dtypes = Self::build_dtypes(dtypes).into_pyresult()?;
         ExcelSheet::try_new(
             name,
             range,
@@ -192,6 +208,7 @@ impl ExcelReader {
             pagination,
             schema_sample_rows,
             selected_columns,
+            dtypes,
         )
         .into_pyresult()
     }
