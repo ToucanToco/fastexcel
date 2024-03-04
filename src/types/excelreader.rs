@@ -1,4 +1,3 @@
-use std::fmt::Debug;
 use std::{
     fs::File,
     io::{BufReader, Cursor},
@@ -6,8 +5,7 @@ use std::{
 
 use arrow::{pyarrow::ToPyArrow, record_batch::RecordBatch};
 use calamine::{
-    open_workbook_auto, open_workbook_auto_from_rs, CellType, Data, DataRef, DataType, Range,
-    Reader, Sheets,
+    open_workbook_auto, open_workbook_auto_from_rs, Data, DataRef, Range, Reader, Sheets,
 };
 use pyo3::{prelude::PyObject, pyclass, pymethods, types::PyDict, PyAny, PyResult, Python};
 
@@ -20,6 +18,7 @@ use crate::types::excelsheet::sheet_column_names_from_header_and_range;
 use crate::utils::arrow::arrow_schema_from_column_names_and_range;
 use crate::utils::schema::get_schema_sample_rows;
 
+use super::excelsheet::sheet_data::ExcelSheetData;
 use super::excelsheet::{record_batch_from_data_and_schema, SelectedColumns};
 use super::{
     dtype::DTypeMap,
@@ -119,8 +118,8 @@ impl ExcelReader {
         .with_context(|| "could not parse provided dtypes")
     }
 
-    fn load_sheet_eager<DT: CellType + DataType + Debug>(
-        data: Range<DT>,
+    fn load_sheet_eager(
+        data: ExcelSheetData,
         pagination: Pagination,
         header: Header,
         sample_rows: Option<usize>,
@@ -211,7 +210,7 @@ impl ExcelReader {
         let dtypes = Self::build_dtypes(dtypes).into_pyresult()?;
         ExcelSheet::try_new(
             name,
-            range,
+            range.into(),
             header,
             pagination,
             schema_sample_rows,
@@ -254,7 +253,7 @@ impl ExcelReader {
             let pagination = Pagination::new(skip_rows, n_rows, &range).into_pyresult()?;
             let selected_columns = Self::build_selected_columns(use_columns)?;
             ExcelReader::load_sheet_eager(
-                range,
+                ExcelSheetData::Ref(range),
                 pagination,
                 header,
                 schema_sample_rows,
@@ -268,7 +267,7 @@ impl ExcelReader {
             let pagination = Pagination::new(skip_rows, n_rows, &range).into_pyresult()?;
             let selected_columns = Self::build_selected_columns(use_columns)?;
             ExcelReader::load_sheet_eager(
-                range,
+                range.into(),
                 pagination,
                 header,
                 schema_sample_rows,
@@ -326,7 +325,7 @@ impl ExcelReader {
         let dtypes = Self::build_dtypes(dtypes).into_pyresult()?;
         ExcelSheet::try_new(
             name,
-            range,
+            range.into(),
             header,
             pagination,
             schema_sample_rows,
@@ -366,7 +365,7 @@ impl ExcelReader {
         let selected_columns = Self::build_selected_columns(use_columns)?;
         let dtypes = Self::build_dtypes(dtypes).into_pyresult()?;
         let rb = ExcelReader::load_sheet_eager(
-            range,
+            range.into(),
             pagination,
             header,
             schema_sample_rows,

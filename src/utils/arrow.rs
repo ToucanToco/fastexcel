@@ -5,6 +5,7 @@ use std::{collections::HashSet, sync::OnceLock};
 use arrow::datatypes::{DataType as ArrowDataType, Field, Schema, TimeUnit};
 use calamine::{CellErrorType, CellType, DataType, Range};
 
+use crate::types::excelsheet::sheet_data::ExcelSheetData;
 use crate::{
     error::{FastExcelErrorKind, FastExcelResult},
     types::{dtype::DTypeMap, excelsheet::SelectedColumns},
@@ -109,15 +110,20 @@ fn string_types() -> &'static HashSet<ArrowDataType> {
     })
 }
 
-fn get_arrow_column_type<DT: CellType + Debug + DataType>(
-    data: &Range<DT>,
+fn get_arrow_column_type(
+    sheet_data: &ExcelSheetData,
     start_row: usize,
     end_row: usize,
     col: usize,
 ) -> FastExcelResult<ArrowDataType> {
-    let mut column_types = (start_row..end_row)
-        .map(|row| get_cell_type(data, row, col))
-        .collect::<FastExcelResult<HashSet<_>>>()?;
+    let mut column_types = match sheet_data {
+        ExcelSheetData::Owned(data) => (start_row..end_row)
+            .map(|row| get_cell_type(data, row, col))
+            .collect::<FastExcelResult<HashSet<_>>>()?,
+        ExcelSheetData::Ref(data) => (start_row..end_row)
+            .map(|row| get_cell_type(data, row, col))
+            .collect::<FastExcelResult<HashSet<_>>>()?,
+    };
 
     // All columns are nullable anyway so we're not taking Null into account here
     column_types.remove(&ArrowDataType::Null);
@@ -165,8 +171,8 @@ pub(crate) fn alias_for_name(name: &str, existing_names: &[String]) -> String {
     rec(name, existing_names, 0)
 }
 
-pub(crate) fn arrow_schema_from_column_names_and_range<DT: CellType + DataType + Debug>(
-    range: &Range<DT>,
+pub(crate) fn arrow_schema_from_column_names_and_range(
+    range: &ExcelSheetData,
     column_names: &[String],
     row_idx: usize,
     row_limit: usize,
@@ -239,7 +245,7 @@ mod tests {
     use super::*;
 
     #[fixture]
-    fn range_data() -> Range<Data> {
+    fn range_data() -> ExcelSheetData<'static> {
         Range::from_sparse(vec![
             // First column
             Cell::new((0, 0), Data::Bool(true)),
@@ -255,10 +261,11 @@ mod tests {
             Cell::new((10, 0), Data::Bool(true)),
             Cell::new((11, 0), Data::Int(1337)),
         ])
+        .into()
     }
 
     #[fixture]
-    fn range_data_ref() -> Range<DataRef<'static>> {
+    fn range_data_ref() -> ExcelSheetData<'static> {
         Range::from_sparse(vec![
             // First column
             Cell::new((0, 0), DataRef::Bool(true)),
@@ -274,6 +281,7 @@ mod tests {
             Cell::new((10, 0), DataRef::Bool(true)),
             Cell::new((11, 0), DataRef::Int(1337)),
         ])
+        .into()
     }
 
     #[rstest]
@@ -304,8 +312,8 @@ mod tests {
     // int + bool
     #[case(10, 12, ArrowDataType::Int64)]
     fn get_arrow_column_type_multi_dtype_ok(
-        range_data: Range<Data>,
-        range_data_ref: Range<DataRef>,
+        range_data: ExcelSheetData<'_>,
+        range_data_ref: ExcelSheetData<'_>,
         #[case] start_row: usize,
         #[case] end_row: usize,
         #[case] expected: ArrowDataType,

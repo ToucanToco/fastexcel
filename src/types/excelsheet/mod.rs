@@ -1,3 +1,6 @@
+pub(crate) mod sheet_data;
+
+use calamine::{CellType, Range};
 use std::{cmp, collections::HashSet, fmt::Debug, str::FromStr, sync::Arc};
 
 use crate::{
@@ -7,18 +10,14 @@ use crate::{
     },
     utils::arrow::alias_for_name,
 };
+use sheet_data::ExcelSheetData;
 
 use arrow::{
-    array::{
-        Array, BooleanArray, Date32Array, DurationMillisecondArray, Float64Array, Int64Array,
-        NullArray, StringArray, TimestampMillisecondArray,
-    },
+    array::NullArray,
     datatypes::{DataType as ArrowDataType, Schema, TimeUnit},
     pyarrow::ToPyArrow,
     record_batch::RecordBatch,
 };
-use calamine::{CellType, Data as CalData, DataType, Range};
-use chrono::NaiveDate;
 
 use pyo3::{
     prelude::{pyclass, pymethods, PyObject, Python},
@@ -28,6 +27,11 @@ use pyo3::{
 
 use crate::utils::{
     arrow::arrow_schema_from_column_names_and_range, schema::get_schema_sample_rows,
+};
+
+use self::sheet_data::{
+    create_boolean_array, create_date_array, create_datetime_array, create_duration_array,
+    create_float_array, create_int_array, create_string_array,
 };
 
 use super::dtype::DTypeMap;
@@ -325,7 +329,7 @@ pub(crate) struct ExcelSheet {
     pub(crate) name: String,
     header: Header,
     pagination: Pagination,
-    data: Range<CalData>,
+    data: ExcelSheetData<'static>,
     height: Option<usize>,
     total_height: Option<usize>,
     width: Option<usize>,
@@ -335,9 +339,9 @@ pub(crate) struct ExcelSheet {
     dtypes: Option<DTypeMap>,
 }
 
-pub(crate) fn sheet_column_names_from_header_and_range<DT: CellType + DataType>(
+pub(crate) fn sheet_column_names_from_header_and_range(
     header: &Header,
-    data: &Range<DT>,
+    data: &ExcelSheetData,
 ) -> Vec<String> {
     let width = data.width();
     match header {
@@ -346,9 +350,7 @@ pub(crate) fn sheet_column_names_from_header_and_range<DT: CellType + DataType>(
             .collect(),
         Header::At(row_idx) => (0..width)
             .map(|col_idx| {
-                data.get((*row_idx, col_idx))
-                    .and_then(|data| data.get_string())
-                    .map(ToOwned::to_owned)
+                data.get_as_string((*row_idx, col_idx))
                     .unwrap_or(format!("__UNNAMED__{col_idx}"))
             })
             .collect(),
@@ -364,13 +366,13 @@ pub(crate) fn sheet_column_names_from_header_and_range<DT: CellType + DataType>(
 }
 
 impl ExcelSheet {
-    pub(crate) fn data(&self) -> &Range<CalData> {
+    pub(crate) fn data(&self) -> &ExcelSheetData<'_> {
         &self.data
     }
 
     pub(crate) fn try_new(
         name: String,
-        data: Range<CalData>,
+        data: ExcelSheetData<'static>,
         header: Header,
         pagination: Pagination,
         schema_sample_rows: Option<usize>,
@@ -431,8 +433,7 @@ impl ExcelSheet {
             Header::At(row_idx) => (0..width)
                 .map(|col_idx| {
                     self.data
-                        .get((*row_idx, col_idx))
-                        .and_then(|data| data.as_string())
+                        .get_as_string((*row_idx, col_idx))
                         .unwrap_or(format!("__UNNAMED__{col_idx}"))
                 })
                 .collect(),
@@ -466,116 +467,6 @@ impl ExcelSheet {
     }
 }
 
-fn create_boolean_array<DT: CellType + DataType>(
-    data: &Range<DT>,
-    col: usize,
-    offset: usize,
-    limit: usize,
-) -> Arc<dyn Array> {
-    Arc::new(BooleanArray::from_iter((offset..limit).map(|row| {
-        data.get((row, col)).and_then(|cell| {
-            if let Some(b) = cell.get_bool() {
-                Some(b)
-            } else if let Some(i) = cell.get_int() {
-                Some(i != 0)
-            }
-            // clippy formats else if let Some(blah) = ... { Some(x) } else { None } to the .map form
-            else {
-                cell.get_float().map(|f| f != 0.0)
-            }
-        })
-    })))
-}
-
-fn create_int_array<DT: CellType + DataType>(
-    data: &Range<DT>,
-    col: usize,
-    offset: usize,
-    limit: usize,
-) -> Arc<dyn Array> {
-    Arc::new(Int64Array::from_iter(
-        (offset..limit).map(|row| data.get((row, col)).and_then(|cell| cell.as_i64())),
-    ))
-}
-
-fn create_float_array<DT: CellType + DataType>(
-    data: &Range<DT>,
-    col: usize,
-    offset: usize,
-    limit: usize,
-) -> Arc<dyn Array> {
-    Arc::new(Float64Array::from_iter(
-        (offset..limit).map(|row| data.get((row, col)).and_then(|cell| cell.as_f64())),
-    ))
-}
-
-fn create_string_array<DT: CellType + DataType>(
-    data: &Range<DT>,
-    col: usize,
-    offset: usize,
-    limit: usize,
-) -> Arc<dyn Array> {
-    Arc::new(StringArray::from_iter((offset..limit).map(|row| {
-        data.get((row, col)).and_then(|cell| {
-            if cell.is_string() {
-                cell.get_string().map(str::to_string)
-            } else if cell.is_datetime() {
-                cell.get_datetime()
-                    .and_then(|dt| dt.as_datetime())
-                    .map(|dt| dt.to_string())
-            } else if cell.is_datetime_iso() {
-                cell.get_datetime_iso().map(str::to_string)
-            } else {
-                cell.as_string()
-            }
-        })
-    })))
-}
-
-fn duration_type_to_i64<DT: CellType + DataType>(caldt: &DT) -> Option<i64> {
-    caldt.as_duration().map(|d| d.num_milliseconds())
-}
-
-fn create_date_array<DT: CellType + DataType>(
-    data: &Range<DT>,
-    col: usize,
-    offset: usize,
-    limit: usize,
-) -> Arc<dyn Array> {
-    let epoch = NaiveDate::from_ymd_opt(1970, 1, 1).unwrap();
-    Arc::new(Date32Array::from_iter((offset..limit).map(|row| {
-        data.get((row, col))
-            .and_then(|caldate| caldate.as_date())
-            .and_then(|date| i32::try_from(date.signed_duration_since(epoch).num_days()).ok())
-    })))
-}
-
-fn create_datetime_array<DT: CellType + DataType>(
-    data: &Range<DT>,
-    col: usize,
-    offset: usize,
-    limit: usize,
-) -> Arc<dyn Array> {
-    Arc::new(TimestampMillisecondArray::from_iter((offset..limit).map(
-        |row| {
-            data.get((row, col))
-                .and_then(|caldt| caldt.as_datetime())
-                .map(|dt| dt.timestamp_millis())
-        },
-    )))
-}
-
-fn create_duration_array<DT: CellType + DataType>(
-    data: &Range<DT>,
-    col: usize,
-    offset: usize,
-    limit: usize,
-) -> Arc<dyn Array> {
-    Arc::new(DurationMillisecondArray::from_iter(
-        (offset..limit).map(|row| data.get((row, col)).and_then(duration_type_to_i64)),
-    ))
-}
-
 impl TryFrom<&ExcelSheet> for Schema {
     type Error = FastExcelError;
 
@@ -591,9 +482,9 @@ impl TryFrom<&ExcelSheet> for Schema {
     }
 }
 
-pub(crate) fn record_batch_from_data_and_schema<DT: CellType + DataType + Debug>(
+pub(crate) fn record_batch_from_data_and_schema(
     schema: Schema,
-    data: &Range<DT>,
+    data: &ExcelSheetData,
     offset: usize,
     limit: usize,
 ) -> FastExcelResult<RecordBatch> {
