@@ -150,15 +150,31 @@ pub(crate) fn arrow_schema_from_column_names_and_range(
     #[allow(clippy::type_complexity)]
     let arrow_type_for_column: Box<dyn Fn(usize, &String) -> FastExcelResult<ArrowDataType>> =
         match selected_columns {
-            // In case all columns are selected, or selected by name, we look up the dtype for the column by name, and
-            // fallback on get_arrow_column_type
-            SelectedColumns::All | SelectedColumns::ByName(_) => Box::new(|col_idx, col_name| {
+            // In case all columns are selected, we look up the dtype for the column by name,
+            // fallback on a lookup by index, and finally on get_arrow_column_type
+            SelectedColumns::All => Box::new(|col_idx, col_name| match dtypes {
+                None => get_arrow_column_type(range, row_idx, row_limit, col_idx),
+                Some(dts) => {
+                    if let Some(dtype_by_name) = dts.dtype_for_col_name(col_name) {
+                        Ok(dtype_by_name.into())
+                    } else if let Some(dtype_by_idx) = dts.dtype_for_col_idx(col_idx) {
+                        Ok(dtype_by_idx.into())
+                    } else {
+                        get_arrow_column_type(range, row_idx, row_limit, col_idx)
+                    }
+                }
+            }),
+            // If columns are selected by name, look up the dtype by name and fallback on
+            // get_arrow_column_type
+            SelectedColumns::ByName(_) => Box::new(|col_idx, col_name| {
                 dtypes
                     .and_then(|dtypes| dtypes.dtype_for_col_name(col_name))
                     .map(|dtype| Ok(dtype.into()))
                     .unwrap_or_else(|| get_arrow_column_type(range, row_idx, row_limit, col_idx))
             }),
 
+            // If columns are selected by index, look up the dtype by name and fallback on
+            // get_arrow_column_type
             SelectedColumns::ByIndex(_) => Box::new(|col_idx, _col_name| {
                 dtypes
                     .and_then(|dtypes| dtypes.dtype_for_col_idx(col_idx))

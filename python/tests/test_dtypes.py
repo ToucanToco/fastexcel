@@ -99,6 +99,7 @@ def test_sheet_with_mixed_dtypes_and_sample_rows(expected_data: dict[str, list[A
     )
 
 
+@pytest.mark.parametrize("dtype_by_index", (True, False))
 @pytest.mark.parametrize(
     "dtype,expected_data,expected_pd_dtype,expected_pl_dtype",
     [
@@ -123,14 +124,16 @@ def test_sheet_with_mixed_dtypes_and_sample_rows(expected_data: dict[str, list[A
     ],
 )
 def test_sheet_with_mixed_dtypes_specify_dtypes(
+    dtype_by_index: bool,
     dtype: fastexcel.DType,
     expected_data: list[Any],
     expected_pd_dtype: str,
     expected_pl_dtype: pl.DataType,
 ) -> None:
+    dtypes: fastexcel.DTypeMap = {0: dtype} if dtype_by_index else {"Employee ID": dtype}  # type:ignore[dict-item]
     excel_reader = fastexcel.read_excel(path_for_fixture("fixture-multi-dtypes-columns.xlsx"))
-    sheet = excel_reader.load_sheet(0, dtypes={"Employee ID": dtype}, n_rows=5)
-    assert sheet.dtypes == {"Employee ID": dtype}
+    sheet = excel_reader.load_sheet(0, dtypes=dtypes, n_rows=5)
+    assert sheet.dtypes == dtypes
 
     pd_df = sheet.to_pandas()
     assert pd_df["Employee ID"].dtype == expected_pd_dtype
@@ -144,10 +147,13 @@ def test_sheet_with_mixed_dtypes_specify_dtypes(
 @pytest.mark.parametrize(
     "dtypes,expected,expected_pd_dtype,expected_pl_dtype",
     [
-        (None, datetime(2023, 7, 21), "datetime64", pl.Datetime),
-        ({"Date": "datetime"}, datetime(2023, 7, 21), "datetime64", pl.Datetime),
+        (None, datetime(2023, 7, 21), "datetime64[ms]", pl.Datetime),
+        ({"Date": "datetime"}, datetime(2023, 7, 21), "datetime64[ms]", pl.Datetime),
         ({"Date": "date"}, date(2023, 7, 21), "object", pl.Date),
         ({"Date": "string"}, "2023-07-21 00:00:00", "object", pl.Utf8),
+        ({2: "datetime"}, datetime(2023, 7, 21), "datetime64[ms]", pl.Datetime),
+        ({2: "date"}, date(2023, 7, 21), "object", pl.Date),
+        ({2: "string"}, "2023-07-21 00:00:00", "object", pl.Utf8),
     ],
 )
 def test_sheet_datetime_conversion(
@@ -161,6 +167,9 @@ def test_sheet_datetime_conversion(
     sheet = excel_reader.load_sheet(0, dtypes=dtypes)
     assert sheet.dtypes == dtypes
     pd_df = sheet.to_pandas()
+    assert pd_df["Date"].dtype == expected_pd_dtype
     assert pd_df["Date"].to_list() == [expected] * 9
+
     pl_df = sheet.to_polars()
+    assert pl_df["Date"].dtype == expected_pl_dtype
     assert pl_df["Date"].to_list() == [expected] * 9
