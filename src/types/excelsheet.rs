@@ -3,7 +3,6 @@ use std::{cmp, collections::HashSet, str::FromStr, sync::Arc};
 use crate::{
     error::{
         py_errors::IntoPyResult, ErrorContext, FastExcelError, FastExcelErrorKind, FastExcelResult,
-        IdxOrName,
     },
     utils::arrow::alias_for_name,
 };
@@ -28,7 +27,7 @@ use pyo3::{
 
 use crate::utils::arrow::arrow_schema_from_column_names_and_range;
 
-use super::dtype::DTypeMap;
+use super::{dtype::DTypeMap, idx_or_name::IdxOrName};
 
 #[derive(Debug)]
 pub(crate) enum Header {

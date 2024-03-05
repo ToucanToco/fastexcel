@@ -8,12 +8,12 @@ use pyo3::{pyclass, pymethods, types::PyDict, PyAny, PyResult};
 
 use crate::error::{
     py_errors::IntoPyResult, ErrorContext, FastExcelError, FastExcelErrorKind, FastExcelResult,
-    IdxOrName,
 };
 
 use super::{
     dtype::DTypeMap,
     excelsheet::{Header, Pagination, SelectedColumns},
+    idx_or_name::IdxOrName,
     ExcelSheet,
 };
 

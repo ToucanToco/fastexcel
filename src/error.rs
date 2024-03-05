@@ -1,19 +1,6 @@
 use std::{error::Error, fmt::Display};
 
-#[derive(Debug)]
-pub(crate) enum IdxOrName {
-    Idx(usize),
-    Name(String),
-}
-
-impl IdxOrName {
-    pub(super) fn format_message(&self) -> String {
-        match self {
-            Self::Idx(idx) => format!("at index {idx}"),
-            Self::Name(name) => format!("with name \"{name}\""),
-        }
-    }
-}
+use crate::types::idx_or_name::IdxOrName;
 
 #[derive(Debug)]
 pub(crate) enum FastExcelErrorKind {
