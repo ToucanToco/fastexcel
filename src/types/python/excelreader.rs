@@ -6,16 +6,14 @@ use std::{
 use calamine::{open_workbook_auto, open_workbook_auto_from_rs, Data, Range, Reader, Sheets};
 use pyo3::{pyclass, pymethods, types::PyDict, PyAny, PyResult};
 
-use crate::error::{
-    py_errors::IntoPyResult, ErrorContext, FastExcelError, FastExcelErrorKind, FastExcelResult,
+use crate::{
+    error::{
+        py_errors::IntoPyResult, ErrorContext, FastExcelError, FastExcelErrorKind, FastExcelResult,
+    },
+    types::{dtype::DTypeMap, idx_or_name::IdxOrName},
 };
 
-use super::{
-    dtype::DTypeMap,
-    excelsheet::{Header, Pagination, SelectedColumns},
-    idx_or_name::IdxOrName,
-    ExcelSheet,
-};
+use super::excelsheet::{ExcelSheet, Header, Pagination, SelectedColumns};
 
 enum ExcelSheets {
     File(Sheets<BufReader<File>>),
@@ -76,6 +74,7 @@ impl ExcelReader {
         use_columns.try_into().with_context(|| format!("expected selected columns to be list[str] | list[int] | str | None, got {use_columns:?}"))
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn load_sheet(
         &mut self,
         name: String,
