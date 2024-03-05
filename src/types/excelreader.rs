@@ -3,9 +3,7 @@ use std::{
     io::{BufReader, Cursor},
 };
 
-use calamine::{
-    open_workbook_auto, open_workbook_auto_from_rs, Data, Error, Range, Reader, Sheets,
-};
+use calamine::{open_workbook_auto, open_workbook_auto_from_rs, Data, Range, Reader, Sheets};
 use pyo3::{pyclass, pymethods, types::PyDict, PyAny, PyResult};
 
 use crate::error::{
@@ -25,18 +23,27 @@ enum ExcelSheets {
 }
 
 impl ExcelSheets {
-    fn worksheet_range(&mut self, name: &str) -> Result<Range<Data>, Error> {
+    fn worksheet_range(&mut self, name: &str) -> FastExcelResult<Range<Data>> {
         match self {
             Self::File(sheets) => sheets.worksheet_range(name),
             Self::Bytes(sheets) => sheets.worksheet_range(name),
         }
+        .map_err(|err| FastExcelErrorKind::CalamineError(err).into())
+        .with_context(|| format!("Error while loading sheet {name}"))
     }
 
-    fn worksheet_range_at(&mut self, idx: usize) -> Option<Result<Range<Data>, Error>> {
+    fn worksheet_range_at(&mut self, idx: usize) -> FastExcelResult<Range<Data>> {
         match self {
             Self::File(sheets) => sheets.worksheet_range_at(idx),
             Self::Bytes(sheets) => sheets.worksheet_range_at(idx),
         }
+        // Returns Option<Result<Range<Data>, Self::Error>>, so we convert the Option into a
+        // SheetNotFoundError
+        .ok_or_else(|| {
+            FastExcelError::from(FastExcelErrorKind::SheetNotFound(IdxOrName::Idx(idx)))
+        })?
+        // And here, we convert the calamine error in an owned error and unwrap it
+        .map_err(|err| FastExcelErrorKind::CalamineError(err).into())
     }
 
     #[allow(dead_code)]
@@ -127,12 +134,7 @@ impl ExcelReader {
         use_columns: Option<&PyAny>,
         dtypes: Option<&PyDict>,
     ) -> PyResult<ExcelSheet> {
-        let range = self
-            .sheets
-            .worksheet_range(&name)
-            .map_err(|err| FastExcelErrorKind::CalamineError(err).into())
-            .with_context(|| format!("Error while loading sheet {name}"))
-            .into_pyresult()?;
+        let range = self.sheets.worksheet_range(&name).into_pyresult()?;
 
         let header = Header::new(header_row, column_names);
         let pagination = Pagination::new(skip_rows, n_rows, &range).into_pyresult()?;
@@ -186,16 +188,7 @@ impl ExcelReader {
             .into_pyresult()?
             .to_owned();
 
-        let range = self
-            .sheets
-            .worksheet_range_at(idx)
-            // Returns Option<Result<Range<Data>, Self::Error>>, so we convert the Option into a
-            // SheetNotFoundError and unwrap it
-            .ok_or_else(|| FastExcelErrorKind::SheetNotFound(IdxOrName::Idx(idx)).into())
-            .into_pyresult()?
-            // And here, we convert the calamine error in an owned error and unwrap it
-            .map_err(|err| FastExcelErrorKind::CalamineError(err).into())
-            .into_pyresult()?;
+        let range = self.sheets.worksheet_range_at(idx).into_pyresult()?;
 
         let header = Header::new(header_row, column_names);
         let pagination = Pagination::new(skip_rows, n_rows, &range).into_pyresult()?;
