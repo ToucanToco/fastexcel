@@ -13,7 +13,7 @@ use crate::error::{
 
 use super::{
     dtype::DTypeMap,
-    excelsheet::{Header, Pagination},
+    excelsheet::{Header, Pagination, SelectedColumns},
     ExcelSheet,
 };
 
@@ -30,20 +30,6 @@ impl ExcelSheets {
         }
         .map_err(|err| FastExcelErrorKind::CalamineError(err).into())
         .with_context(|| format!("Error while loading sheet {name}"))
-    }
-
-    fn worksheet_range_at(&mut self, idx: usize) -> FastExcelResult<Range<Data>> {
-        match self {
-            Self::File(sheets) => sheets.worksheet_range_at(idx),
-            Self::Bytes(sheets) => sheets.worksheet_range_at(idx),
-        }
-        // Returns Option<Result<Range<Data>, Self::Error>>, so we convert the Option into a
-        // SheetNotFoundError
-        .ok_or_else(|| {
-            FastExcelError::from(FastExcelErrorKind::SheetNotFound(IdxOrName::Idx(idx)))
-        })?
-        // And here, we convert the calamine error in an owned error and unwrap it
-        .map_err(|err| FastExcelErrorKind::CalamineError(err).into())
     }
 
     #[allow(dead_code)]
@@ -84,6 +70,38 @@ impl ExcelReader {
             Some(py_dict) => py_dict.try_into().map(Some),
         }
         .with_context(|| "could not parse provided dtypes")
+    }
+
+    fn build_selected_columns(use_columns: Option<&PyAny>) -> FastExcelResult<SelectedColumns> {
+        use_columns.try_into().with_context(|| format!("expected selected columns to be list[str] | list[int] | str | None, got {use_columns:?}"))
+    }
+
+    fn load_sheet(
+        &mut self,
+        name: String,
+        header_row: Option<usize>,
+        column_names: Option<Vec<String>>,
+        skip_rows: usize,
+        n_rows: Option<usize>,
+        schema_sample_rows: Option<usize>,
+        use_columns: Option<&PyAny>,
+        dtypes: Option<&PyDict>,
+    ) -> FastExcelResult<ExcelSheet> {
+        let range = self.sheets.worksheet_range(&name)?;
+
+        let header = Header::new(header_row, column_names);
+        let pagination = Pagination::new(skip_rows, n_rows, &range)?;
+        let selected_columns = Self::build_selected_columns(use_columns)?;
+        let dtypes = Self::build_dtypes(dtypes)?;
+        ExcelSheet::try_new(
+            name,
+            range,
+            header,
+            pagination,
+            schema_sample_rows,
+            selected_columns,
+            dtypes,
+        )
     }
 }
 
@@ -134,19 +152,14 @@ impl ExcelReader {
         use_columns: Option<&PyAny>,
         dtypes: Option<&PyDict>,
     ) -> PyResult<ExcelSheet> {
-        let range = self.sheets.worksheet_range(&name).into_pyresult()?;
-
-        let header = Header::new(header_row, column_names);
-        let pagination = Pagination::new(skip_rows, n_rows, &range).into_pyresult()?;
-        let selected_columns = use_columns.try_into().with_context(|| format!("expected selected columns to be list[str] | list[int] | str | None, got {use_columns:?}")).into_pyresult()?;
-        let dtypes = Self::build_dtypes(dtypes).into_pyresult()?;
-        ExcelSheet::try_new(
+        self.load_sheet(
             name,
-            range,
-            header,
-            pagination,
+            header_row,
+            column_names,
+            skip_rows,
+            n_rows,
             schema_sample_rows,
-            selected_columns,
+            use_columns,
             dtypes,
         )
         .into_pyresult()
@@ -188,19 +201,14 @@ impl ExcelReader {
             .into_pyresult()?
             .to_owned();
 
-        let range = self.sheets.worksheet_range_at(idx).into_pyresult()?;
-
-        let header = Header::new(header_row, column_names);
-        let pagination = Pagination::new(skip_rows, n_rows, &range).into_pyresult()?;
-        let selected_columns = use_columns.try_into().with_context(|| format!("expected selected columns to be list[str] | list[int] | str | None, got {use_columns:?}")).into_pyresult()?;
-        let dtypes = Self::build_dtypes(dtypes).into_pyresult()?;
-        ExcelSheet::try_new(
+        self.load_sheet(
             name,
-            range,
-            header,
-            pagination,
+            header_row,
+            column_names,
+            skip_rows,
+            n_rows,
             schema_sample_rows,
-            selected_columns,
+            use_columns,
             dtypes,
         )
         .into_pyresult()
