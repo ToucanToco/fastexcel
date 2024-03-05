@@ -75,7 +75,7 @@ impl ExcelReader {
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn load_sheet(
+    fn build_sheet(
         &mut self,
         name: String,
         header_row: Option<usize>,
@@ -128,7 +128,7 @@ impl ExcelReader {
     }
 
     #[pyo3(signature = (
-        name,
+        idx_or_name,
         *,
         header_row = 0,
         column_names = None,
@@ -139,46 +139,9 @@ impl ExcelReader {
         dtypes = None,
     ))]
     #[allow(clippy::too_many_arguments)]
-    pub fn load_sheet_by_name(
+    pub fn load_sheet(
         &mut self,
-        name: String,
-        header_row: Option<usize>,
-        column_names: Option<Vec<String>>,
-        skip_rows: usize,
-        n_rows: Option<usize>,
-        schema_sample_rows: Option<usize>,
-        // pyo3 forces us to take an Option in case the default value is None
-        use_columns: Option<&PyAny>,
-        dtypes: Option<&PyDict>,
-    ) -> PyResult<ExcelSheet> {
-        self.load_sheet(
-            name,
-            header_row,
-            column_names,
-            skip_rows,
-            n_rows,
-            schema_sample_rows,
-            use_columns,
-            dtypes,
-        )
-        .into_pyresult()
-    }
-
-    #[pyo3(signature = (
-        idx,
-        *,
-        header_row = 0,
-        column_names = None,
-        skip_rows = 0,
-        n_rows = None,
-        schema_sample_rows = 1_000,
-        use_columns = None,
-        dtypes = None,
-    ))]
-    #[allow(clippy::too_many_arguments)]
-    pub fn load_sheet_by_idx(
-        &mut self,
-        idx: usize,
+        idx_or_name: &PyAny,
         header_row: Option<usize>,
         column_names: Option<Vec<String>>,
         skip_rows: usize,
@@ -187,20 +150,25 @@ impl ExcelReader {
         use_columns: Option<&PyAny>,
         dtypes: Option<&PyDict>,
     ) -> PyResult<ExcelSheet> {
-        let name = self
-            .sheet_names
-            .get(idx)
-            .ok_or_else(|| FastExcelErrorKind::SheetNotFound(IdxOrName::Idx(idx)).into())
-            .with_context(|| {
-                format!(
-                    "Sheet index {idx} is out of range. File has {} sheets",
-                    self.sheet_names.len()
-                )
+        let name = idx_or_name
+            .try_into()
+            .and_then(|idx_or_name| match idx_or_name {
+                IdxOrName::Name(name) => Ok(name),
+                IdxOrName::Idx(idx) => self
+                    .sheet_names
+                    .get(idx)
+                    .ok_or_else(|| FastExcelErrorKind::SheetNotFound(IdxOrName::Idx(idx)).into())
+                    .with_context(|| {
+                        format!(
+                            "Sheet index {idx} is out of range. File has {} sheets",
+                            self.sheet_names.len()
+                        )
+                    })
+                    .map(ToOwned::to_owned),
             })
-            .into_pyresult()?
-            .to_owned();
+            .into_pyresult()?;
 
-        self.load_sheet(
+        self.build_sheet(
             name,
             header_row,
             column_names,
