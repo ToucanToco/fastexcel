@@ -5,7 +5,7 @@ use calamine::{CellErrorType, Data as CalData, DataType, Range};
 
 use crate::{
     error::{FastExcelErrorKind, FastExcelResult},
-    types::{dtype::DTypeMap, excelsheet::SelectedColumns},
+    types::{dtype::DTypeMap, python::excelsheet::SelectedColumns},
 };
 
 /// All the possible string values that should be considered as NULL
