@@ -517,7 +517,7 @@ fn create_datetime_array(
         |row| {
             data.get((row, col))
                 .and_then(|caldt| caldt.as_datetime())
-                .map(|dt| dt.timestamp_millis())
+                .map(|dt| dt.and_utc().timestamp_millis())
         },
     )))
 }
