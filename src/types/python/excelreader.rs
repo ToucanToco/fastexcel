@@ -172,7 +172,7 @@ impl ExcelReader {
         } else {
             let range = self.sheets.worksheet_range(&name).into_pyresult()?;
             let pagination = Pagination::new(skip_rows, n_rows, &range).into_pyresult()?;
-            ExcelSheet::try_new(
+            let sheet = ExcelSheet::try_new(
                 name,
                 range.into(),
                 header,
@@ -181,8 +181,13 @@ impl ExcelReader {
                 selected_columns,
                 dtypes,
             )
-            .into_pyresult()
-            .map(|sheet| sheet.into_py(py))
+            .into_pyresult()?;
+
+            if eager {
+                sheet.to_arrow(py)
+            } else {
+                Ok(sheet.into_py(py))
+            }
         }
     }
 }
