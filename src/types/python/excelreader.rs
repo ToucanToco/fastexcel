@@ -272,46 +272,4 @@ impl ExcelReader {
             py,
         )
     }
-
-    // #[pyo3(signature = (
-    //     idx,
-    //     *,
-    //     header_row = 0,
-    //     column_names = None,
-    //     skip_rows = 0,
-    //     n_rows = None,
-    //     schema_sample_rows = 1_000,
-    //     use_columns = None,
-    //     dtypes = None,
-    // ))]
-    // #[allow(clippy::too_many_arguments)]
-    // pub fn load_sheet_by_idx_eager(
-    //     &mut self,
-    //     idx: usize,
-    //     header_row: Option<usize>,
-    //     column_names: Option<Vec<String>>,
-    //     skip_rows: usize,
-    //     n_rows: Option<usize>,
-    //     schema_sample_rows: Option<usize>,
-    //     use_columns: Option<&PyAny>,
-    //     dtypes: Option<&PyDict>,
-    //     py: Python<'_>,
-    // ) -> PyResult<PyObject> {
-    //     let range = self.sheets.worksheet_range_at(idx).into_pyresult()?;
-    //     let header = Header::new(header_row, column_names);
-    //     let pagination = Pagination::new(skip_rows, n_rows, &range).into_pyresult()?;
-    //     let selected_columns = Self::build_selected_columns(use_columns).into_pyresult()?;
-    //     let dtypes = Self::build_dtypes(dtypes).into_pyresult()?;
-    //     let rb = ExcelReader::load_sheet_eager(
-    //         range.into(),
-    //         pagination,
-    //         header,
-    //         schema_sample_rows,
-    //         &selected_columns,
-    //         dtypes.as_ref(),
-    //     )
-    //     .with_context(|| "could not load sheet eagerly")
-    //     .into_pyresult()?;
-    //     rb.to_pyarrow(py)
-    // }
 }
