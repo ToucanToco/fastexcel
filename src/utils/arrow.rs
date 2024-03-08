@@ -5,7 +5,7 @@ use std::{collections::HashSet, sync::OnceLock};
 use arrow::datatypes::{DataType as ArrowDataType, Field, Schema, TimeUnit};
 use calamine::{CellErrorType, CellType, DataType, Range};
 
-use crate::types::excelsheet::sheet_data::ExcelSheetData;
+use crate::types::python::excelsheet::sheet_data::ExcelSheetData;
 use crate::{
     error::{FastExcelErrorKind, FastExcelResult},
     types::{dtype::DTypeMap, python::excelsheet::SelectedColumns},

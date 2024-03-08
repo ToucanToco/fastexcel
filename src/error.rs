@@ -1,5 +1,7 @@
 use std::{error::Error, fmt::Display};
 
+use calamine::XlsxError;
+
 use crate::types::idx_or_name::IdxOrName;
 
 #[derive(Debug)]

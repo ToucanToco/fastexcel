@@ -37,8 +37,8 @@ impl From<Range<CalData>> for ExcelSheetData<'_> {
     }
 }
 
-impl From<Range<CalDataRef<'static>>> for ExcelSheetData<'static> {
-    fn from(range: Range<CalDataRef<'static>>) -> Self {
+impl<'a> From<Range<CalDataRef<'a>>> for ExcelSheetData<'a> {
+    fn from(range: Range<CalDataRef<'a>>) -> Self {
         Self::Ref(range)
     }
 }
@@ -147,7 +147,7 @@ mod array_impls {
             |row| {
                 data.get((row, col))
                     .and_then(|caldt| caldt.as_datetime())
-                    .map(|dt| dt.timestamp_millis())
+                    .map(|dt| dt.and_utc().timestamp_millis())
             },
         )))
     }
