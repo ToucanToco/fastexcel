@@ -11,7 +11,7 @@ crate-type = ["cdylib"]
 [dependencies]
 # calamine = { version = "0.24.0", features = ["dates"] }
 calamine = { git = "https://github.com/lukapeschke/calamine", branch = "master", features = ["dates"] }
-chrono = { version = "0.4.34", default-features = false }
+chrono = { version = "0.4.35", default-features = false }
 # NOTE: "extension-module" is actually required, see comments on features below
 pyo3 = { version = "0.20.3", features = ["abi3-py38"] }
 

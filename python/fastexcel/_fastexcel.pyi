@@ -39,9 +39,9 @@ class _ExcelSheet:
 class _ExcelReader:
     """A class representing an open Excel file and allowing to read its sheets"""
 
-    def load_sheet_by_name(
+    def load_sheet(
         self,
-        name: str,
+        idx_or_name: str | int,
         *,
         header_row: int | None = 0,
         column_names: list[str] | None = None,
@@ -51,40 +51,6 @@ class _ExcelReader:
         use_columns: list[str] | list[int] | str | None = None,
         dtypes: _DTypeMap | None = None,
     ) -> _ExcelSheet: ...
-    def load_sheet_by_name_eager(
-        self,
-        name: str,
-        *,
-        header_row: int | None = 0,
-        column_names: list[str] | None = None,
-        skip_rows: int = 0,
-        n_rows: int | None = None,
-        schema_sample_rows: int | None = 1_000,
-        use_columns: list[str] | list[int] | None = None,
-    ) -> pa.RecordBatch: ...
-    def load_sheet_by_idx(
-        self,
-        idx: int,
-        *,
-        header_row: int | None = 0,
-        column_names: list[str] | None = None,
-        skip_rows: int = 0,
-        n_rows: int | None = None,
-        schema_sample_rows: int | None = 1_000,
-        use_columns: list[str] | list[int] | str | None = None,
-        dtypes: _DTypeMap | None = None,
-    ) -> _ExcelSheet: ...
-    def load_sheet_by_idx_eager(
-        self,
-        idx: int,
-        *,
-        header_row: int | None = 0,
-        column_names: list[str] | None = None,
-        skip_rows: int = 0,
-        n_rows: int | None = None,
-        schema_sample_rows: int | None = 1_000,
-        use_columns: list[str] | list[int] | None = None,
-    ) -> pa.RecordBatch: ...
     @property
     def sheet_names(self) -> list[str]: ...
 

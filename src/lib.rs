@@ -4,7 +4,7 @@ mod utils;
 
 use error::{py_errors, ErrorContext};
 use pyo3::prelude::*;
-use types::{ExcelReader, ExcelSheet};
+use types::python::{ExcelReader, ExcelSheet};
 
 /// Reads an excel file and returns an object allowing to access its sheets and a bit of metadata
 #[pyfunction]

@@ -8,7 +8,7 @@ use calamine::{CellErrorType, CellType, DataType, Range};
 use crate::types::excelsheet::sheet_data::ExcelSheetData;
 use crate::{
     error::{FastExcelErrorKind, FastExcelResult},
-    types::{dtype::DTypeMap, excelsheet::SelectedColumns},
+    types::{dtype::DTypeMap, python::excelsheet::SelectedColumns},
 };
 
 /// All the possible string values that should be considered as NULL

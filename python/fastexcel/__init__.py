@@ -112,9 +112,9 @@ class ExcelReader:
         """The list of sheet names"""
         return self._reader.sheet_names
 
-    def load_sheet_by_name(
+    def load_sheet(
         self,
-        name: str,
+        idx_or_name: int | str,
         *,
         header_row: int | None = 0,
         column_names: list[str] | None = None,
@@ -124,9 +124,9 @@ class ExcelReader:
         use_columns: list[str] | list[int] | str | None = None,
         dtypes: DTypeMap | None = None,
     ) -> ExcelSheet:
-        """Loads a sheet by name.
+        """Loads a sheet by index or name.
 
-        :param name: The name of the sheet to load.
+        :param idx_or_name: The index (starting at 0) or the name of the sheet to load.
         :param header_row: The index of the row containing the column labels, default index is 0.
                            If `None`, the sheet does not have any column labels.
         :param column_names: Overrides headers found in the document.
@@ -150,7 +150,36 @@ class ExcelReader:
                        is a list of ints or an Excel range), or column names
         """
         return ExcelSheet(
-            self._reader.load_sheet_by_name(
+            self._reader.load_sheet(
+                idx_or_name=idx_or_name,
+                header_row=header_row,
+                column_names=column_names,
+                skip_rows=skip_rows,
+                n_rows=n_rows,
+                schema_sample_rows=schema_sample_rows,
+                use_columns=use_columns,
+                dtypes=dtypes,
+            )
+        )
+
+    def load_sheet_by_name(
+        self,
+        name: str,
+        *,
+        header_row: int | None = 0,
+        column_names: list[str] | None = None,
+        skip_rows: int = 0,
+        n_rows: int | None = None,
+        schema_sample_rows: int | None = 1_000,
+        use_columns: list[str] | list[int] | str | None = None,
+        dtypes: DTypeMap | None = None,
+    ) -> ExcelSheet:
+        """Loads a sheet by name.
+
+        Refer to `load_sheet` for parameter documentation
+        """
+        return ExcelSheet(
+            self._reader.load_sheet(
                 name,
                 header_row=header_row,
                 column_names=column_names,
@@ -176,74 +205,11 @@ class ExcelReader:
     ) -> ExcelSheet:
         """Loads a sheet by index.
 
-        :param idx: The index (starting at 0) of the sheet to load.
-        :param header_row: The index of the row containing the column labels, default index is 0.
-                           If `None`, the sheet does not have any column labels.
-        :param column_names: Overrides headers found in the document.
-                             If `column_names` is used, `header_row` will be ignored.
-        :param n_rows: Specifies how many rows should be loaded.
-                       If `None`, all rows are loaded
-        :param skip_rows: Specifies how many rows should be skipped after the header.
-                          If `header_row` is `None`, it skips the number of rows from the
-                          start of the sheet.
-        :param schema_sample_rows: Specifies how many rows should be used to determine
-                                   the dtype of a column.
-                                   If `None`, all rows will be used.
-        :param use_columns: Specifies the columns to use. Can either be:
-                            - `None` to select all columns
-                            - a list of strings, the column names
-                            - a list of ints, the column indices (starting at 0)
-                            - a string, a comma separated list of Excel column letters and column
-                              ranges (e.g. `“A:E”` or `“A,C,E:F”`, which would result in
-                              `A,B,C,D,E` and `A,C,E,F`)
-        :param dtypes: An optional dict of dtypes. Keys can either be indices (in case `use_columns`
-                       is a list of ints or an Excel range), or column names
+        Refer to `load_sheet` for parameter documentation
         """
-        if idx < 0:
-            raise ValueError(f"Expected idx to be > 0, got {idx}")
         return ExcelSheet(
-            self._reader.load_sheet_by_idx(
+            self._reader.load_sheet(
                 idx,
-                header_row=header_row,
-                column_names=column_names,
-                skip_rows=skip_rows,
-                n_rows=n_rows,
-                schema_sample_rows=schema_sample_rows,
-                use_columns=use_columns,
-                dtypes=dtypes,
-            )
-        )
-
-    def load_sheet(
-        self,
-        idx_or_name: int | str,
-        *,
-        header_row: int | None = 0,
-        column_names: list[str] | None = None,
-        skip_rows: int = 0,
-        n_rows: int | None = None,
-        schema_sample_rows: int | None = 1_000,
-        use_columns: list[str] | list[int] | str | None = None,
-        dtypes: DTypeMap | None = None,
-    ) -> ExcelSheet:
-        """Loads a sheet by name if a string is passed or by index if an integer is passed.
-
-        See `load_sheet_by_idx` and `load_sheet_by_name` for parameter documentation.
-        """
-        return (
-            self.load_sheet_by_idx(
-                idx_or_name,
-                header_row=header_row,
-                column_names=column_names,
-                skip_rows=skip_rows,
-                n_rows=n_rows,
-                schema_sample_rows=schema_sample_rows,
-                use_columns=use_columns,
-                dtypes=dtypes,
-            )
-            if isinstance(idx_or_name, int)
-            else self.load_sheet_by_name(
-                idx_or_name,
                 header_row=header_row,
                 column_names=column_names,
                 skip_rows=skip_rows,
@@ -290,6 +256,46 @@ class ExcelReader:
                 n_rows=n_rows,
                 schema_sample_rows=schema_sample_rows,
                 use_columns=use_columns,
+            )
+        )
+
+    def load_sheet(
+        self,
+        idx_or_name: int | str,
+        *,
+        header_row: int | None = 0,
+        column_names: list[str] | None = None,
+        skip_rows: int = 0,
+        n_rows: int | None = None,
+        schema_sample_rows: int | None = 1_000,
+        use_columns: list[str] | list[int] | str | None = None,
+        dtypes: DTypeMap | None = None,
+    ) -> ExcelSheet:
+        """Loads a sheet by name if a string is passed or by index if an integer is passed.
+
+        See `load_sheet_by_idx` and `load_sheet_by_name` for parameter documentation.
+        """
+        return (
+            self.load_sheet_by_idx(
+                idx_or_name,
+                header_row=header_row,
+                column_names=column_names,
+                skip_rows=skip_rows,
+                n_rows=n_rows,
+                schema_sample_rows=schema_sample_rows,
+                use_columns=use_columns,
+                dtypes=dtypes,
+            )
+            if isinstance(idx_or_name, int)
+            else self.load_sheet_by_name(
+                idx_or_name,
+                header_row=header_row,
+                column_names=column_names,
+                skip_rows=skip_rows,
+                n_rows=n_rows,
+                schema_sample_rows=schema_sample_rows,
+                use_columns=use_columns,
+                dtypes=dtypes,
             )
         )
 
