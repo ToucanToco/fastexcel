@@ -140,8 +140,8 @@ impl ExcelReader {
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn build_sheet<'p>(
-        &'p mut self,
+    fn build_sheet(
+        &mut self,
         name: String,
         header_row: Option<usize>,
         column_names: Option<Vec<String>>,
@@ -151,7 +151,7 @@ impl ExcelReader {
         use_columns: Option<&PyAny>,
         dtypes: Option<&PyDict>,
         eager: bool,
-        py: Python<'p>,
+        py: Python<'_>,
     ) -> PyResult<PyObject> {
         let header = Header::new(header_row, column_names);
         let selected_columns = Self::build_selected_columns(use_columns).into_pyresult()?;
@@ -228,8 +228,8 @@ impl ExcelReader {
         eager = false,
     ))]
     #[allow(clippy::too_many_arguments)]
-    pub fn load_sheet<'p>(
-        &'p mut self,
+    pub fn load_sheet(
+        &mut self,
         idx_or_name: &PyAny,
         header_row: Option<usize>,
         column_names: Option<Vec<String>>,
@@ -239,7 +239,7 @@ impl ExcelReader {
         use_columns: Option<&PyAny>,
         dtypes: Option<&PyDict>,
         eager: bool,
-        py: Python<'p>,
+        py: Python<'_>,
     ) -> PyResult<PyObject> {
         let name = idx_or_name
             .try_into()
