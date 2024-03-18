@@ -9,14 +9,16 @@ from polars.testing import assert_frame_equal as pl_assert_frame_equal
 from utils import path_for_fixture
 
 
-@pytest.mark.parametrize("use_columns", [None, [0, 1, 2], ["col", "col_1", "col_2"]])
+@pytest.mark.parametrize(
+    "use_columns", [None, [0, 1, 2], ["col", "col_1", "col_2"], [0, "col_1", 2]]
+)
 def test_alias_generation_with_use_columns(use_columns: list[str] | list[int] | None) -> None:
     excel_reader = fastexcel.read_excel(
         path_for_fixture("fixture-single-sheet-duplicated-columns.xlsx")
     )
 
     sheet = excel_reader.load_sheet(0, use_columns=use_columns)
-    assert sheet.available_columns == ["col", "col_1", "col_2"]
+    assert [col.name for col in sheet.available_columns] == ["col", "col_1", "col_2"]
 
     pd_assert_frame_equal(
         sheet.to_pandas(),

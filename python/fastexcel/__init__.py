@@ -18,6 +18,7 @@ from ._fastexcel import (
     CalamineCellError,
     CalamineError,
     CannotRetrieveCellDataError,
+    ColumnInfo,
     ColumnNotFoundError,
     FastExcelError,
     InvalidParametersError,
@@ -30,7 +31,9 @@ from ._fastexcel import (
 from ._fastexcel import read_excel as _read_excel
 
 DType = Literal["null", "int", "float", "string", "boolean", "datetime", "date", "duration"]
-DTypeMap: TypeAlias = "dict[str, DType] | dict[int, DType]"
+DTypeMap: TypeAlias = "dict[str | int, DType]"
+ColumnNameFrom: TypeAlias = Literal["provided", "looked_up", "generated"]
+DTypeFrom: TypeAlias = Literal["provided_by_index", "provided_by_name", "guessed"]
 
 
 class ExcelSheet:
@@ -60,12 +63,12 @@ class ExcelSheet:
         return self._sheet.total_height
 
     @property
-    def selected_columns(self) -> list[str] | list[int] | None:
+    def selected_columns(self) -> list[ColumnInfo]:
         """The sheet's selected columns"""
         return self._sheet.selected_columns
 
     @property
-    def available_columns(self) -> list[str]:
+    def available_columns(self) -> list[ColumnInfo]:
         """The columns available for the given sheet"""
         return self._sheet.available_columns
 
@@ -141,13 +144,12 @@ class ExcelReader:
                                    If `None`, all rows will be used.
         :param use_columns: Specifies the columns to use. Can either be:
                             - `None` to select all columns
-                            - a list of strings, the column names
-                            - a list of ints, the column indices (starting at 0)
-                            - a string, a comma separated list of Excel column letters and column
+                            - A list of strings and ints, the column names and/or indices
+                              (starting at 0)
+                            - A string, a comma separated list of Excel column letters and column
                               ranges (e.g. `“A:E”` or `“A,C,E:F”`, which would result in
                               `A,B,C,D,E` and `A,C,E,F`)
-        :param dtypes: An optional dict of dtypes. Keys can either be indices (in case `use_columns`
-                       is a list of ints or an Excel range), or column names
+        :param dtypes: An optional dict of dtypes. Keys can be column indices or names
         """
         return ExcelSheet(
             self._reader.load_sheet(
@@ -235,10 +237,22 @@ def read_excel(source: Path | str | bytes) -> ExcelReader:
 
 
 __all__ = (
+    ## version
     "__version__",
+    ## main entrypoint
     "read_excel",
+    ## Python types
+    "DType",
+    "DTypeMap",
+    # Excel reader
     "ExcelReader",
+    # Excel sheet
     "ExcelSheet",
+    # Column metadata
+    "DTypeFrom",
+    "ColumnNameFrom",
+    "ColumnInfo",
+    # Exceptions
     "FastExcelError",
     "CannotRetrieveCellDataError",
     "CalamineCellError",
