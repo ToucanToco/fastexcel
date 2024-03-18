@@ -96,7 +96,7 @@ jobs:
         args: "--skip-existing wheels-linux/*.whl wheels-macos/*.whl wheels-windows/*.whl"
 
     - name: Release
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v2
       with:
         generate_release_notes: true
         files: |
