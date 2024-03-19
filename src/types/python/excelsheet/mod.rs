@@ -1,4 +1,7 @@
-use std::{cmp, collections::HashSet, str::FromStr, sync::Arc};
+pub(crate) mod sheet_data;
+
+use calamine::{CellType, Range};
+use std::{cmp, collections::HashSet, fmt::Debug, str::FromStr, sync::Arc};
 
 use crate::{
     error::{
@@ -7,18 +10,14 @@ use crate::{
     types::{dtype::DTypeMap, idx_or_name::IdxOrName},
     utils::arrow::alias_for_name,
 };
+use sheet_data::ExcelSheetData;
 
 use arrow::{
-    array::{
-        Array, BooleanArray, Date32Array, DurationMillisecondArray, Float64Array, Int64Array,
-        NullArray, StringArray, TimestampMillisecondArray,
-    },
+    array::NullArray,
     datatypes::{DataType as ArrowDataType, Schema, TimeUnit},
     pyarrow::ToPyArrow,
     record_batch::RecordBatch,
 };
-use calamine::{Data as CalData, DataType, Range};
-use chrono::NaiveDate;
 
 use pyo3::{
     prelude::{pyclass, pymethods, PyObject, Python},
@@ -26,7 +25,14 @@ use pyo3::{
     PyAny, PyResult, ToPyObject,
 };
 
-use crate::utils::arrow::arrow_schema_from_column_names_and_range;
+use crate::utils::{
+    arrow::arrow_schema_from_column_names_and_range, schema::get_schema_sample_rows,
+};
+
+use self::sheet_data::{
+    create_boolean_array, create_date_array, create_datetime_array, create_duration_array,
+    create_float_array, create_int_array, create_string_array,
+};
 
 #[derive(Debug)]
 pub(crate) enum Header {
@@ -61,10 +67,10 @@ pub(crate) struct Pagination {
 }
 
 impl Pagination {
-    pub(crate) fn new(
+    pub(crate) fn new<CT: CellType>(
         skip_rows: usize,
         n_rows: Option<usize>,
-        range: &Range<CalData>,
+        range: &Range<CT>,
     ) -> FastExcelResult<Self> {
         let max_height = range.height();
         if max_height < skip_rows {
@@ -79,6 +85,10 @@ impl Pagination {
 
     pub(crate) fn offset(&self) -> usize {
         self.skip_rows
+    }
+
+    pub(crate) fn n_rows(&self) -> Option<usize> {
+        self.n_rows
     }
 }
 
@@ -317,7 +327,7 @@ pub(crate) struct ExcelSheet {
     pub(crate) name: String,
     header: Header,
     pagination: Pagination,
-    data: Range<CalData>,
+    data: ExcelSheetData<'static>,
     height: Option<usize>,
     total_height: Option<usize>,
     width: Option<usize>,
@@ -327,14 +337,40 @@ pub(crate) struct ExcelSheet {
     dtypes: Option<DTypeMap>,
 }
 
+pub(crate) fn sheet_column_names_from_header_and_range(
+    header: &Header,
+    data: &ExcelSheetData,
+) -> Vec<String> {
+    let width = data.width();
+    match header {
+        Header::None => (0..width)
+            .map(|col_idx| format!("__UNNAMED__{col_idx}"))
+            .collect(),
+        Header::At(row_idx) => (0..width)
+            .map(|col_idx| {
+                data.get_as_string((*row_idx, col_idx))
+                    .unwrap_or(format!("__UNNAMED__{col_idx}"))
+            })
+            .collect(),
+        Header::With(names) => {
+            let nameless_start_idx = names.len();
+            names
+                .iter()
+                .map(ToOwned::to_owned)
+                .chain((nameless_start_idx..width).map(|col_idx| format!("__UNNAMED__{col_idx}")))
+                .collect()
+        }
+    }
+}
+
 impl ExcelSheet {
-    pub(crate) fn data(&self) -> &Range<CalData> {
+    pub(crate) fn data(&self) -> &ExcelSheetData<'_> {
         &self.data
     }
 
     pub(crate) fn try_new(
         name: String,
-        data: Range<CalData>,
+        data: ExcelSheetData<'static>,
         header: Header,
         pagination: Pagination,
         schema_sample_rows: Option<usize>,
@@ -395,8 +431,7 @@ impl ExcelSheet {
             Header::At(row_idx) => (0..width)
                 .map(|col_idx| {
                     self.data
-                        .get((*row_idx, col_idx))
-                        .and_then(|data| data.as_string())
+                        .get_as_string((*row_idx, col_idx))
                         .unwrap_or(format!("__UNNAMED__{col_idx}"))
                 })
                 .collect(),
@@ -425,131 +460,64 @@ impl ExcelSheet {
         upper_bound
     }
 
-    pub(crate) fn schema_sample_rows(&self) -> &Option<usize> {
-        &self.schema_sample_rows
+    pub(crate) fn schema_sample_rows(&self) -> usize {
+        get_schema_sample_rows(self.schema_sample_rows, self.offset(), self.limit())
     }
-}
-
-fn create_boolean_array(
-    data: &Range<CalData>,
-    col: usize,
-    offset: usize,
-    limit: usize,
-) -> Arc<dyn Array> {
-    Arc::new(BooleanArray::from_iter((offset..limit).map(|row| {
-        data.get((row, col)).and_then(|cell| match cell {
-            CalData::Bool(b) => Some(*b),
-            CalData::Int(i) => Some(*i != 0),
-            CalData::Float(f) => Some(*f != 0.0),
-            _ => None,
-        })
-    })))
-}
-
-fn create_int_array(
-    data: &Range<CalData>,
-    col: usize,
-    offset: usize,
-    limit: usize,
-) -> Arc<dyn Array> {
-    Arc::new(Int64Array::from_iter(
-        (offset..limit).map(|row| data.get((row, col)).and_then(|cell| cell.as_i64())),
-    ))
-}
-
-fn create_float_array(
-    data: &Range<CalData>,
-    col: usize,
-    offset: usize,
-    limit: usize,
-) -> Arc<dyn Array> {
-    Arc::new(Float64Array::from_iter(
-        (offset..limit).map(|row| data.get((row, col)).and_then(|cell| cell.as_f64())),
-    ))
-}
-
-fn create_string_array(
-    data: &Range<CalData>,
-    col: usize,
-    offset: usize,
-    limit: usize,
-) -> Arc<dyn Array> {
-    Arc::new(StringArray::from_iter((offset..limit).map(|row| {
-        // NOTE: Not using cell.as_string() here because it matches the String variant last, which
-        // is slower for columns containing mostly/only strings (which we expect to meet more often than
-        // mixed dtype columns containing mostly numbers)
-        data.get((row, col)).and_then(|cell| match cell {
-            CalData::String(s) => Some(s.to_string()),
-            CalData::Float(s) => Some(s.to_string()),
-            CalData::Int(s) => Some(s.to_string()),
-            CalData::DateTime(dt) => dt.as_datetime().map(|dt| dt.to_string()),
-            CalData::DateTimeIso(dt) => Some(dt.to_string()),
-            _ => None,
-        })
-    })))
-}
-
-fn duration_type_to_i64(caldt: &CalData) -> Option<i64> {
-    caldt.as_duration().map(|d| d.num_milliseconds())
-}
-
-fn create_date_array(
-    data: &Range<CalData>,
-    col: usize,
-    offset: usize,
-    limit: usize,
-) -> Arc<dyn Array> {
-    let epoch = NaiveDate::from_ymd_opt(1970, 1, 1).unwrap();
-    Arc::new(Date32Array::from_iter((offset..limit).map(|row| {
-        data.get((row, col))
-            .and_then(|caldate| caldate.as_date())
-            .and_then(|date| i32::try_from(date.signed_duration_since(epoch).num_days()).ok())
-    })))
-}
-
-fn create_datetime_array(
-    data: &Range<CalData>,
-    col: usize,
-    offset: usize,
-    limit: usize,
-) -> Arc<dyn Array> {
-    Arc::new(TimestampMillisecondArray::from_iter((offset..limit).map(
-        |row| {
-            data.get((row, col))
-                .and_then(|caldt| caldt.as_datetime())
-                .map(|dt| dt.and_utc().timestamp_millis())
-        },
-    )))
-}
-
-fn create_duration_array(
-    data: &Range<CalData>,
-    col: usize,
-    offset: usize,
-    limit: usize,
-) -> Arc<dyn Array> {
-    Arc::new(DurationMillisecondArray::from_iter(
-        (offset..limit).map(|row| data.get((row, col)).and_then(duration_type_to_i64)),
-    ))
 }
 
 impl TryFrom<&ExcelSheet> for Schema {
     type Error = FastExcelError;
 
     fn try_from(sheet: &ExcelSheet) -> Result<Self, Self::Error> {
-        // Checking how many rows we want to use to determine the dtype for a column. If sample_rows is
-        // not provided, we sample limit rows, i.e on the entire column
-        let sample_rows = sheet.offset() + sheet.schema_sample_rows().unwrap_or(sheet.limit());
-
         arrow_schema_from_column_names_and_range(
             sheet.data(),
             &sheet.available_columns,
             sheet.offset(),
-            // If sample_rows is higher than the sheet's limit, use the limit instead
-            cmp::min(sample_rows, sheet.limit()),
+            sheet.schema_sample_rows(),
             &sheet.selected_columns,
             sheet.dtypes.as_ref(),
         )
+    }
+}
+
+pub(crate) fn record_batch_from_data_and_schema(
+    schema: Schema,
+    data: &ExcelSheetData,
+    offset: usize,
+    limit: usize,
+) -> FastExcelResult<RecordBatch> {
+    let mut iter = schema
+        .fields()
+        .iter()
+        .enumerate()
+        .map(|(col_idx, field)| {
+            (
+                field.name(),
+                match field.data_type() {
+                    ArrowDataType::Boolean => create_boolean_array(data, col_idx, offset, limit),
+                    ArrowDataType::Int64 => create_int_array(data, col_idx, offset, limit),
+                    ArrowDataType::Float64 => create_float_array(data, col_idx, offset, limit),
+                    ArrowDataType::Utf8 => create_string_array(data, col_idx, offset, limit),
+                    ArrowDataType::Timestamp(TimeUnit::Millisecond, None) => {
+                        create_datetime_array(data, col_idx, offset, limit)
+                    }
+                    ArrowDataType::Date32 => create_date_array(data, col_idx, offset, limit),
+                    ArrowDataType::Duration(TimeUnit::Millisecond) => {
+                        create_duration_array(data, col_idx, offset, limit)
+                    }
+                    ArrowDataType::Null => Arc::new(NullArray::new(limit - offset)),
+                    _ => unreachable!(),
+                },
+            )
+        })
+        .peekable();
+    // If the iterable is empty, try_from_iter returns an Err
+    if iter.peek().is_none() {
+        Ok(RecordBatch::new_empty(Arc::new(schema)))
+    } else {
+        RecordBatch::try_from_iter(iter)
+            .map_err(|err| FastExcelErrorKind::ArrowError(err.to_string()).into())
+            .with_context(|| "could not create RecordBatch from iterable")
     }
 }
 

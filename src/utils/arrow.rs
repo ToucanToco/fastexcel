@@ -1,8 +1,11 @@
-use std::{collections::HashSet, sync::OnceLock, usize};
+use std::fmt::Debug;
+
+use std::{collections::HashSet, sync::OnceLock};
 
 use arrow::datatypes::{DataType as ArrowDataType, Field, Schema, TimeUnit};
-use calamine::{CellErrorType, Data as CalData, DataType, Range};
+use calamine::{CellErrorType, CellType, DataType, Range};
 
+use crate::types::python::excelsheet::sheet_data::ExcelSheetData;
 use crate::{
     error::{FastExcelErrorKind, FastExcelResult},
     types::{dtype::DTypeMap, python::excelsheet::SelectedColumns},
@@ -14,42 +17,68 @@ const NULL_STRING_VALUES: [&str; 19] = [
     "<NA>", "N/A", "NA", "NULL", "NaN", "None", "n/a", "nan", "null",
 ];
 
-fn get_cell_type(data: &Range<CalData>, row: usize, col: usize) -> FastExcelResult<ArrowDataType> {
+fn get_cell_type<DT: CellType + Debug + DataType>(
+    data: &Range<DT>,
+    row: usize,
+    col: usize,
+) -> FastExcelResult<ArrowDataType> {
     let cell = data
         .get((row, col))
         .ok_or_else(|| FastExcelErrorKind::CannotRetrieveCellData(row, col))?;
 
-    match cell {
-        CalData::Int(_) => Ok(ArrowDataType::Int64),
-        CalData::Float(_) => Ok(ArrowDataType::Float64),
-        CalData::String(v) => match v {
-            v if NULL_STRING_VALUES.contains(&v.as_str()) => Ok(ArrowDataType::Null),
-            _ => Ok(ArrowDataType::Utf8),
-        },
-        CalData::Bool(_) => Ok(ArrowDataType::Boolean),
+    if cell.is_int() {
+        Ok(ArrowDataType::Int64)
+    } else if cell.is_float() {
+        Ok(ArrowDataType::Float64)
+    } else if cell.is_string() {
+        if NULL_STRING_VALUES.contains(&cell.get_string().unwrap()) {
+            Ok(ArrowDataType::Null)
+        } else {
+            Ok(ArrowDataType::Utf8)
+        }
+    } else if cell.is_bool() {
+        Ok(ArrowDataType::Boolean)
+    } else if cell.is_datetime() {
         // Since calamine 0.24.0, a new ExcelDateTime exists for the Datetime type. It can either be
         // a duration or a datatime
-        CalData::DateTime(excel_datetime) => Ok(if excel_datetime.is_datetime() {
+        let excel_datetime = cell
+            .get_datetime()
+            .expect("calamine indicated that cell is a datetime but get_datetime returned None");
+        Ok(if excel_datetime.is_datetime() {
             ArrowDataType::Timestamp(TimeUnit::Millisecond, None)
         } else {
             ArrowDataType::Duration(TimeUnit::Millisecond)
-        }),
-        // These types contain an ISO8601 representation of a date/datetime or a duration
-        CalData::DateTimeIso(_) => match cell.as_datetime() {
+        })
+    }
+    // These types contain an ISO8601 representation of a date/datetime or a durat
+    else if cell.is_datetime_iso() {
+        match cell.as_datetime() {
             // If we cannot convert the cell to a datetime, we're working on a date
             Some(_) => Ok(ArrowDataType::Timestamp(TimeUnit::Millisecond, None)),
             // NOTE: not using the Date64 type on purpose, as pyarrow converts it to a datetime
             // rather than a date
             None => Ok(ArrowDataType::Date32),
-        },
-        // A simple duration
-        CalData::DurationIso(_) => Ok(ArrowDataType::Duration(TimeUnit::Millisecond)),
-        // Errors and nulls
-        CalData::Error(err) => match err {
-            CellErrorType::NA => Ok(ArrowDataType::Null),
-            _ => Err(FastExcelErrorKind::CalamineCellError(err.to_owned()).into()),
-        },
-        CalData::Empty => Ok(ArrowDataType::Null),
+        }
+    }
+    // Simple durations
+    else if cell.is_duration_iso() {
+        Ok(ArrowDataType::Duration(TimeUnit::Millisecond))
+    }
+    // Empty cell
+    else if cell.is_empty() {
+        Ok(ArrowDataType::Null)
+    } else if cell.is_error() {
+        match cell.get_error() {
+            // considering cells with #N/A! as null
+            Some(CellErrorType::NA) => Ok(ArrowDataType::Null),
+            Some(err) => Err(FastExcelErrorKind::CalamineCellError(err.to_owned()).into()),
+            None => Err(FastExcelErrorKind::Internal(format!(
+                "cell is an error but get_error returned None: {cell:?}"
+            ))
+            .into()),
+        }
+    } else {
+        Err(FastExcelErrorKind::Internal(format!("unsupported cell type: {cell:?}")).into())
     }
 }
 
@@ -82,14 +111,19 @@ fn string_types() -> &'static HashSet<ArrowDataType> {
 }
 
 fn get_arrow_column_type(
-    data: &Range<CalData>,
+    sheet_data: &ExcelSheetData,
     start_row: usize,
     end_row: usize,
     col: usize,
 ) -> FastExcelResult<ArrowDataType> {
-    let mut column_types = (start_row..end_row)
-        .map(|row| get_cell_type(data, row, col))
-        .collect::<FastExcelResult<HashSet<_>>>()?;
+    let mut column_types = match sheet_data {
+        ExcelSheetData::Owned(data) => (start_row..end_row)
+            .map(|row| get_cell_type(data, row, col))
+            .collect::<FastExcelResult<HashSet<_>>>()?,
+        ExcelSheetData::Ref(data) => (start_row..end_row)
+            .map(|row| get_cell_type(data, row, col))
+            .collect::<FastExcelResult<HashSet<_>>>()?,
+    };
 
     // All columns are nullable anyway so we're not taking Null into account here
     column_types.remove(&ArrowDataType::Null);
@@ -138,7 +172,7 @@ pub(crate) fn alias_for_name(name: &str, existing_names: &[String]) -> String {
 }
 
 pub(crate) fn arrow_schema_from_column_names_and_range(
-    range: &Range<CalData>,
+    range: &ExcelSheetData,
     column_names: &[String],
     row_idx: usize,
     row_limit: usize,
@@ -205,28 +239,49 @@ pub(crate) fn arrow_schema_from_column_names_and_range(
 
 #[cfg(test)]
 mod tests {
-    use calamine::Cell;
+    use calamine::{Cell, Data, DataRef};
     use rstest::{fixture, rstest};
 
     use super::*;
 
     #[fixture]
-    fn range() -> Range<CalData> {
+    fn range_data() -> ExcelSheetData<'static> {
         Range::from_sparse(vec![
             // First column
-            Cell::new((0, 0), CalData::Bool(true)),
-            Cell::new((1, 0), CalData::Bool(false)),
-            Cell::new((2, 0), CalData::String("NULL".to_string())),
-            Cell::new((3, 0), CalData::Int(42)),
-            Cell::new((4, 0), CalData::Float(13.37)),
-            Cell::new((5, 0), CalData::String("hello".to_string())),
-            Cell::new((6, 0), CalData::Empty),
-            Cell::new((7, 0), CalData::String("#N/A".to_string())),
-            Cell::new((8, 0), CalData::Int(12)),
-            Cell::new((9, 0), CalData::Float(12.21)),
-            Cell::new((10, 0), CalData::Bool(true)),
-            Cell::new((11, 0), CalData::Int(1337)),
+            Cell::new((0, 0), Data::Bool(true)),
+            Cell::new((1, 0), Data::Bool(false)),
+            Cell::new((2, 0), Data::String("NULL".to_string())),
+            Cell::new((3, 0), Data::Int(42)),
+            Cell::new((4, 0), Data::Float(13.37)),
+            Cell::new((5, 0), Data::String("hello".to_string())),
+            Cell::new((6, 0), Data::Empty),
+            Cell::new((7, 0), Data::String("#N/A".to_string())),
+            Cell::new((8, 0), Data::Int(12)),
+            Cell::new((9, 0), Data::Float(12.21)),
+            Cell::new((10, 0), Data::Bool(true)),
+            Cell::new((11, 0), Data::Int(1337)),
         ])
+        .into()
+    }
+
+    #[fixture]
+    fn range_data_ref() -> ExcelSheetData<'static> {
+        Range::from_sparse(vec![
+            // First column
+            Cell::new((0, 0), DataRef::Bool(true)),
+            Cell::new((1, 0), DataRef::Bool(false)),
+            Cell::new((2, 0), DataRef::SharedString("NULL")),
+            Cell::new((3, 0), DataRef::Int(42)),
+            Cell::new((4, 0), DataRef::Float(13.37)),
+            Cell::new((5, 0), DataRef::SharedString("hello")),
+            Cell::new((6, 0), DataRef::Empty),
+            Cell::new((7, 0), DataRef::SharedString("#N/A")),
+            Cell::new((8, 0), DataRef::Int(12)),
+            Cell::new((9, 0), DataRef::Float(12.21)),
+            Cell::new((10, 0), DataRef::Bool(true)),
+            Cell::new((11, 0), DataRef::Int(1337)),
+        ])
+        .into()
     }
 
     #[rstest]
@@ -257,13 +312,18 @@ mod tests {
     // int + bool
     #[case(10, 12, ArrowDataType::Int64)]
     fn get_arrow_column_type_multi_dtype_ok(
-        range: Range<CalData>,
+        range_data: ExcelSheetData<'_>,
+        range_data_ref: ExcelSheetData<'_>,
         #[case] start_row: usize,
         #[case] end_row: usize,
         #[case] expected: ArrowDataType,
     ) {
         assert_eq!(
-            get_arrow_column_type(&range, start_row, end_row, 0).unwrap(),
+            get_arrow_column_type(&range_data, start_row, end_row, 0).unwrap(),
+            expected
+        );
+        assert_eq!(
+            get_arrow_column_type(&range_data_ref, start_row, end_row, 0).unwrap(),
             expected
         );
     }

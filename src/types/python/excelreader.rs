@@ -3,8 +3,11 @@ use std::{
     io::{BufReader, Cursor},
 };
 
-use calamine::{open_workbook_auto, open_workbook_auto_from_rs, Data, Range, Reader, Sheets};
-use pyo3::{pyclass, pymethods, types::PyDict, PyAny, PyResult};
+use arrow::{pyarrow::ToPyArrow, record_batch::RecordBatch};
+use calamine::{
+    open_workbook_auto, open_workbook_auto_from_rs, Data, DataRef, Range, Reader, Sheets,
+};
+use pyo3::{prelude::PyObject, pyclass, pymethods, types::PyDict, IntoPy, PyAny, PyResult, Python};
 
 use crate::{
     error::{
@@ -13,6 +16,13 @@ use crate::{
     types::{dtype::DTypeMap, idx_or_name::IdxOrName},
 };
 
+use crate::utils::arrow::arrow_schema_from_column_names_and_range;
+use crate::utils::schema::get_schema_sample_rows;
+
+use super::excelsheet::sheet_data::ExcelSheetData;
+use super::excelsheet::{
+    record_batch_from_data_and_schema, sheet_column_names_from_header_and_range,
+};
 use super::excelsheet::{ExcelSheet, Header, Pagination, SelectedColumns};
 
 enum ExcelSheets {
@@ -37,6 +47,25 @@ impl ExcelSheets {
             Self::Bytes(sheets) => sheets.sheet_names(),
         }
     }
+
+    fn supports_by_ref(&self) -> bool {
+        matches!(
+            self,
+            Self::File(Sheets::Xlsx(_)) | Self::Bytes(Sheets::Xlsx(_))
+        )
+    }
+
+    fn worksheet_range_ref<'a>(&'a mut self, name: &str) -> FastExcelResult<Range<DataRef<'a>>> {
+        match self {
+            ExcelSheets::File(Sheets::Xlsx(sheets)) => Ok(sheets.worksheet_range_ref(name)?),
+            ExcelSheets::Bytes(Sheets::Xlsx(sheets)) => Ok(sheets.worksheet_range_ref(name)?),
+            _ => Err(FastExcelErrorKind::Internal(
+                "sheets do not support worksheet_range_ref".to_string(),
+            )
+            .into()),
+        }
+        .with_context(|| format!("Error while loading sheet {name}"))
+    }
 }
 
 #[pyclass(name = "_ExcelReader")]
@@ -48,6 +77,10 @@ pub(crate) struct ExcelReader {
 }
 
 impl ExcelReader {
+    fn build_selected_columns(use_columns: Option<&PyAny>) -> FastExcelResult<SelectedColumns> {
+        use_columns.try_into().with_context(|| format!("expected selected columns to be list[str] | list[int] | str | None, got {use_columns:?}"))
+    }
+
     // NOTE: Not implementing TryFrom here, because we're aren't building the file from the passed
     // string, but rather from the file pointed by it. Semantically, try_from_path is clearer
     pub(crate) fn try_from_path(path: &str) -> FastExcelResult<Self> {
@@ -70,8 +103,40 @@ impl ExcelReader {
         .with_context(|| "could not parse provided dtypes")
     }
 
-    fn build_selected_columns(use_columns: Option<&PyAny>) -> FastExcelResult<SelectedColumns> {
-        use_columns.try_into().with_context(|| format!("expected selected columns to be list[str] | list[int] | str | None, got {use_columns:?}"))
+    fn load_sheet_eager(
+        data: &ExcelSheetData,
+        pagination: Pagination,
+        header: Header,
+        sample_rows: Option<usize>,
+        selected_columns: &SelectedColumns,
+        dtypes: Option<&DTypeMap>,
+    ) -> FastExcelResult<RecordBatch> {
+        let column_names = sheet_column_names_from_header_and_range(&header, data);
+
+        let offset = header.offset() + pagination.offset();
+        let limit = {
+            let upper_bound = data.height();
+            if let Some(n_rows) = pagination.n_rows() {
+                // minimum value between (offset+n_rows) and the data's height
+                std::cmp::min(offset + n_rows, upper_bound)
+            } else {
+                upper_bound
+            }
+        };
+
+        let schema_sample_rows = get_schema_sample_rows(sample_rows, offset, limit);
+
+        let schema = arrow_schema_from_column_names_and_range(
+            data,
+            &column_names,
+            offset,
+            schema_sample_rows,
+            selected_columns,
+            dtypes,
+        )
+        .with_context(|| "could not build arrow schema")?;
+
+        record_batch_from_data_and_schema(schema, data, offset, limit)
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -85,22 +150,45 @@ impl ExcelReader {
         schema_sample_rows: Option<usize>,
         use_columns: Option<&PyAny>,
         dtypes: Option<&PyDict>,
-    ) -> FastExcelResult<ExcelSheet> {
-        let range = self.sheets.worksheet_range(&name)?;
-
+        eager: bool,
+        py: Python<'_>,
+    ) -> PyResult<PyObject> {
         let header = Header::new(header_row, column_names);
-        let pagination = Pagination::new(skip_rows, n_rows, &range)?;
-        let selected_columns = Self::build_selected_columns(use_columns)?;
-        let dtypes = Self::build_dtypes(dtypes)?;
-        ExcelSheet::try_new(
-            name,
-            range,
-            header,
-            pagination,
-            schema_sample_rows,
-            selected_columns,
-            dtypes,
-        )
+        let selected_columns = Self::build_selected_columns(use_columns).into_pyresult()?;
+        let dtypes = Self::build_dtypes(dtypes).into_pyresult()?;
+        if eager && self.sheets.supports_by_ref() {
+            let range = self.sheets.worksheet_range_ref(&name).into_pyresult()?;
+            let pagination = Pagination::new(skip_rows, n_rows, &range).into_pyresult()?;
+            Self::load_sheet_eager(
+                &range.into(),
+                pagination,
+                header,
+                schema_sample_rows,
+                &selected_columns,
+                dtypes.as_ref(),
+            )
+            .into_pyresult()
+            .and_then(|rb| rb.to_pyarrow(py))
+        } else {
+            let range = self.sheets.worksheet_range(&name).into_pyresult()?;
+            let pagination = Pagination::new(skip_rows, n_rows, &range).into_pyresult()?;
+            let sheet = ExcelSheet::try_new(
+                name,
+                range.into(),
+                header,
+                pagination,
+                schema_sample_rows,
+                selected_columns,
+                dtypes,
+            )
+            .into_pyresult()?;
+
+            if eager {
+                sheet.to_arrow(py)
+            } else {
+                Ok(sheet.into_py(py))
+            }
+        }
     }
 }
 
@@ -137,6 +225,7 @@ impl ExcelReader {
         schema_sample_rows = 1_000,
         use_columns = None,
         dtypes = None,
+        eager = false,
     ))]
     #[allow(clippy::too_many_arguments)]
     pub fn load_sheet(
@@ -149,7 +238,9 @@ impl ExcelReader {
         schema_sample_rows: Option<usize>,
         use_columns: Option<&PyAny>,
         dtypes: Option<&PyDict>,
-    ) -> PyResult<ExcelSheet> {
+        eager: bool,
+        py: Python<'_>,
+    ) -> PyResult<PyObject> {
         let name = idx_or_name
             .try_into()
             .and_then(|idx_or_name| match idx_or_name {
@@ -177,7 +268,8 @@ impl ExcelReader {
             schema_sample_rows,
             use_columns,
             dtypes,
+            eager,
+            py,
         )
-        .into_pyresult()
     }
 }
