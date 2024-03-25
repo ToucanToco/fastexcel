@@ -4,7 +4,7 @@ use std::{
 };
 
 use calamine::{open_workbook_auto, open_workbook_auto_from_rs, Data, Range, Reader, Sheets};
-use pyo3::{pyclass, pymethods, types::PyDict, PyAny, PyResult};
+use pyo3::{pyclass, pymethods, PyAny, PyResult};
 
 use crate::{
     error::{
@@ -62,14 +62,6 @@ impl ExcelReader {
         })
     }
 
-    fn build_dtypes(raw_dtypes: Option<&PyDict>) -> FastExcelResult<Option<DTypeMap>> {
-        match raw_dtypes {
-            None => Ok(None),
-            Some(py_dict) => py_dict.try_into().map(Some),
-        }
-        .with_context(|| "could not parse provided dtypes")
-    }
-
     fn build_selected_columns(use_columns: Option<&PyAny>) -> FastExcelResult<SelectedColumns> {
         use_columns.try_into().with_context(|| format!("expected selected columns to be list[str] | list[int] | str | None, got {use_columns:?}"))
     }
@@ -84,14 +76,13 @@ impl ExcelReader {
         n_rows: Option<usize>,
         schema_sample_rows: Option<usize>,
         use_columns: Option<&PyAny>,
-        dtypes: Option<&PyDict>,
+        dtypes: Option<DTypeMap>,
     ) -> FastExcelResult<ExcelSheet> {
         let range = self.sheets.worksheet_range(&name)?;
 
         let header = Header::new(header_row, column_names);
         let pagination = Pagination::new(skip_rows, n_rows, &range)?;
         let selected_columns = Self::build_selected_columns(use_columns)?;
-        let dtypes = Self::build_dtypes(dtypes)?;
         ExcelSheet::try_new(
             name,
             range,
@@ -148,7 +139,7 @@ impl ExcelReader {
         n_rows: Option<usize>,
         schema_sample_rows: Option<usize>,
         use_columns: Option<&PyAny>,
-        dtypes: Option<&PyDict>,
+        dtypes: Option<DTypeMap>,
     ) -> PyResult<ExcelSheet> {
         let name = idx_or_name
             .try_into()
