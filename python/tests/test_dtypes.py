@@ -130,7 +130,7 @@ def test_sheet_with_mixed_dtypes_specify_dtypes(
     expected_pd_dtype: str,
     expected_pl_dtype: pl.DataType,
 ) -> None:
-    dtypes: fastexcel.DTypeMap = {0: dtype} if dtype_by_index else {"Employee ID": dtype}  # type:ignore[dict-item]
+    dtypes: fastexcel.DTypeMap = {0: dtype} if dtype_by_index else {"Employee ID": dtype}
     excel_reader = fastexcel.read_excel(path_for_fixture("fixture-multi-dtypes-columns.xlsx"))
     sheet = excel_reader.load_sheet(0, dtypes=dtypes, n_rows=5)
     assert sheet.specified_dtypes == dtypes
