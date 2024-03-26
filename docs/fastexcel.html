@@ -105,19 +105,19 @@
                     <a class="class" href="#ColumnInfo">ColumnInfo</a>
                             <ul class="memberlist">
                         <li>
+                                <a class="variable" href="#ColumnInfo.name">name</a>
+                        </li>
+                        <li>
                                 <a class="variable" href="#ColumnInfo.dtype">dtype</a>
                         </li>
                         <li>
                                 <a class="variable" href="#ColumnInfo.index">index</a>
                         </li>
                         <li>
-                                <a class="variable" href="#ColumnInfo.dtype_from">dtype_from</a>
-                        </li>
-                        <li>
-                                <a class="variable" href="#ColumnInfo.name">name</a>
-                        </li>
-                        <li>
                                 <a class="variable" href="#ColumnInfo.column_name_from">column_name_from</a>
+                        </li>
+                        <li>
+                                <a class="variable" href="#ColumnInfo.dtype_from">dtype_from</a>
                         </li>
                 </ul>
 
@@ -1275,6 +1275,19 @@ ranges (e.g. <code>“A:E”</code> or <code>“A,C,E:F”</code>, which would r
 </div>
 
 
+                            <div id="ColumnInfo.name" class="classattr">
+                                <div class="attr variable">
+            <span class="name">name</span>
+
+        
+    </div>
+    <a class="headerlink" href="#ColumnInfo.name"></a>
+    
+            <div class="docstring"><p><code>str</code>. The name of the column</p>
+</div>
+
+
+                            </div>
                             <div id="ColumnInfo.dtype" class="classattr">
                                 <div class="attr variable">
             <span class="name">dtype</span>
@@ -1301,40 +1314,6 @@ ranges (e.g. <code>“A:E”</code> or <code>“A,C,E:F”</code>, which would r
 
 
                             </div>
-                            <div id="ColumnInfo.dtype_from" class="classattr">
-                                <div class="attr variable">
-            <span class="name">dtype_from</span>
-
-        
-    </div>
-    <a class="headerlink" href="#ColumnInfo.dtype_from"></a>
-    
-            <div class="docstring"><p><code><a href="#DTypeFrom">fastexcel.DTypeFrom</a></code>. How the dtype of the column was determined.</p>
-
-<p>One of three possible values:</p>
-
-<ul>
-<li><code>"provided_by_index"</code>: The dtype was specified via the column index</li>
-<li><code>"provided_by_name"</code>: The dtype was specified via the column name</li>
-<li><code>"guessed"</code>: The dtype was determined from the content of the column</li>
-</ul>
-</div>
-
-
-                            </div>
-                            <div id="ColumnInfo.name" class="classattr">
-                                <div class="attr variable">
-            <span class="name">name</span>
-
-        
-    </div>
-    <a class="headerlink" href="#ColumnInfo.name"></a>
-    
-            <div class="docstring"><p><code>str</code>. The name of the column</p>
-</div>
-
-
-                            </div>
                             <div id="ColumnInfo.column_name_from" class="classattr">
                                 <div class="attr variable">
             <span class="name">column_name_from</span>
@@ -1352,6 +1331,27 @@ ranges (e.g. <code>“A:E”</code> or <code>“A,C,E:F”</code>, which would r
 <li><code>"looked_up"</code>: The column name was looked up from the data found in the sheet</li>
 <li><code>"generated"</code>: The column name was generated from the column index, either because
 <code>header_row</code> was <code>None</code>, or because it could not be looked up</li>
+</ul>
+</div>
+
+
+                            </div>
+                            <div id="ColumnInfo.dtype_from" class="classattr">
+                                <div class="attr variable">
+            <span class="name">dtype_from</span>
+
+        
+    </div>
+    <a class="headerlink" href="#ColumnInfo.dtype_from"></a>
+    
+            <div class="docstring"><p><code><a href="#DTypeFrom">fastexcel.DTypeFrom</a></code>. How the dtype of the column was determined.</p>
+
+<p>One of three possible values:</p>
+
+<ul>
+<li><code>"provided_by_index"</code>: The dtype was specified via the column index</li>
+<li><code>"provided_by_name"</code>: The dtype was specified via the column name</li>
+<li><code>"guessed"</code>: The dtype was determined from the content of the column</li>
 </ul>
 </div>
 
