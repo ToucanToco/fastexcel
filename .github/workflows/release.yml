@@ -40,7 +40,6 @@ jobs:
       uses: messense/maturin-action@v1
       with:
         command: build
-        target: universal2-apple-darwin
         args: "--release -o dist --interpreter python${{ matrix.python-version }}"
         target: ${{ matrix.architecture == 'aarch64' && 'aarch64-apple-darwin' || null }}
     - name: Upload wheels
