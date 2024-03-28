@@ -30,8 +30,6 @@ use pyo3::{
     PyAny, PyResult, ToPyObject,
 };
 
-// use crate::utils::arrow::arrow_schema_from_column_names_and_range;
-
 use self::column_info::{ColumnInfo, ColumnInfoBuilder, ColumnNameFrom};
 
 #[derive(Debug)]
@@ -133,7 +131,7 @@ impl SelectedColumns {
                     .ok_or_else(|| {
                         FastExcelErrorKind::ColumnNotFound(selected_column.clone()).into()
                     })
-                    .map(Clone::clone)
+                    .cloned()
                     .with_context(|| format!("available columns are: {column_info:?}"))
                 })
                 .collect(),
