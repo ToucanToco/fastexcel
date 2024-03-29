@@ -326,9 +326,6 @@ impl ExcelSheet {
         selected_columns: SelectedColumns,
         dtypes: Option<DTypeMap>,
     ) -> FastExcelResult<Self> {
-        // Ensuring dtypes are compatible with selected columns
-        // Self::validate_dtypes_and_selected_columns(&selected_columns, &dtypes)?;
-
         let mut sheet = ExcelSheet {
             name,
             header,
@@ -344,7 +341,7 @@ impl ExcelSheet {
             selected_columns: Vec::with_capacity(0),
         };
 
-        let available_columns_info = sheet.get_available_columns_info();
+        let available_columns_info = sheet.get_available_columns_info(&selected_columns)?;
 
         let mut aliased_available_columns = Vec::with_capacity(available_columns_info.len());
 
@@ -379,10 +376,13 @@ impl ExcelSheet {
         Ok(sheet)
     }
 
-    fn get_available_columns_info(&self) -> Vec<ColumnInfoBuilder> {
+    fn get_available_columns_info(
+        &self,
+        selected_columns: &SelectedColumns,
+    ) -> FastExcelResult<Vec<ColumnInfoBuilder>> {
         let width = self.data.width();
         match &self.header {
-            Header::None => (0..width)
+            Header::None => Ok((0..width)
                 .map(|col_idx| {
                     ColumnInfoBuilder::new(
                         format!("__UNNAMED__{col_idx}"),
@@ -390,8 +390,8 @@ impl ExcelSheet {
                         ColumnNameFrom::Generated,
                     )
                 })
-                .collect(),
-            Header::At(row_idx) => (0..width)
+                .collect()),
+            Header::At(row_idx) => Ok((0..width)
                 .map(|col_idx| {
                     self.data
                         .get((*row_idx, col_idx))
@@ -407,23 +407,73 @@ impl ExcelSheet {
                             )
                         })
                 })
-                .collect(),
+                .collect()),
             Header::With(names) => {
-                let nameless_start_idx = names.len();
-                names
-                    .iter()
-                    .enumerate()
-                    .map(|(col_idx, name)| {
-                        ColumnInfoBuilder::new(name.to_owned(), col_idx, ColumnNameFrom::Provided)
-                    })
-                    .chain((nameless_start_idx..width).map(|col_idx| {
-                        ColumnInfoBuilder::new(
-                            format!("__UNNAMED__{col_idx}"),
-                            col_idx,
-                            ColumnNameFrom::Generated,
+                if let SelectedColumns::Selection(column_selection) = selected_columns {
+                    if column_selection.len() != names.len() {
+                        return Err(FastExcelErrorKind::InvalidParameters(
+                            "column_names and use_columns must have the same length".to_string(),
                         )
-                    }))
-                    .collect()
+                        .into());
+                    }
+                    let selected_indices = column_selection
+                        .iter()
+                        .map(|idx_or_name| {
+                            match idx_or_name {
+                        IdxOrName::Idx(idx) => Ok(*idx),
+                        IdxOrName::Name(name) => Err(FastExcelErrorKind::InvalidParameters(
+                            format!("use_columns can only contain integers when used with columns_names, got \"{name}\"")
+                        )
+                        .into()),
+                    }
+                        })
+                        .collect::<FastExcelResult<Vec<_>>>()?;
+
+                    Ok((0..width)
+                        .map(|col_idx| {
+                            let provided_name_opt = if let Some(pos_in_names) =
+                                selected_indices.iter().position(|idx| idx == &col_idx)
+                            {
+                                names.get(pos_in_names).cloned()
+                            } else {
+                                None
+                            };
+
+                            match provided_name_opt {
+                                Some(provided_name) => ColumnInfoBuilder::new(
+                                    provided_name,
+                                    col_idx,
+                                    ColumnNameFrom::Provided,
+                                ),
+                                None => ColumnInfoBuilder::new(
+                                    format!("__UNNAMED__{col_idx}"),
+                                    col_idx,
+                                    ColumnNameFrom::Generated,
+                                ),
+                            }
+                        })
+                        .collect())
+                } else {
+                    let nameless_start_idx = names.len();
+                    Ok(names
+                        .iter()
+                        .enumerate()
+                        .map(|(col_idx, name)| {
+                            ColumnInfoBuilder::new(
+                                name.to_owned(),
+                                col_idx,
+                                ColumnNameFrom::Provided,
+                            )
+                        })
+                        .chain((nameless_start_idx..width).map(|col_idx| {
+                            ColumnInfoBuilder::new(
+                                format!("__UNNAMED__{col_idx}"),
+                                col_idx,
+                                ColumnNameFrom::Generated,
+                            )
+                        }))
+                        .collect())
+                }
             }
         }
     }
