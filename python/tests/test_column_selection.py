@@ -240,24 +240,28 @@ def test_single_sheet_with_unnamed_columns_and_pagination_and_column_names(
     use_columns_idx = [0, 2, 3]
     expected: dict[str, list[Any]] = {
         "col0": [2.0, 3.0],
-        "col2": ["hello", "world"],
-        "col3": [-5.0, -6.0],
+        "col1": ["hello", "world"],
+        "col2": [-5.0, -6.0],
     }
-    column_names = [f"col{i}" for i in range(5)]
+    column_names = [f"col{i}" for i in range(3)]
+    expected_columns_names = ["col0", "__UNNAMED__1", "col1", "col2", "__UNNAMED__4"]
 
     # skipping the header row only
-    sheet = excel_reader_single_sheet_with_unnamed_columns.load_sheet(
-        "With unnamed columns", use_columns=use_columns_str, skip_rows=1, column_names=column_names
-    )
-    assert [col.name for col in sheet.available_columns] == column_names
-
-    pd_assert_frame_equal(sheet.to_pandas(), pd.DataFrame(expected))
-    pl_assert_frame_equal(sheet.to_polars(), pl.DataFrame(expected))
+    with pytest.raises(
+        fastexcel.InvalidParametersError,
+        match='use_columns can only contain integers when used with columns_names, got "col0"',
+    ):
+        excel_reader_single_sheet_with_unnamed_columns.load_sheet(
+            "With unnamed columns",
+            use_columns=use_columns_str,
+            skip_rows=1,
+            column_names=column_names,
+        )
 
     sheet = excel_reader_single_sheet_with_unnamed_columns.load_sheet(
         "With unnamed columns", use_columns=use_columns_idx, skip_rows=1, column_names=column_names
     )
-    assert [col.name for col in sheet.available_columns] == column_names
+    assert [col.name for col in sheet.available_columns] == expected_columns_names
 
     pd_assert_frame_equal(sheet.to_pandas(), pd.DataFrame(expected))
     pl_assert_frame_equal(sheet.to_polars(), pl.DataFrame(expected))
@@ -266,17 +270,9 @@ def test_single_sheet_with_unnamed_columns_and_pagination_and_column_names(
     expected_first_row_skipped = {k: v[1:] for k, v in expected.items()}
 
     sheet = excel_reader_single_sheet_with_unnamed_columns.load_sheet(
-        "With unnamed columns", use_columns=use_columns_str, skip_rows=2, column_names=column_names
-    )
-    assert [col.name for col in sheet.available_columns] == column_names
-
-    pd_assert_frame_equal(sheet.to_pandas(), pd.DataFrame(expected_first_row_skipped))
-    pl_assert_frame_equal(sheet.to_polars(), pl.DataFrame(expected_first_row_skipped))
-
-    sheet = excel_reader_single_sheet_with_unnamed_columns.load_sheet(
         "With unnamed columns", use_columns=use_columns_idx, skip_rows=2, column_names=column_names
     )
-    assert [col.name for col in sheet.available_columns] == column_names
+    assert [col.name for col in sheet.available_columns] == expected_columns_names
 
     pd_assert_frame_equal(sheet.to_pandas(), pd.DataFrame(expected_first_row_skipped))
     pl_assert_frame_equal(sheet.to_polars(), pl.DataFrame(expected_first_row_skipped))
