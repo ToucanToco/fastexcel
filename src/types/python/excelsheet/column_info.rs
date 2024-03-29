@@ -182,7 +182,7 @@ impl ColumnInfo {
     }
 
     pub fn __repr__(&self) -> String {
-        format!("ColumnInfo<name=\"{name}\", index={index}, dtype=\"{dtype}\", dtype_from=\"{dtype_from}\", column_name_from=\"{column_name_from}\" >", name=self.name, index=self.index, dtype=self.dtype.to_string(), dtype_from=self.dtype_from.to_string(), column_name_from=self.column_name_from.to_string())
+        format!("ColumnInfo(name=\"{name}\", index={index}, dtype=\"{dtype}\", dtype_from=\"{dtype_from}\", column_name_from=\"{column_name_from}\" )", name=self.name, index=self.index, dtype=self.dtype.to_string(), dtype_from=self.dtype_from.to_string(), column_name_from=self.column_name_from.to_string())
     }
 
     pub fn __eq__(&self, other: &Self) -> bool {
