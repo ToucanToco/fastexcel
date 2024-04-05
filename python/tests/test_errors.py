@@ -27,7 +27,7 @@ Context:
         fastexcel.read_excel("path_does_not_exist.nope")
 
 
-def test_sheet_not_found_error() -> None:
+def test_sheet_idx_not_found_error() -> None:
     excel_reader = fastexcel.read_excel(path_for_fixture("fixture-single-sheet.xlsx"))
     expected_message = """sheet at index 42 not found
 Context:
@@ -41,6 +41,18 @@ Context:
     # Should also work with the base error type
     with pytest.raises(fastexcel.FastExcelError, match=expected_message):
         excel_reader.load_sheet(42)
+
+
+def test_sheet_name_not_found_error() -> None:
+    excel_reader = fastexcel.read_excel(path_for_fixture("fixture-single-sheet.xlsx"))
+    expected_message = """sheet with name "idontexist" not found
+Context:
+    0: Sheet idontexist not found in file. Available sheets: January"""
+
+    with pytest.raises(fastexcel.SheetNotFoundError, match=expected_message) as exc_info:
+        excel_reader.load_sheet("idontexist")
+
+    assert exc_info.value.__doc__ == "Sheet was not found"
 
 
 @pytest.mark.parametrize(
