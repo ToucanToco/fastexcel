@@ -136,7 +136,7 @@ fn get_cell_dtype(data: &Range<CalData>, row: usize, col: usize) -> FastExcelRes
         CalData::DurationIso(_) => Ok(DType::Duration),
         // Errors and nulls
         CalData::Error(err) => match err {
-            CellErrorType::NA => Ok(DType::Null),
+            CellErrorType::NA | CellErrorType::Value | CellErrorType::Null => Ok(DType::Null),
             _ => Err(FastExcelErrorKind::CalamineCellError(err.to_owned()).into()),
         },
         CalData::Empty => Ok(DType::Null),
