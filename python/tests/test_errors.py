@@ -31,7 +31,7 @@ def test_sheet_idx_not_found_error() -> None:
     excel_reader = fastexcel.read_excel(path_for_fixture("fixture-single-sheet.xlsx"))
     expected_message = """sheet at index 42 not found
 Context:
-    0: Sheet index 42 is out of range. File has 1 sheets"""
+    0: Sheet index 42 is out of range. File has 1 sheets."""
 
     with pytest.raises(fastexcel.SheetNotFoundError, match=expected_message) as exc_info:
         excel_reader.load_sheet(42)
@@ -47,7 +47,7 @@ def test_sheet_name_not_found_error() -> None:
     excel_reader = fastexcel.read_excel(path_for_fixture("fixture-single-sheet.xlsx"))
     expected_message = """sheet with name "idontexist" not found
 Context:
-    0: Sheet idontexist not found in file. Available sheets: January"""
+    0: Sheet "idontexist" not found in file. Available sheets: "January"."""
 
     with pytest.raises(fastexcel.SheetNotFoundError, match=expected_message) as exc_info:
         excel_reader.load_sheet("idontexist")

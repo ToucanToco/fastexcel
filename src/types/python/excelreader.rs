@@ -149,9 +149,9 @@ impl ExcelReader {
                         Ok(name)
                     } else {
                         Err(FastExcelErrorKind::SheetNotFound(IdxOrName::Name(name.clone())).into()).with_context(||  {
-                            let available_sheets = self.sheet_names.join(", ");
+                            let available_sheets = self.sheet_names.iter().map(|s| format!("\"{s}\"")).collect::<Vec<_>>().join(", ");
                             format!(
-                                "Sheet {name} not found in file. Available sheets: {available_sheets}"
+                                "Sheet \"{name}\" not found in file. Available sheets: {available_sheets}."
                             )
                         })
                     }
@@ -162,7 +162,7 @@ impl ExcelReader {
                     .ok_or_else(|| FastExcelErrorKind::SheetNotFound(IdxOrName::Idx(idx)).into())
                     .with_context(|| {
                         format!(
-                            "Sheet index {idx} is out of range. File has {} sheets",
+                            "Sheet index {idx} is out of range. File has {} sheets.",
                             self.sheet_names.len()
                         )
                     })
