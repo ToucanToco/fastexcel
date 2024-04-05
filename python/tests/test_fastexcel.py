@@ -548,3 +548,21 @@ def test_null_strings(excel_file: str):
         pl.col("TIMESTAMPS_AND_NULLS").dt.cast_time_unit("ms"),
     )
     pl_assert_frame_equal(sheet.to_polars(), pl_df)
+
+
+def test_null_values_in_cells() -> None:
+    excel_reader = fastexcel.read_excel(path_for_fixture("fixture-invalid-cell-value.xlsx"))
+    sheet = excel_reader.load_sheet(0)
+
+    expected = {
+        "Title": ["A", "B", "C", "D"],
+        "Date": [None, None, datetime(2021, 1, 1), datetime(2021, 5, 5)],
+    }
+
+    pl_assert_frame_equal(
+        sheet.to_polars(),
+        pl.DataFrame(expected).with_columns(pl.col("Date").dt.cast_time_unit("ms")),
+    )
+    pd_expected = pd.DataFrame(expected)
+    pd_expected["Date"] = pd_expected["Date"].dt.as_unit("ms")
+    pd_assert_frame_equal(sheet.to_pandas(), pd_expected)
