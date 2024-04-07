@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+import sys
 from typing import TYPE_CHECKING, Literal
 
-from typing_extensions import TypeAlias
+if sys.version_info < (3, 10):
+    from typing_extensions import TypeAlias
+else:
+    from typing import TypeAlias
 
 if TYPE_CHECKING:
     import pandas as pd
