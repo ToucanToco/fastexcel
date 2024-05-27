@@ -5,9 +5,31 @@ from typing import Literal
 
 import pyarrow as pa
 
-_DType = Literal["null", "int", "float", "string", "boolean", "datetime", "date", "duration"]
+DType = Literal["null", "int", "float", "string", "boolean", "datetime", "date", "duration"]
+DTypeMap = dict[str | int, DType]
+ColumnNameFrom = Literal["provided", "looked_up", "generated"]
+DTypeFrom = Literal["provided_by_index", "provided_by_name", "guessed"]
 
-_DTypeMap = dict[str, _DType] | dict[int, _DType]
+class ColumnInfo:
+    def __init__(
+        self,
+        *,
+        name: str,
+        index: int,
+        column_name_from: ColumnNameFrom,
+        dtype: DType,
+        dtype_from: DTypeFrom,
+    ) -> None: ...
+    @property
+    def name(self) -> str: ...
+    @property
+    def index(self) -> int: ...
+    @property
+    def dtype(self) -> DType: ...
+    @property
+    def column_name_from(self) -> ColumnNameFrom: ...
+    @property
+    def dtype_from(self) -> DTypeFrom: ...
 
 class _ExcelSheet:
     @property
@@ -26,13 +48,13 @@ class _ExcelSheet:
     def offset(self) -> int:
         """The sheet's offset before data starts"""
     @property
-    def selected_columns(self) -> list[str] | list[int] | None:
+    def selected_columns(self) -> list[ColumnInfo]:
         """The sheet's selected columns"""
     @property
-    def available_columns(self) -> list[str]:
+    def available_columns(self) -> list[ColumnInfo]:
         """The columns available for the given sheet"""
     @property
-    def specified_dtypes(self) -> _DTypeMap | None:
+    def specified_dtypes(self) -> DTypeMap | None:
         """The dtypes specified for the sheet"""
     def to_arrow(self) -> pa.RecordBatch:
         """Converts the sheet to a pyarrow `RecordBatch`"""
@@ -51,7 +73,7 @@ class _ExcelReader:
         n_rows: int | None = None,
         schema_sample_rows: int | None = 1_000,
         use_columns: list[str] | list[int] | str | None = None,
-        dtypes: _DTypeMap | None = None,
+        dtypes: DTypeMap | None = None,
         eager: Literal[False] = ...,
     ) -> _ExcelSheet: ...
     @typing.overload
@@ -65,7 +87,7 @@ class _ExcelReader:
         n_rows: int | None = None,
         schema_sample_rows: int | None = 1_000,
         use_columns: list[str] | list[int] | str | None = None,
-        dtypes: _DTypeMap | None = None,
+        dtypes: DTypeMap | None = None,
         eager: Literal[True] = ...,
     ) -> pa.RecordBatch: ...
     @property

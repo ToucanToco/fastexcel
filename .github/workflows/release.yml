@@ -12,6 +12,7 @@ jobs:
     strategy:
       matrix:
         python-version: ["3.8"]
+        architecture: [x86-64, aarch64]
     steps:
     - uses: actions/checkout@v4
     - name: build (release)
@@ -20,10 +21,11 @@ jobs:
         manylinux: auto
         command: build
         args: "--release -o dist --interpreter python${{ matrix.python-version }}"
+        target: ${{ matrix.architecture == 'aarch64' && 'aarch64-unknown-linux-gnu' || null }}
     - name: Upload wheels
       uses: actions/upload-artifact@v4
       with:
-        name: "wheels-linux-python-${{ matrix.python-version }}"
+        name: "wheels-linux-python-${{ matrix.python-version }}-${{ matrix.architecture }}"
         path: dist
 
   macos:
@@ -31,24 +33,26 @@ jobs:
     strategy:
       matrix:
         python-version: ["3.8"]
+        architecture: [x86-64, aarch64]
     steps:
     - uses: actions/checkout@v4
     - name: build (release)
       uses: messense/maturin-action@v1
       with:
         command: build
-        target: universal2-apple-darwin
         args: "--release -o dist --interpreter python${{ matrix.python-version }}"
+        target: ${{ matrix.architecture == 'aarch64' && 'aarch64-apple-darwin' || null }}
     - name: Upload wheels
       uses: actions/upload-artifact@v4
       with:
-        name: "wheels-macos-python-${{ matrix.python-version }}"
+        name: "wheels-macos-python-${{ matrix.python-version }}-${{ matrix.architecture }}"
         path: dist
 
   windows:
     runs-on: windows-latest
     strategy:
       matrix:
+        # amd64 only for windows, as no arm64 runners are available
         python-version: ["3.8"]
     steps:
     - uses: actions/checkout@v4
@@ -67,18 +71,30 @@ jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
-    needs: [linux, macos]
+    needs: [linux, macos, windows]
     steps:
-    - name: Download Linux 3.8 wheels
+    - name: Download Linux 3.8 wheels for x86-64
       uses: actions/download-artifact@v4
       with:
-        name: "wheels-linux-python-3.8"
+        name: "wheels-linux-python-3.8-x86-64"
         path: wheels-linux
 
-    - name: Download MacOS 3.8 wheels
+    - name: Download Linux 3.8 wheels for aarch64
       uses: actions/download-artifact@v4
       with:
-        name: "wheels-macos-python-3.8"
+        name: "wheels-linux-python-3.8-aarch64"
+        path: wheels-linux
+
+    - name: Download MacOS 3.8 wheels for x86-64
+      uses: actions/download-artifact@v4
+      with:
+        name: "wheels-macos-python-3.8-x86-64"
+        path: wheels-macos
+
+    - name: Download MacOS 3.8 wheels for aarch64
+      uses: actions/download-artifact@v4
+      with:
+        name: "wheels-macos-python-3.8-aarch64"
         path: wheels-macos
 
     - name: Download Windows 3.8 wheels
@@ -96,7 +112,7 @@ jobs:
         args: "--skip-existing wheels-linux/*.whl wheels-macos/*.whl wheels-windows/*.whl"
 
     - name: Release
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v2
       with:
         generate_release_notes: true
         files: |

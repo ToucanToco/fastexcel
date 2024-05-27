@@ -7,6 +7,8 @@ use arrow::{pyarrow::ToPyArrow, record_batch::RecordBatch};
 use calamine::{
     open_workbook_auto, open_workbook_auto_from_rs, Data, DataRef, Range, Reader, Sheets,
 };
+use calamine::{open_workbook_auto, open_workbook_auto_from_rs, Data, Range, Reader, Sheets};
+use calamine::{open_workbook_auto, open_workbook_auto_from_rs, Data, Range, Reader, Sheets};
 use pyo3::{prelude::PyObject, pyclass, pymethods, types::PyDict, IntoPy, PyAny, PyResult, Python};
 
 use crate::{
@@ -139,6 +141,10 @@ impl ExcelReader {
         record_batch_from_data_and_schema(schema, data, offset, limit)
     }
 
+    fn build_selected_columns(use_columns: Option<&PyAny>) -> FastExcelResult<SelectedColumns> {
+        use_columns.try_into().with_context(|| format!("expected selected columns to be list[str] | list[int] | str | None, got {use_columns:?}"))
+    }
+
     #[allow(clippy::too_many_arguments)]
     fn build_sheet(
         &mut self,
@@ -149,7 +155,7 @@ impl ExcelReader {
         n_rows: Option<usize>,
         schema_sample_rows: Option<usize>,
         use_columns: Option<&PyAny>,
-        dtypes: Option<&PyDict>,
+        dtypes: Option<DTypeMap>,
         eager: bool,
         py: Python<'_>,
     ) -> PyResult<PyObject> {
@@ -237,21 +243,32 @@ impl ExcelReader {
         n_rows: Option<usize>,
         schema_sample_rows: Option<usize>,
         use_columns: Option<&PyAny>,
-        dtypes: Option<&PyDict>,
+        dtypes: Option<DTypeMap>,
         eager: bool,
         py: Python<'_>,
     ) -> PyResult<PyObject> {
         let name = idx_or_name
             .try_into()
             .and_then(|idx_or_name| match idx_or_name {
-                IdxOrName::Name(name) => Ok(name),
+                IdxOrName::Name(name) => {
+                    if self.sheet_names.contains(&name) {
+                        Ok(name)
+                    } else {
+                        Err(FastExcelErrorKind::SheetNotFound(IdxOrName::Name(name.clone())).into()).with_context(||  {
+                            let available_sheets = self.sheet_names.iter().map(|s| format!("\"{s}\"")).collect::<Vec<_>>().join(", ");
+                            format!(
+                                "Sheet \"{name}\" not found in file. Available sheets: {available_sheets}."
+                            )
+                        })
+                    }
+                }
                 IdxOrName::Idx(idx) => self
                     .sheet_names
                     .get(idx)
                     .ok_or_else(|| FastExcelErrorKind::SheetNotFound(IdxOrName::Idx(idx)).into())
                     .with_context(|| {
                         format!(
-                            "Sheet index {idx} is out of range. File has {} sheets",
+                            "Sheet index {idx} is out of range. File has {} sheets.",
                             self.sheet_names.len()
                         )
                     })

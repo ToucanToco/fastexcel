@@ -1,6 +1,6 @@
 [package]
 name = "fastexcel"
-version = "0.9.1"
+version = "0.10.4"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -9,21 +9,20 @@ name = "fastexcel"
 crate-type = ["cdylib"]
 
 [dependencies]
-# calamine = { version = "0.24.0", features = ["dates"] }
-calamine = { git = "https://github.com/lukapeschke/calamine", branch = "master", features = ["dates"] }
-chrono = { version = "0.4.35", default-features = false }
+calamine = { version = "0.25.0", features = ["dates"] }
+chrono = { version = "0.4.38", default-features = false }
 # NOTE: "extension-module" is actually required, see comments on features below
 pyo3 = { version = "0.20.3", features = ["abi3-py38"] }
 
 [dependencies.arrow]
-version = "50.0.0"
+version = "51.0.0"
 # There's a lot of stuff we don't want here, such as serde support
 default-features = false
 features = ["pyarrow"]
 
 [dev-dependencies]
 pretty_assertions = "1.4.0"
-rstest = { version = "0.18.2", default-features = false }
+rstest = { version = "0.19.0", default-features = false }
 
 # NOTE: This is a hack to bypass pyo3 limitations when testing:
 # https://pyo3.rs/v0.20.3/faq.html#i-cant-run-cargo-test-or-i-cant-build-in-a-cargo-workspace-im-having-linker-issues-like-symbol-not-found-or-undefined-reference-to-_pyexc_systemerror
