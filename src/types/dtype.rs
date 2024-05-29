@@ -192,7 +192,6 @@ pub(crate) fn get_dtype_for_column<DT: CellType + Debug + DataType>(
     end_row: usize,
     col: usize,
 ) -> FastExcelResult<DType> {
-    dbg!(data, start_row, end_row, col);
     let mut column_types = (start_row..end_row)
         .map(|row| get_cell_dtype(data, row, col))
         .collect::<FastExcelResult<HashSet<_>>>()?;
