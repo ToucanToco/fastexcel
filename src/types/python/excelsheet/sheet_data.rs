@@ -3,6 +3,11 @@ use std::sync::Arc;
 use arrow::array::Array;
 use calamine::{Data as CalData, DataRef as CalDataRef, DataType, Range};
 
+use crate::{
+    error::FastExcelResult,
+    types::dtype::{get_dtype_for_column, DType},
+};
+
 pub(crate) enum ExcelSheetData<'r> {
     Owned(Range<CalData>),
     Ref(Range<CalDataRef<'r>>),
@@ -27,6 +32,18 @@ impl ExcelSheetData<'_> {
         match self {
             ExcelSheetData::Owned(range) => range.get(pos).and_then(|data| data.as_string()),
             ExcelSheetData::Ref(range) => range.get(pos).and_then(|data| data.as_string()),
+        }
+    }
+
+    pub(crate) fn dtype_for_column(
+        &self,
+        start_row: usize,
+        end_row: usize,
+        col: usize,
+    ) -> FastExcelResult<DType> {
+        match self {
+            ExcelSheetData::Owned(data) => get_dtype_for_column(data, start_row, end_row, col),
+            ExcelSheetData::Ref(data) => get_dtype_for_column(data, start_row, end_row, col),
         }
     }
 }

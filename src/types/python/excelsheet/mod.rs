@@ -16,11 +16,8 @@ use crate::{
 use sheet_data::ExcelSheetData;
 
 use arrow::{
-    array::{
-        Array, BooleanArray, Date32Array, DurationMillisecondArray, Float64Array, Int64Array,
-        NullArray, StringArray, TimestampMillisecondArray,
-    },
-    datatypes::{DataType as ArrowDataType, Schema, TimeUnit},
+    array::NullArray,
+    datatypes::{DataType as ArrowDataType, Field, Schema, TimeUnit},
     pyarrow::ToPyArrow,
     record_batch::RecordBatch,
 };
@@ -31,11 +28,9 @@ use pyo3::{
     PyAny, PyResult, ToPyObject,
 };
 
-use crate::utils::{
-    arrow::arrow_schema_from_column_names_and_range, schema::get_schema_sample_rows,
-};
+use crate::utils::schema::get_schema_sample_rows;
 
-use self::column_info::{ColumnInfo, ColumnInfoBuilder, ColumnNameFrom};
+use self::column_info::{build_available_columns, build_available_columns_info, ColumnInfo};
 use self::sheet_data::{
     create_boolean_array, create_date_array, create_datetime_array, create_duration_array,
     create_float_array, create_int_array, create_string_array,
@@ -150,6 +145,7 @@ impl SelectedColumns {
                 .collect(),
         }
     }
+
     const ALPHABET: [char; 26] = [
         'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R',
         'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
@@ -289,25 +285,6 @@ impl TryFrom<Option<&PyAny>> for SelectedColumns {
     }
 }
 
-fn alias_for_name(name: &str, existing_names: &[String]) -> String {
-    fn rec(name: &str, existing_names: &[String], depth: usize) -> String {
-        let alias = if depth == 0 {
-            name.to_owned()
-        } else {
-            format!("{name}_{depth}")
-        };
-        match existing_names
-            .iter()
-            .any(|existing_name| existing_name == &alias)
-        {
-            true => rec(name, existing_names, depth + 1),
-            false => alias,
-        }
-    }
-
-    rec(name, existing_names, 0)
-}
-
 #[pyclass(name = "_ExcelSheet")]
 pub(crate) struct ExcelSheet {
     #[pyo3(get)]
@@ -325,32 +302,6 @@ pub(crate) struct ExcelSheet {
     dtypes: Option<DTypeMap>,
 }
 
-pub(crate) fn sheet_column_names_from_header_and_range(
-    header: &Header,
-    data: &ExcelSheetData,
-) -> Vec<String> {
-    let width = data.width();
-    match header {
-        Header::None => (0..width)
-            .map(|col_idx| format!("__UNNAMED__{col_idx}"))
-            .collect(),
-        Header::At(row_idx) => (0..width)
-            .map(|col_idx| {
-                data.get_as_string((*row_idx, col_idx))
-                    .unwrap_or(format!("__UNNAMED__{col_idx}"))
-            })
-            .collect(),
-        Header::With(names) => {
-            let nameless_start_idx = names.len();
-            names
-                .iter()
-                .map(ToOwned::to_owned)
-                .chain((nameless_start_idx..width).map(|col_idx| format!("__UNNAMED__{col_idx}")))
-                .collect()
-        }
-    }
-}
-
 impl ExcelSheet {
     pub(crate) fn data(&self) -> &ExcelSheetData<'_> {
         &self.data
@@ -365,6 +316,8 @@ impl ExcelSheet {
         selected_columns: SelectedColumns,
         dtypes: Option<DTypeMap>,
     ) -> FastExcelResult<Self> {
+        let available_columns_info =
+            build_available_columns_info(&data, &selected_columns, &header)?;
         let mut sheet = ExcelSheet {
             name,
             header,
@@ -380,141 +333,23 @@ impl ExcelSheet {
             selected_columns: Vec::with_capacity(0),
         };
 
-        let available_columns_info = sheet.get_available_columns_info(&selected_columns)?;
-
-        let mut aliased_available_columns = Vec::with_capacity(available_columns_info.len());
-
-        let dtype_sample_rows =
-            sheet.offset() + sheet.schema_sample_rows().unwrap_or(sheet.limit());
-        let row_limit = cmp::min(dtype_sample_rows, sheet.limit());
+        let row_limit = sheet.schema_sample_rows();
 
         // Finalizing column info
-        let available_columns = available_columns_info
-            .into_iter()
-            .map(|mut column_info_builder| {
-                // Setting the right alias for every column
-                let alias = alias_for_name(column_info_builder.name(), &aliased_available_columns);
-                if alias != column_info_builder.name() {
-                    column_info_builder = column_info_builder.with_name(alias.clone());
-                }
-                aliased_available_columns.push(alias);
-                // Setting the dtype info
-                column_info_builder.finish(
-                    &sheet.data,
-                    sheet.offset(),
-                    row_limit,
-                    sheet.dtypes.as_ref(),
-                )
-            })
-            .collect::<FastExcelResult<Vec<_>>>()?;
+        let available_columns = build_available_columns(
+            available_columns_info,
+            &sheet.data,
+            sheet.offset(),
+            row_limit,
+            sheet.dtypes.as_ref(),
+        )?;
+
         let selected_columns = selected_columns.select_columns(&available_columns)?;
         sheet.available_columns = available_columns;
         sheet.selected_columns = selected_columns;
 
         // Figure out dtype for every column
         Ok(sheet)
-    }
-
-    fn get_available_columns_info(
-        &self,
-        selected_columns: &SelectedColumns,
-    ) -> FastExcelResult<Vec<ColumnInfoBuilder>> {
-        let width = self.data.width();
-        match &self.header {
-            Header::None => Ok((0..width)
-                .map(|col_idx| {
-                    ColumnInfoBuilder::new(
-                        format!("__UNNAMED__{col_idx}"),
-                        col_idx,
-                        ColumnNameFrom::Generated,
-                    )
-                })
-                .collect()),
-            Header::At(row_idx) => Ok((0..width)
-                .map(|col_idx| {
-                    self.data
-                        .get((*row_idx, col_idx))
-                        .and_then(|data| data.as_string())
-                        .map(|col_name| {
-                            ColumnInfoBuilder::new(col_name, col_idx, ColumnNameFrom::LookedUp)
-                        })
-                        .unwrap_or_else(|| {
-                            ColumnInfoBuilder::new(
-                                format!("__UNNAMED__{col_idx}"),
-                                col_idx,
-                                ColumnNameFrom::Generated,
-                            )
-                        })
-                })
-                .collect()),
-            Header::With(names) => {
-                if let SelectedColumns::Selection(column_selection) = selected_columns {
-                    if column_selection.len() != names.len() {
-                        return Err(FastExcelErrorKind::InvalidParameters(
-                            "column_names and use_columns must have the same length".to_string(),
-                        )
-                        .into());
-                    }
-                    let selected_indices = column_selection
-                        .iter()
-                        .map(|idx_or_name| {
-                            match idx_or_name {
-                        IdxOrName::Idx(idx) => Ok(*idx),
-                        IdxOrName::Name(name) => Err(FastExcelErrorKind::InvalidParameters(
-                            format!("use_columns can only contain integers when used with columns_names, got \"{name}\"")
-                        )
-                        .into()),
-                    }
-                        })
-                        .collect::<FastExcelResult<Vec<_>>>()?;
-
-                    Ok((0..width)
-                        .map(|col_idx| {
-                            let provided_name_opt = if let Some(pos_in_names) =
-                                selected_indices.iter().position(|idx| idx == &col_idx)
-                            {
-                                names.get(pos_in_names).cloned()
-                            } else {
-                                None
-                            };
-
-                            match provided_name_opt {
-                                Some(provided_name) => ColumnInfoBuilder::new(
-                                    provided_name,
-                                    col_idx,
-                                    ColumnNameFrom::Provided,
-                                ),
-                                None => ColumnInfoBuilder::new(
-                                    format!("__UNNAMED__{col_idx}"),
-                                    col_idx,
-                                    ColumnNameFrom::Generated,
-                                ),
-                            }
-                        })
-                        .collect())
-                } else {
-                    let nameless_start_idx = names.len();
-                    Ok(names
-                        .iter()
-                        .enumerate()
-                        .map(|(col_idx, name)| {
-                            ColumnInfoBuilder::new(
-                                name.to_owned(),
-                                col_idx,
-                                ColumnNameFrom::Provided,
-                            )
-                        })
-                        .chain((nameless_start_idx..width).map(|col_idx| {
-                            ColumnInfoBuilder::new(
-                                format!("__UNNAMED__{col_idx}"),
-                                col_idx,
-                                ColumnNameFrom::Generated,
-                            )
-                        }))
-                        .collect())
-                }
-            }
-        }
     }
 
     pub(crate) fn limit(&self) -> usize {
@@ -534,18 +369,14 @@ impl ExcelSheet {
     }
 }
 
-impl TryFrom<&ExcelSheet> for Schema {
-    type Error = FastExcelError;
-
-    fn try_from(sheet: &ExcelSheet) -> Result<Self, Self::Error> {
-        arrow_schema_from_column_names_and_range(
-            sheet.data(),
-            &sheet.available_columns,
-            sheet.offset(),
-            sheet.schema_sample_rows(),
-            &sheet.selected_columns,
-            sheet.dtypes.as_ref(),
-        )
+impl From<&ExcelSheet> for Schema {
+    fn from(sheet: &ExcelSheet) -> Self {
+        let fields: Vec<_> = sheet
+            .selected_columns
+            .iter()
+            .map(Into::<Field>::into)
+            .collect();
+        Schema::new(fields)
     }
 }
 

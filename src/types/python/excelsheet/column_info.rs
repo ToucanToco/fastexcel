@@ -1,6 +1,6 @@
 use std::{str::FromStr, usize};
 
-use calamine::{Data as CalData, Range};
+use arrow::datatypes::Field;
 use pyo3::{pyclass, pymethods, PyResult};
 
 use crate::{
@@ -8,10 +8,12 @@ use crate::{
         py_errors::IntoPyResult, ErrorContext, FastExcelError, FastExcelErrorKind, FastExcelResult,
     },
     types::{
-        dtype::{get_dtype_for_column, DType, DTypeMap},
+        dtype::{DType, DTypeMap},
         idx_or_name::IdxOrName,
     },
 };
+
+use super::{sheet_data::ExcelSheetData, Header, SelectedColumns};
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum ColumnNameFrom {
@@ -127,6 +129,12 @@ impl ColumnInfo {
     }
 }
 
+impl From<&ColumnInfo> for Field {
+    fn from(col_info: &ColumnInfo) -> Self {
+        Field::new(col_info.name(), col_info.dtype().into(), true)
+    }
+}
+
 #[pymethods]
 impl ColumnInfo {
     /// Creates a new ColumnInfo object.
@@ -191,7 +199,7 @@ impl ColumnInfo {
 }
 
 #[derive(Debug)]
-pub(super) struct ColumnInfoBuilder {
+pub(crate) struct ColumnInfoBuilder {
     name: String,
     index: usize,
     column_name_from: ColumnNameFrom,
@@ -227,7 +235,7 @@ impl ColumnInfoBuilder {
 
     fn dtype_info(
         &self,
-        data: &Range<CalData>,
+        data: &ExcelSheetData<'_>,
         start_row: usize,
         end_row: usize,
         specified_dtypes: Option<&DTypeMap>,
@@ -247,14 +255,14 @@ impl ColumnInfoBuilder {
             .map(FastExcelResult::Ok)
             // If we could not look up a dtype, guess it from the data
             .unwrap_or_else(|| {
-                get_dtype_for_column(data, start_row, end_row, self.index)
+                data.dtype_for_column(start_row, end_row, self.index)
                     .map(|dtype| (dtype, DTypeFrom::Guessed))
             })
     }
 
     pub(super) fn finish(
         self,
-        data: &Range<CalData>,
+        data: &ExcelSheetData<'_>,
         start_row: usize,
         end_row: usize,
         specified_dtypes: Option<&DTypeMap>,
@@ -270,4 +278,145 @@ impl ColumnInfoBuilder {
             dtype_from,
         ))
     }
+}
+
+pub(crate) fn build_available_columns_info(
+    data: &ExcelSheetData<'_>,
+    selected_columns: &SelectedColumns,
+    header: &Header,
+) -> FastExcelResult<Vec<ColumnInfoBuilder>> {
+    let width = data.width();
+    match header {
+        Header::None => Ok((0..width)
+            .map(|col_idx| {
+                ColumnInfoBuilder::new(
+                    format!("__UNNAMED__{col_idx}"),
+                    col_idx,
+                    ColumnNameFrom::Generated,
+                )
+            })
+            .collect()),
+        Header::At(row_idx) => Ok((0..width)
+            .map(|col_idx| {
+                data.get_as_string((*row_idx, col_idx))
+                    .map(|col_name| {
+                        ColumnInfoBuilder::new(col_name, col_idx, ColumnNameFrom::LookedUp)
+                    })
+                    .unwrap_or_else(|| {
+                        ColumnInfoBuilder::new(
+                            format!("__UNNAMED__{col_idx}"),
+                            col_idx,
+                            ColumnNameFrom::Generated,
+                        )
+                    })
+            })
+            .collect()),
+        Header::With(names) => {
+            if let SelectedColumns::Selection(column_selection) = selected_columns {
+                if column_selection.len() != names.len() {
+                    return Err(FastExcelErrorKind::InvalidParameters(
+                        "column_names and use_columns must have the same length".to_string(),
+                    )
+                    .into());
+                }
+                let selected_indices = column_selection
+                        .iter()
+                        .map(|idx_or_name| {
+                            match idx_or_name {
+                        IdxOrName::Idx(idx) => Ok(*idx),
+                        IdxOrName::Name(name) => Err(FastExcelErrorKind::InvalidParameters(
+                            format!("use_columns can only contain integers when used with columns_names, got \"{name}\"")
+                        )
+                        .into()),
+                    }
+                        })
+                        .collect::<FastExcelResult<Vec<_>>>()?;
+
+                Ok((0..width)
+                    .map(|col_idx| {
+                        let provided_name_opt = if let Some(pos_in_names) =
+                            selected_indices.iter().position(|idx| idx == &col_idx)
+                        {
+                            names.get(pos_in_names).cloned()
+                        } else {
+                            None
+                        };
+
+                        match provided_name_opt {
+                            Some(provided_name) => ColumnInfoBuilder::new(
+                                provided_name,
+                                col_idx,
+                                ColumnNameFrom::Provided,
+                            ),
+                            None => ColumnInfoBuilder::new(
+                                format!("__UNNAMED__{col_idx}"),
+                                col_idx,
+                                ColumnNameFrom::Generated,
+                            ),
+                        }
+                    })
+                    .collect())
+            } else {
+                let nameless_start_idx = names.len();
+                Ok(names
+                    .iter()
+                    .enumerate()
+                    .map(|(col_idx, name)| {
+                        ColumnInfoBuilder::new(name.to_owned(), col_idx, ColumnNameFrom::Provided)
+                    })
+                    .chain((nameless_start_idx..width).map(|col_idx| {
+                        ColumnInfoBuilder::new(
+                            format!("__UNNAMED__{col_idx}"),
+                            col_idx,
+                            ColumnNameFrom::Generated,
+                        )
+                    }))
+                    .collect())
+            }
+        }
+    }
+}
+
+fn alias_for_name(name: &str, existing_names: &[String]) -> String {
+    #[inline]
+    fn rec(name: &str, existing_names: &[String], depth: usize) -> String {
+        let alias = if depth == 0 {
+            name.to_owned()
+        } else {
+            format!("{name}_{depth}")
+        };
+        match existing_names
+            .iter()
+            .any(|existing_name| existing_name == &alias)
+        {
+            true => rec(name, existing_names, depth + 1),
+            false => alias,
+        }
+    }
+
+    rec(name, existing_names, 0)
+}
+
+pub(crate) fn build_available_columns(
+    available_columns_info: Vec<ColumnInfoBuilder>,
+    data: &ExcelSheetData,
+    start_row: usize,
+    end_row: usize,
+    specified_dtypes: Option<&DTypeMap>,
+) -> FastExcelResult<Vec<ColumnInfo>> {
+    let mut aliased_available_columns = Vec::with_capacity(available_columns_info.len());
+
+    available_columns_info
+        .into_iter()
+        .map(|mut column_info_builder| {
+            // Setting the right alias for every column
+            let alias = alias_for_name(column_info_builder.name(), &aliased_available_columns);
+            if alias != column_info_builder.name() {
+                column_info_builder = column_info_builder.with_name(alias.clone());
+            }
+            aliased_available_columns.push(alias);
+            // Setting the dtype info
+            column_info_builder.finish(data, start_row, end_row, specified_dtypes)
+        })
+        .collect()
 }

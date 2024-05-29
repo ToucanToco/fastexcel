@@ -3,13 +3,15 @@ use std::{
     io::{BufReader, Cursor},
 };
 
-use arrow::{pyarrow::ToPyArrow, record_batch::RecordBatch};
+use arrow::{
+    datatypes::{Field, Schema},
+    pyarrow::ToPyArrow,
+    record_batch::RecordBatch,
+};
 use calamine::{
     open_workbook_auto, open_workbook_auto_from_rs, Data, DataRef, Range, Reader, Sheets,
 };
-use calamine::{open_workbook_auto, open_workbook_auto_from_rs, Data, Range, Reader, Sheets};
-use calamine::{open_workbook_auto, open_workbook_auto_from_rs, Data, Range, Reader, Sheets};
-use pyo3::{prelude::PyObject, pyclass, pymethods, types::PyDict, IntoPy, PyAny, PyResult, Python};
+use pyo3::{prelude::PyObject, pyclass, pymethods, IntoPy, PyAny, PyResult, Python};
 
 use crate::{
     error::{
@@ -18,12 +20,12 @@ use crate::{
     types::{dtype::DTypeMap, idx_or_name::IdxOrName},
 };
 
-use crate::utils::arrow::arrow_schema_from_column_names_and_range;
 use crate::utils::schema::get_schema_sample_rows;
 
-use super::excelsheet::sheet_data::ExcelSheetData;
+use super::excelsheet::record_batch_from_data_and_schema;
 use super::excelsheet::{
-    record_batch_from_data_and_schema, sheet_column_names_from_header_and_range,
+    column_info::{build_available_columns, build_available_columns_info},
+    sheet_data::ExcelSheetData,
 };
 use super::excelsheet::{ExcelSheet, Header, Pagination, SelectedColumns};
 
@@ -97,14 +99,6 @@ impl ExcelReader {
         })
     }
 
-    fn build_dtypes(raw_dtypes: Option<&PyDict>) -> FastExcelResult<Option<DTypeMap>> {
-        match raw_dtypes {
-            None => Ok(None),
-            Some(py_dict) => py_dict.try_into().map(Some),
-        }
-        .with_context(|| "could not parse provided dtypes")
-    }
-
     fn load_sheet_eager(
         data: &ExcelSheetData,
         pagination: Pagination,
@@ -113,8 +107,6 @@ impl ExcelReader {
         selected_columns: &SelectedColumns,
         dtypes: Option<&DTypeMap>,
     ) -> FastExcelResult<RecordBatch> {
-        let column_names = sheet_column_names_from_header_and_range(&header, data);
-
         let offset = header.offset() + pagination.offset();
         let limit = {
             let upper_bound = data.height();
@@ -126,23 +118,25 @@ impl ExcelReader {
             }
         };
 
-        let schema_sample_rows = get_schema_sample_rows(sample_rows, offset, limit);
+        let sample_rows_limit = get_schema_sample_rows(sample_rows, offset, limit);
+        let available_columns_info = build_available_columns_info(data, selected_columns, &header)?;
 
-        let schema = arrow_schema_from_column_names_and_range(
+        let available_columns = build_available_columns(
+            available_columns_info,
             data,
-            &column_names,
             offset,
-            schema_sample_rows,
-            selected_columns,
+            sample_rows_limit,
             dtypes,
-        )
-        .with_context(|| "could not build arrow schema")?;
+        )?;
+
+        let fields = available_columns
+            .iter()
+            .map(Into::<Field>::into)
+            .collect::<Vec<_>>();
+
+        let schema = Schema::new(fields);
 
         record_batch_from_data_and_schema(schema, data, offset, limit)
-    }
-
-    fn build_selected_columns(use_columns: Option<&PyAny>) -> FastExcelResult<SelectedColumns> {
-        use_columns.try_into().with_context(|| format!("expected selected columns to be list[str] | list[int] | str | None, got {use_columns:?}"))
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -161,7 +155,6 @@ impl ExcelReader {
     ) -> PyResult<PyObject> {
         let header = Header::new(header_row, column_names);
         let selected_columns = Self::build_selected_columns(use_columns).into_pyresult()?;
-        let dtypes = Self::build_dtypes(dtypes).into_pyresult()?;
         if eager && self.sheets.supports_by_ref() {
             let range = self.sheets.worksheet_range_ref(&name).into_pyresult()?;
             let pagination = Pagination::new(skip_rows, n_rows, &range).into_pyresult()?;
