@@ -1,6 +1,6 @@
 use std::{
     collections::{HashMap, HashSet},
-    fmt::Debug,
+    fmt::{Debug, Display},
     str::FromStr,
     sync::OnceLock,
 };
@@ -46,9 +46,9 @@ impl FromStr for DType {
     }
 }
 
-impl ToString for DType {
-    fn to_string(&self) -> String {
-        match self {
+impl Display for DType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
             DType::Null => "null",
             DType::Int => "int",
             DType::Float => "float",
@@ -57,8 +57,7 @@ impl ToString for DType {
             DType::DateTime => "datetime",
             DType::Date => "date",
             DType::Duration => "duration",
-        }
-        .to_string()
+        })
     }
 }
 

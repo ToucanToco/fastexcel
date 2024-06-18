@@ -1,4 +1,4 @@
-use std::{str::FromStr, usize};
+use std::{fmt::Display, str::FromStr};
 
 use arrow::datatypes::Field;
 use pyo3::{pyclass, pymethods, PyResult};
@@ -38,14 +38,13 @@ impl FromStr for ColumnNameFrom {
     }
 }
 
-impl ToString for ColumnNameFrom {
-    fn to_string(&self) -> String {
-        match self {
+impl Display for ColumnNameFrom {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
             ColumnNameFrom::Provided => "provided",
             ColumnNameFrom::LookedUp => "looked_up",
             ColumnNameFrom::Generated => "generated",
-        }
-        .to_string()
+        })
     }
 }
 
@@ -56,14 +55,13 @@ pub(crate) enum DTypeFrom {
     Guessed,
 }
 
-impl ToString for DTypeFrom {
-    fn to_string(&self) -> String {
-        match self {
+impl Display for DTypeFrom {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
             DTypeFrom::ProvidedByIndex => "provided_by_index",
             DTypeFrom::ProvidedByName => "provided_by_name",
             DTypeFrom::Guessed => "guessed",
-        }
-        .to_string()
+        })
     }
 }
 
@@ -190,7 +188,7 @@ impl ColumnInfo {
     }
 
     pub fn __repr__(&self) -> String {
-        format!("ColumnInfo(name=\"{name}\", index={index}, dtype=\"{dtype}\", dtype_from=\"{dtype_from}\", column_name_from=\"{column_name_from}\" )", name=self.name, index=self.index, dtype=self.dtype.to_string(), dtype_from=self.dtype_from.to_string(), column_name_from=self.column_name_from.to_string())
+        format!("ColumnInfo(name=\"{name}\", index={index}, dtype=\"{dtype}\", dtype_from=\"{dtype_from}\", column_name_from=\"{column_name_from}\" )", name=self.name, index=self.index, dtype=self.dtype, dtype_from=self.dtype_from, column_name_from=self.column_name_from)
     }
 
     pub fn __eq__(&self, other: &Self) -> bool {
