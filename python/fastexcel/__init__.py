@@ -130,7 +130,7 @@ class ExcelReader:
         schema_sample_rows: int | None = 1_000,
         use_columns: list[str] | list[int] | str | None = None,
         dtypes: DTypeMap | None = None,
-    ) -> ExcelSheet | pa.RecordBatch:
+    ) -> ExcelSheet:
         """Loads a sheet by index or name.
 
         :param idx_or_name: The index (starting at 0) or the name of the sheet to load.
