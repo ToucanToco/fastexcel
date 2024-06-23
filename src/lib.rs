@@ -8,7 +8,7 @@ use types::python::{excelsheet::column_info::ColumnInfo, ExcelReader, ExcelSheet
 
 /// Reads an excel file and returns an object allowing to access its sheets and a bit of metadata
 #[pyfunction]
-fn read_excel(source: &PyAny) -> PyResult<ExcelReader> {
+fn read_excel(source: &Bound<'_, PyAny>) -> PyResult<ExcelReader> {
     use py_errors::IntoPyResult;
 
     if let Ok(path) = source.extract::<&PyString>() {
@@ -40,7 +40,8 @@ fn get_version() -> String {
 }
 
 #[pymodule]
-fn _fastexcel(py: Python, m: &PyModule) -> PyResult<()> {
+fn _fastexcel(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    let py = m.py();
     m.add_function(wrap_pyfunction!(read_excel, m)?)?;
     m.add_class::<ColumnInfo>()?;
     m.add_class::<ExcelSheet>()?;
@@ -49,32 +50,38 @@ fn _fastexcel(py: Python, m: &PyModule) -> PyResult<()> {
 
     // errors
     [
-        ("FastExcelError", py.get_type::<py_errors::FastExcelError>()),
+        (
+            "FastExcelError",
+            py.get_type_bound::<py_errors::FastExcelError>(),
+        ),
         (
             "UnsupportedColumnTypeCombinationError",
-            py.get_type::<py_errors::UnsupportedColumnTypeCombinationError>(),
+            py.get_type_bound::<py_errors::UnsupportedColumnTypeCombinationError>(),
         ),
         (
             "CannotRetrieveCellDataError",
-            py.get_type::<py_errors::CannotRetrieveCellDataError>(),
+            py.get_type_bound::<py_errors::CannotRetrieveCellDataError>(),
         ),
         (
             "CalamineCellError",
-            py.get_type::<py_errors::CalamineCellError>(),
+            py.get_type_bound::<py_errors::CalamineCellError>(),
         ),
-        ("CalamineError", py.get_type::<py_errors::CalamineError>()),
+        (
+            "CalamineError",
+            py.get_type_bound::<py_errors::CalamineError>(),
+        ),
         (
             "SheetNotFoundError",
-            py.get_type::<py_errors::SheetNotFoundError>(),
+            py.get_type_bound::<py_errors::SheetNotFoundError>(),
         ),
         (
             "ColumnNotFoundError",
-            py.get_type::<py_errors::ColumnNotFoundError>(),
+            py.get_type_bound::<py_errors::ColumnNotFoundError>(),
         ),
-        ("ArrowError", py.get_type::<py_errors::ArrowError>()),
+        ("ArrowError", py.get_type_bound::<py_errors::ArrowError>()),
         (
             "InvalidParametersError",
-            py.get_type::<py_errors::InvalidParametersError>(),
+            py.get_type_bound::<py_errors::InvalidParametersError>(),
         ),
     ]
     .into_iter()
