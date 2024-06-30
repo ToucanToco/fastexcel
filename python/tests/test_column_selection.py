@@ -1,3 +1,4 @@
+# ruff: noqa: E501
 from __future__ import annotations
 
 import re
@@ -307,7 +308,7 @@ def test_single_sheet_invalid_column_indices_negative_integer(
     expected_message = """invalid parameters: expected list[int] | list[str], got [-2]
 Context:
     0: could not determine selected columns from provided object: [-2]
-    1: expected selected columns to be list[str] | list[int] | str | None, got Some([-2])
+    1: expected selected columns to be list[str] | list[int] | str | Callable[[ColumnInfo], bool] | None, got Some([-2])
 """
     with pytest.raises(fastexcel.InvalidParametersError, match=re.escape(expected_message)):
         excel_reader_single_sheet_with_unnamed_columns.load_sheet(0, use_columns=[-2])
@@ -319,7 +320,7 @@ def test_single_sheet_invalid_column_indices_empty_list(
     expected_message = """invalid parameters: list of selected columns is empty
 Context:
     0: could not determine selected columns from provided object: []
-    1: expected selected columns to be list[str] | list[int] | str | None, got Some([])
+    1: expected selected columns to be list[str] | list[int] | str | Callable[[ColumnInfo], bool] | None, got Some([])
 """
     with pytest.raises(fastexcel.InvalidParametersError, match=re.escape(expected_message)):
         excel_reader_single_sheet_with_unnamed_columns.load_sheet(0, use_columns=[])
@@ -411,3 +412,44 @@ def test_use_columns_with_column_names() -> None:
             pl.col("dates_renamed").str.strptime(pl.Datetime, "%F %T").dt.cast_time_unit("ms")
         ),
     )
+
+
+def test_use_columns_with_callable() -> None:
+    excel_reader = fastexcel.read_excel(path_for_fixture("fixture-multi-sheet.xlsx"))
+
+    sheet = excel_reader.load_sheet(2)
+    assert [(c.name, c.dtype) for c in sheet.available_columns] == [
+        ("col1", "float"),
+        ("__UNNAMED__1", "float"),
+        ("col3", "string"),
+        ("__UNNAMED__3", "float"),
+        ("col5", "string"),
+    ]
+
+    sheet = excel_reader.load_sheet(
+        2,
+        use_columns=lambda col: col.name.startswith("col"),
+    )
+    assert [(c.name, c.dtype) for c in sheet.available_columns] == [
+        ("col1", "float"),
+        ("col3", "string"),
+        ("col5", "string"),
+    ]
+
+    sheet = excel_reader.load_sheet(
+        2,
+        use_columns=lambda col: col.index % 2 == 1,
+    )
+    assert [(c.name, c.dtype) for c in sheet.available_columns] == [
+        ("__UNNAMED__1", "float"),
+        ("__UNNAMED__3", "float"),
+    ]
+
+    sheet = excel_reader.load_sheet(
+        2,
+        use_columns=lambda col: col.dtype == "string",
+    )
+    assert [(c.name, c.dtype) for c in sheet.available_columns] == [
+        ("col3", "string"),
+        ("col5", "string"),
+    ]

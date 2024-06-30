@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import sys
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Callable, Literal
 
 if sys.version_info < (3, 10):
     from typing_extensions import TypeAlias
@@ -128,7 +128,7 @@ class ExcelReader:
         skip_rows: int = 0,
         n_rows: int | None = None,
         schema_sample_rows: int | None = 1_000,
-        use_columns: list[str] | list[int] | str | None = None,
+        use_columns: list[str] | list[int] | str | Callable[[ColumnInfo], bool] | None = None,
         dtypes: DTypeMap | None = None,
     ) -> ExcelSheet:
         """Loads a sheet by index or name.
@@ -153,6 +153,8 @@ class ExcelReader:
                             - A string, a comma separated list of Excel column letters and column
                               ranges (e.g. `“A:E”` or `“A,C,E:F”`, which would result in
                               `A,B,C,D,E` and `A,C,E,F`)
+                            - A callable, a function that takes a column and returns a boolean
+                              indicating whether the column should be used
         :param dtypes: An optional dict of dtypes. Keys can be column indices or names
         """
         return ExcelSheet(
@@ -177,7 +179,7 @@ class ExcelReader:
         skip_rows: int = 0,
         n_rows: int | None = None,
         schema_sample_rows: int | None = 1_000,
-        use_columns: list[str] | list[int] | str | None = None,
+        use_columns: list[str] | list[int] | str | Callable[[ColumnInfo], bool] | None = None,
         dtypes: DTypeMap | None = None,
     ) -> ExcelSheet:
         """Loads a sheet by name.
@@ -206,7 +208,7 @@ class ExcelReader:
         skip_rows: int = 0,
         n_rows: int | None = None,
         schema_sample_rows: int | None = 1_000,
-        use_columns: list[str] | list[int] | str | None = None,
+        use_columns: list[str] | list[int] | str | Callable[[ColumnInfo], bool] | None = None,
         dtypes: DTypeMap | None = None,
     ) -> ExcelSheet:
         """Loads a sheet by index.

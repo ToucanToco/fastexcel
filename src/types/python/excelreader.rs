@@ -63,7 +63,7 @@ impl ExcelReader {
     }
 
     fn build_selected_columns(use_columns: Option<&PyAny>) -> FastExcelResult<SelectedColumns> {
-        use_columns.try_into().with_context(|| format!("expected selected columns to be list[str] | list[int] | str | None, got {use_columns:?}"))
+        use_columns.try_into().with_context(|| format!("expected selected columns to be list[str] | list[int] | str | Callable[[ColumnInfo], bool] | None, got {use_columns:?}"))
     }
 
     #[allow(clippy::too_many_arguments)]

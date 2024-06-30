@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Literal
+from typing import Callable, Literal
 
 import pyarrow as pa
 
@@ -70,7 +70,7 @@ class _ExcelReader:
         skip_rows: int = 0,
         n_rows: int | None = None,
         schema_sample_rows: int | None = 1_000,
-        use_columns: list[str] | list[int] | str | None = None,
+        use_columns: list[str] | list[int] | str | Callable[[ColumnInfo], bool] | None = None,
         dtypes: DTypeMap | None = None,
     ) -> _ExcelSheet: ...
     @property
