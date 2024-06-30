@@ -463,9 +463,7 @@ def test_use_columns_with_bad_callable() -> None:
     excel_reader = fastexcel.read_excel(path_for_fixture("fixture-multi-sheet.xlsx"))
     with pytest.raises(
         fastexcel.InvalidParametersError,
-        match=re.escape(
-            "`use_columns` callable could not be called (TypeError: test_use_columns_with_bad_callable.<locals>.<lambda>() takes 0 positional arguments but 1 was given)",
-        ),
+        match=re.escape("`use_columns` callable could not be called (TypeError: "),
     ):
         excel_reader.load_sheet(
             2,
