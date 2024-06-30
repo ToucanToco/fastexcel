@@ -418,19 +418,23 @@ def test_use_columns_with_callable() -> None:
     excel_reader = fastexcel.read_excel(path_for_fixture("fixture-multi-sheet.xlsx"))
 
     sheet = excel_reader.load_sheet(2)
-    assert [(c.name, c.dtype) for c in sheet.available_columns] == [
-        ("col1", "float"),
-        ("__UNNAMED__1", "float"),
-        ("col3", "string"),
-        ("__UNNAMED__3", "float"),
-        ("col5", "string"),
-    ]
+    assert (
+        [(c.name, c.dtype) for c in sheet.available_columns]
+        == [(c.name, c.dtype) for c in sheet.selected_columns]
+        == [
+            ("col1", "float"),
+            ("__UNNAMED__1", "float"),
+            ("col3", "string"),
+            ("__UNNAMED__3", "float"),
+            ("col5", "string"),
+        ]
+    )
 
     sheet = excel_reader.load_sheet(
         2,
         use_columns=lambda col: col.name.startswith("col"),
     )
-    assert [(c.name, c.dtype) for c in sheet.available_columns] == [
+    assert [(c.name, c.dtype) for c in sheet.selected_columns] == [
         ("col1", "float"),
         ("col3", "string"),
         ("col5", "string"),
@@ -440,7 +444,7 @@ def test_use_columns_with_callable() -> None:
         2,
         use_columns=lambda col: col.index % 2 == 1,
     )
-    assert [(c.name, c.dtype) for c in sheet.available_columns] == [
+    assert [(c.name, c.dtype) for c in sheet.selected_columns] == [
         ("__UNNAMED__1", "float"),
         ("__UNNAMED__3", "float"),
     ]
@@ -449,7 +453,29 @@ def test_use_columns_with_callable() -> None:
         2,
         use_columns=lambda col: col.dtype == "string",
     )
-    assert [(c.name, c.dtype) for c in sheet.available_columns] == [
+    assert [(c.name, c.dtype) for c in sheet.selected_columns] == [
         ("col3", "string"),
         ("col5", "string"),
     ]
+
+
+def test_use_columns_with_bad_callable() -> None:
+    excel_reader = fastexcel.read_excel(path_for_fixture("fixture-multi-sheet.xlsx"))
+    with pytest.raises(
+        fastexcel.InvalidParametersError,
+        match=re.escape(
+            "`use_columns` callable could not be called (TypeError: test_use_columns_with_bad_callable.<locals>.<lambda>() takes 0 positional arguments but 1 was given)",
+        ),
+    ):
+        excel_reader.load_sheet(
+            2,
+            use_columns=lambda: True,  # type: ignore
+        )
+
+    with pytest.raises(
+        fastexcel.InvalidParametersError, match="`use_columns` callable should return a boolean"
+    ):
+        excel_reader.load_sheet(
+            2,
+            use_columns=lambda _: 42,  # type: ignore
+        )
