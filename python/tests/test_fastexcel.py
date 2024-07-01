@@ -477,6 +477,20 @@ def test_sheet_with_na():
     pl_assert_frame_equal(sheet.to_polars(), pl.DataFrame(expected))
 
 
+def test_sheet_with_ref():
+    """Test reading a sheet with #REF! cells. For now, we consider them as null"""
+    excel_reader = fastexcel.read_excel(path_for_fixture("sheet-with-na.xlsx"))
+    sheet = excel_reader.load_sheet("Broken refs")
+
+    assert sheet.name == "Broken refs"
+    assert sheet.height == sheet.total_height == 2
+    assert sheet.width == 1
+
+    expected = {"numbers": [1.0, None]}
+    pd_assert_frame_equal(sheet.to_pandas(), pd.DataFrame(expected))
+    pl_assert_frame_equal(sheet.to_polars(), pl.DataFrame(expected))
+
+
 @pytest.mark.parametrize("excel_file", ["sheet-null-strings.xlsx", "sheet-null-strings-empty.xlsx"])
 def test_null_strings(excel_file: str):
     excel_reader = fastexcel.read_excel(path_for_fixture(excel_file))
