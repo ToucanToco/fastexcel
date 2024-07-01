@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import typing
 from typing import Literal
 
 import pyarrow as pa
@@ -61,6 +62,7 @@ class _ExcelSheet:
 class _ExcelReader:
     """A class representing an open Excel file and allowing to read its sheets"""
 
+    @typing.overload
     def load_sheet(
         self,
         idx_or_name: str | int,
@@ -72,7 +74,22 @@ class _ExcelReader:
         schema_sample_rows: int | None = 1_000,
         use_columns: list[str] | list[int] | str | None = None,
         dtypes: DTypeMap | None = None,
+        eager: Literal[False] = ...,
     ) -> _ExcelSheet: ...
+    @typing.overload
+    def load_sheet(
+        self,
+        idx_or_name: str | int,
+        *,
+        header_row: int | None = 0,
+        column_names: list[str] | None = None,
+        skip_rows: int = 0,
+        n_rows: int | None = None,
+        schema_sample_rows: int | None = 1_000,
+        use_columns: list[str] | list[int] | str | None = None,
+        dtypes: DTypeMap | None = None,
+        eager: Literal[True] = ...,
+    ) -> pa.RecordBatch: ...
     @property
     def sheet_names(self) -> list[str]: ...
 
