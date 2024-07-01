@@ -131,7 +131,7 @@ class ExcelReader:
         use_columns: list[str] | list[int] | str | Callable[[ColumnInfo], bool] | None = None,
         dtypes: DTypeMap | None = None,
     ) -> ExcelSheet:
-        """Loads a sheet by index or name.
+        """Loads a sheet lazily by index or name.
 
         :param idx_or_name: The index (starting at 0) or the name of the sheet to load.
         :param header_row: The index of the row containing the column labels, default index is 0.
@@ -167,7 +167,39 @@ class ExcelReader:
                 schema_sample_rows=schema_sample_rows,
                 use_columns=use_columns,
                 dtypes=dtypes,
+                eager=False,
             )
+        )
+
+    def load_sheet_eager(
+        self,
+        idx_or_name: int | str,
+        *,
+        header_row: int | None = 0,
+        column_names: list[str] | None = None,
+        skip_rows: int = 0,
+        n_rows: int | None = None,
+        schema_sample_rows: int | None = 1_000,
+        use_columns: list[str] | list[int] | str | None = None,
+        dtypes: DTypeMap | None = None,
+    ) -> pa.RecordBatch:
+        """Loads a sheet eagerly by index or name.
+
+        For xlsx files, this will be faster and more memory-efficient, as it will use
+        `worksheet_range_ref` under the hood, which returns borrowed types.
+
+        Refer to `load_sheet` for parameter documentation
+        """
+        return self._reader.load_sheet(
+            idx_or_name=idx_or_name,
+            header_row=header_row,
+            column_names=column_names,
+            skip_rows=skip_rows,
+            n_rows=n_rows,
+            schema_sample_rows=schema_sample_rows,
+            use_columns=use_columns,
+            dtypes=dtypes,
+            eager=True,
         )
 
     def load_sheet_by_name(
@@ -186,17 +218,15 @@ class ExcelReader:
 
         Refer to `load_sheet` for parameter documentation
         """
-        return ExcelSheet(
-            self._reader.load_sheet(
-                name,
-                header_row=header_row,
-                column_names=column_names,
-                skip_rows=skip_rows,
-                n_rows=n_rows,
-                schema_sample_rows=schema_sample_rows,
-                use_columns=use_columns,
-                dtypes=dtypes,
-            )
+        return self.load_sheet(
+            name,
+            header_row=header_row,
+            column_names=column_names,
+            skip_rows=skip_rows,
+            n_rows=n_rows,
+            schema_sample_rows=schema_sample_rows,
+            use_columns=use_columns,
+            dtypes=dtypes,
         )
 
     def load_sheet_by_idx(
@@ -215,17 +245,15 @@ class ExcelReader:
 
         Refer to `load_sheet` for parameter documentation
         """
-        return ExcelSheet(
-            self._reader.load_sheet(
-                idx,
-                header_row=header_row,
-                column_names=column_names,
-                skip_rows=skip_rows,
-                n_rows=n_rows,
-                schema_sample_rows=schema_sample_rows,
-                use_columns=use_columns,
-                dtypes=dtypes,
-            )
+        return self.load_sheet(
+            idx,
+            header_row=header_row,
+            column_names=column_names,
+            skip_rows=skip_rows,
+            n_rows=n_rows,
+            schema_sample_rows=schema_sample_rows,
+            use_columns=use_columns,
+            dtypes=dtypes,
         )
 
     def __repr__(self) -> str:

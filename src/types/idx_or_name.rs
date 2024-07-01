@@ -1,4 +1,6 @@
-use pyo3::{FromPyObject, PyAny, PyObject, PyResult, Python, ToPyObject};
+use pyo3::{
+    prelude::PyAnyMethods, Bound, FromPyObject, PyAny, PyObject, PyResult, Python, ToPyObject,
+};
 
 use crate::error::{py_errors::IntoPyResult, FastExcelError, FastExcelErrorKind, FastExcelResult};
 
@@ -17,10 +19,10 @@ impl IdxOrName {
     }
 }
 
-impl TryFrom<&PyAny> for IdxOrName {
+impl TryFrom<&Bound<'_, PyAny>> for IdxOrName {
     type Error = FastExcelError;
 
-    fn try_from(value: &PyAny) -> FastExcelResult<Self> {
+    fn try_from(value: &Bound<'_, PyAny>) -> FastExcelResult<Self> {
         if let Ok(index) = value.extract() {
             Ok(Self::Idx(index))
         } else if let Ok(name) = value.extract() {
@@ -35,8 +37,8 @@ impl TryFrom<&PyAny> for IdxOrName {
 }
 
 impl FromPyObject<'_> for IdxOrName {
-    fn extract(value: &PyAny) -> PyResult<Self> {
-        value.try_into().into_pyresult()
+    fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<Self> {
+        ob.try_into().into_pyresult()
     }
 }
 

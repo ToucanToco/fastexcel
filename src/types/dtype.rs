@@ -1,12 +1,16 @@
 use std::{
     collections::{HashMap, HashSet},
+    fmt::{Debug, Display},
     str::FromStr,
     sync::OnceLock,
 };
 
 use arrow::datatypes::{DataType as ArrowDataType, TimeUnit};
-use calamine::{CellErrorType, Data as CalData, DataType, Range};
-use pyo3::{FromPyObject, PyAny, PyObject, PyResult, Python, ToPyObject};
+use calamine::{CellErrorType, CellType, DataType, Range};
+use pyo3::{
+    prelude::PyAnyMethods, types::PyString, Bound, FromPyObject, PyAny, PyObject, PyResult, Python,
+    ToPyObject,
+};
 
 use crate::error::{py_errors::IntoPyResult, FastExcelError, FastExcelErrorKind, FastExcelResult};
 
@@ -45,9 +49,9 @@ impl FromStr for DType {
     }
 }
 
-impl ToString for DType {
-    fn to_string(&self) -> String {
-        match self {
+impl Display for DType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
             DType::Null => "null",
             DType::Int => "int",
             DType::Float => "float",
@@ -56,8 +60,7 @@ impl ToString for DType {
             DType::DateTime => "datetime",
             DType::Date => "date",
             DType::Duration => "duration",
-        }
-        .to_string()
+        })
     }
 }
 
@@ -68,9 +71,9 @@ impl ToPyObject for DType {
 }
 
 impl FromPyObject<'_> for DType {
-    fn extract(py_dtype: &PyAny) -> PyResult<Self> {
-        if let Ok(dtype_str) = py_dtype.extract::<&str>() {
-            dtype_str.parse()
+    fn extract_bound(py_dtype: &Bound<'_, PyAny>) -> PyResult<Self> {
+        if let Ok(dtype_pystr) = py_dtype.extract::<&PyString>() {
+            dtype_pystr.to_str()?.parse()
         } else {
             Err(FastExcelErrorKind::InvalidParameters(format!(
                 "{py_dtype:?} cannot be converted to str"
@@ -104,42 +107,68 @@ const NULL_STRING_VALUES: [&str; 19] = [
     "<NA>", "N/A", "NA", "NULL", "NaN", "None", "n/a", "nan", "null",
 ];
 
-fn get_cell_dtype(data: &Range<CalData>, row: usize, col: usize) -> FastExcelResult<DType> {
+fn get_cell_dtype<DT: CellType + Debug + DataType>(
+    data: &Range<DT>,
+    row: usize,
+    col: usize,
+) -> FastExcelResult<DType> {
     let cell = data
         .get((row, col))
         .ok_or_else(|| FastExcelErrorKind::CannotRetrieveCellData(row, col))?;
 
-    match cell {
-        CalData::Int(_) => Ok(DType::Int),
-        CalData::Float(_) => Ok(DType::Float),
-        CalData::String(v) => match v {
-            v if NULL_STRING_VALUES.contains(&v.as_str()) => Ok(DType::Null),
-            _ => Ok(DType::String),
-        },
-        CalData::Bool(_) => Ok(DType::Bool),
+    if cell.is_int() {
+        Ok(DType::Int)
+    } else if cell.is_float() {
+        Ok(DType::Float)
+    } else if cell.is_string() {
+        if NULL_STRING_VALUES.contains(&cell.get_string().unwrap()) {
+            Ok(DType::Null)
+        } else {
+            Ok(DType::String)
+        }
+    } else if cell.is_bool() {
+        Ok(DType::Bool)
+    } else if cell.is_datetime() {
         // Since calamine 0.24.0, a new ExcelDateTime exists for the Datetime type. It can either be
         // a duration or a datatime
-        CalData::DateTime(excel_datetime) => Ok(if excel_datetime.is_datetime() {
+        let excel_datetime = cell
+            .get_datetime()
+            .expect("calamine indicated that cell is a datetime but get_datetime returned None");
+        Ok(if excel_datetime.is_datetime() {
             DType::DateTime
         } else {
             DType::Duration
-        }),
-        // These types contain an ISO8601 representation of a date/datetime or a duration
-        CalData::DateTimeIso(_) => match cell.as_datetime() {
-            Some(_) => Ok(DType::DateTime),
+        })
+    }
+    // These types contain an ISO8601 representation of a date/datetime or a durat
+    else if cell.is_datetime_iso() {
+        match cell.as_datetime() {
             // If we cannot convert the cell to a datetime, we're working on a date
+            Some(_) => Ok(DType::DateTime),
             // NOTE: not using the Date64 type on purpose, as pyarrow converts it to a datetime
             // rather than a date
             None => Ok(DType::Date),
-        },
-        // A simple duration
-        CalData::DurationIso(_) => Ok(DType::Duration),
-        // Errors and nulls
-        CalData::Error(err) => match err {
-            CellErrorType::NA | CellErrorType::Value | CellErrorType::Null => Ok(DType::Null),
-            _ => Err(FastExcelErrorKind::CalamineCellError(err.to_owned()).into()),
-        },
-        CalData::Empty => Ok(DType::Null),
+        }
+    }
+    // Simple durations
+    else if cell.is_duration_iso() {
+        Ok(DType::Duration)
+    }
+    // Empty cell
+    else if cell.is_empty() {
+        Ok(DType::Null)
+    } else if cell.is_error() {
+        match cell.get_error() {
+            // considering cells with #N/A! as null
+            Some(CellErrorType::NA | CellErrorType::Value | CellErrorType::Null) => Ok(DType::Null),
+            Some(err) => Err(FastExcelErrorKind::CalamineCellError(err.to_owned()).into()),
+            None => Err(FastExcelErrorKind::Internal(format!(
+                "cell is an error but get_error returned None: {cell:?}"
+            ))
+            .into()),
+        }
+    } else {
+        Err(FastExcelErrorKind::Internal(format!("unsupported cell type: {cell:?}")).into())
     }
 }
 
@@ -159,8 +188,8 @@ fn string_types() -> &'static HashSet<DType> {
     STRING_TYPES_CELL.get_or_init(|| HashSet::from([DType::Int, DType::Float, DType::String]))
 }
 
-pub(crate) fn get_dtype_for_column(
-    data: &Range<CalData>,
+pub(crate) fn get_dtype_for_column<DT: CellType + Debug + DataType>(
+    data: &Range<DT>,
     start_row: usize,
     end_row: usize,
     col: usize,
@@ -198,7 +227,7 @@ pub(crate) fn get_dtype_for_column(
 
 #[cfg(test)]
 mod tests {
-    use calamine::Cell;
+    use calamine::{Cell, Data as CalData};
     use rstest::{fixture, rstest};
 
     use super::*;
