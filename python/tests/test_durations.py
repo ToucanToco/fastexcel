@@ -7,10 +7,10 @@ import numpy as np
 import pandas as pd
 import polars as pl
 from pandas.testing import assert_frame_equal as pd_assert_frame_equal
+from polars.datatypes import DataType as PolarsDataType
 from polars.datatypes import Date as PlDate
 from polars.datatypes import Datetime as PlDateTime
 from polars.datatypes import Duration as PlDuration
-from polars.datatypes import PolarsDataType
 from polars.datatypes import Utf8 as PlUtf8
 from polars.testing import assert_frame_equal as pl_assert_frame_equal
 from utils import path_for_fixture
@@ -32,8 +32,8 @@ def test_sheet_with_different_time_types() -> None:
         "datetime": np.dtype("datetime64[ms]"),
     }
     expected_pl_dtypes: dict[str, PolarsDataType] = {
-        "date": PlDate,
-        "datestr": PlUtf8,
+        "date": PlDate(),
+        "datestr": PlUtf8(),
         "time": PlDuration(time_unit="ms"),
         "datetime": PlDateTime(time_unit="ms", time_zone=None),
     }
