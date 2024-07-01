@@ -2,18 +2,8 @@ pub(crate) mod column_info;
 pub(crate) mod sheet_data;
 
 use calamine::{CellType, Range};
-use std::{cmp, collections::HashSet, fmt::Debug, str::FromStr, sync::Arc};
-
-use crate::{
-    error::{
-        py_errors::IntoPyResult, ErrorContext, FastExcelError, FastExcelErrorKind, FastExcelResult,
-    },
-    types::{
-        dtype::{DType, DTypeMap},
-        idx_or_name::IdxOrName,
-    },
-};
 use sheet_data::ExcelSheetData;
+use std::{cmp, collections::HashSet, fmt::Debug, str::FromStr, sync::Arc};
 
 use arrow::{
     array::NullArray,
@@ -23,12 +13,21 @@ use arrow::{
 };
 
 use pyo3::{
-    prelude::{pyclass, pymethods, PyObject, Python},
+    prelude::{pyclass, pymethods, PyAnyMethods, Python},
     types::{PyList, PyString},
-    PyAny, PyResult, ToPyObject,
+    Bound, PyAny, PyObject, PyResult, ToPyObject,
 };
 
 use crate::utils::schema::get_schema_sample_rows;
+use crate::{
+    error::{
+        py_errors::IntoPyResult, ErrorContext, FastExcelError, FastExcelErrorKind, FastExcelResult,
+    },
+    types::{
+        dtype::{DType, DTypeMap},
+        idx_or_name::IdxOrName,
+    },
+};
 
 use self::column_info::{build_available_columns, build_available_columns_info, ColumnInfo};
 use self::sheet_data::{
@@ -93,13 +92,16 @@ impl Pagination {
         self.n_rows
     }
 }
-impl TryFrom<&PyList> for SelectedColumns {
+
+impl TryFrom<&Bound<'_, PyList>> for SelectedColumns {
     type Error = FastExcelError;
 
-    fn try_from(py_list: &PyList) -> FastExcelResult<Self> {
+    fn try_from(py_list: &Bound<'_, PyList>) -> FastExcelResult<Self> {
         use FastExcelErrorKind::InvalidParameters;
 
-        if py_list.is_empty() {
+        if py_list.is_empty().map_err(|err| {
+            FastExcelErrorKind::InvalidParameters(format!("invalid list object: {err}"))
+        })? {
             Err(InvalidParameters("list of selected columns is empty".to_string()).into())
         } else if let Ok(selection) = py_list.extract::<Vec<IdxOrName>>() {
             Ok(Self::Selection(selection))
@@ -250,16 +252,16 @@ impl FromStr for SelectedColumns {
     }
 }
 
-impl TryFrom<Option<&PyAny>> for SelectedColumns {
+impl TryFrom<Option<&Bound<'_, PyAny>>> for SelectedColumns {
     type Error = FastExcelError;
 
-    fn try_from(py_any_opt: Option<&PyAny>) -> FastExcelResult<Self> {
+    fn try_from(py_any_opt: Option<&Bound<'_, PyAny>>) -> FastExcelResult<Self> {
         match py_any_opt {
             None => Ok(Self::All),
             Some(py_any) => {
                 // Not trying to downcast to PyNone here as we assume that this would result in
                 // py_any_opt being None
-                if let Ok(py_str) = py_any.downcast::<PyString>() {
+                if let Ok(py_str) = py_any.extract::<&PyString>() {
                     py_str
                         .to_str()
                         .map_err(|err| {
@@ -550,6 +552,7 @@ impl ExcelSheet {
 mod tests {
     use super::*;
     use pretty_assertions::assert_eq;
+    use pyo3::prelude::PyListMethods;
     use rstest::rstest;
 
     #[test]
@@ -563,9 +566,9 @@ mod tests {
     #[test]
     fn selected_columns_from_list_of_valid_ints() {
         Python::with_gil(|py| {
-            let py_list = PyList::new(py, vec![0, 1, 2]).as_ref();
+            let py_list = PyList::new_bound(py, vec![0, 1, 2]);
             assert_eq!(
-                TryInto::<SelectedColumns>::try_into(Some(py_list)).unwrap(),
+                TryInto::<SelectedColumns>::try_into(Some(py_list.as_ref())).unwrap(),
                 SelectedColumns::Selection([0, 1, 2].into_iter().map(IdxOrName::Idx).collect())
             )
         });
@@ -574,9 +577,9 @@ mod tests {
     #[test]
     fn selected_columns_from_list_of_valid_strings() {
         Python::with_gil(|py| {
-            let py_list = PyList::new(py, vec!["foo", "bar"]).as_ref();
+            let py_list = PyList::new_bound(py, vec!["foo", "bar"]);
             assert_eq!(
-                TryInto::<SelectedColumns>::try_into(Some(py_list)).unwrap(),
+                TryInto::<SelectedColumns>::try_into(Some(py_list.as_ref())).unwrap(),
                 SelectedColumns::Selection(
                     ["foo", "bar"]
                         .iter()
@@ -591,7 +594,7 @@ mod tests {
     #[test]
     fn selected_columns_from_list_of_valid_strings_and_ints() {
         Python::with_gil(|py| {
-            let py_list = PyList::new(py, vec!["foo", "bar"]);
+            let py_list = PyList::new_bound(py, vec!["foo", "bar"]);
             py_list.append(42).unwrap();
             py_list.append(5).unwrap();
             assert_eq!(
@@ -609,8 +612,8 @@ mod tests {
     #[test]
     fn selected_columns_from_invalid_ints() {
         Python::with_gil(|py| {
-            let py_list = PyList::new(py, vec![0, 2, -1]).as_ref();
-            let err = TryInto::<SelectedColumns>::try_into(Some(py_list)).unwrap_err();
+            let py_list = PyList::new_bound(py, vec![0, 2, -1]);
+            let err = TryInto::<SelectedColumns>::try_into(Some(py_list.as_ref())).unwrap_err();
 
             assert!(matches!(err.kind, FastExcelErrorKind::InvalidParameters(_)));
         });
@@ -619,8 +622,8 @@ mod tests {
     #[test]
     fn selected_columns_from_empty_int_list() {
         Python::with_gil(|py| {
-            let py_list = PyList::new(py, Vec::<usize>::new()).as_ref();
-            let err = TryInto::<SelectedColumns>::try_into(Some(py_list)).unwrap_err();
+            let py_list = PyList::new_bound(py, Vec::<usize>::new());
+            let err = TryInto::<SelectedColumns>::try_into(Some(py_list.as_ref())).unwrap_err();
 
             assert!(matches!(err.kind, FastExcelErrorKind::InvalidParameters(_)));
         });
@@ -629,8 +632,8 @@ mod tests {
     #[test]
     fn selected_columns_from_empty_string_list() {
         Python::with_gil(|py| {
-            let py_list = PyList::new(py, Vec::<String>::new()).as_ref();
-            let err = TryInto::<SelectedColumns>::try_into(Some(py_list)).unwrap_err();
+            let py_list = PyList::new_bound(py, Vec::<String>::new());
+            let err = TryInto::<SelectedColumns>::try_into(Some(py_list.as_ref())).unwrap_err();
 
             assert!(matches!(err.kind, FastExcelErrorKind::InvalidParameters(_)));
         });
@@ -651,9 +654,9 @@ mod tests {
             let expected_range = SelectedColumns::Selection(
                 expected_indices.into_iter().map(IdxOrName::Idx).collect(),
             );
-            let input = PyString::new(py, raw).as_ref();
+            let input = PyString::new_bound(py, raw);
 
-            let range = TryInto::<SelectedColumns>::try_into(Some(input))
+            let range = TryInto::<SelectedColumns>::try_into(Some(input.as_ref()))
                 .expect("expected a valid column selection");
 
             assert_eq!(range, expected_range)
@@ -675,10 +678,10 @@ mod tests {
     #[case("a:b:e", "exactly 2 elements, got 3")]
     fn selected_columns_from_invalid_ranges(#[case] raw: &str, #[case] message: &str) {
         Python::with_gil(|py| {
-            let input = PyString::new(py, raw).as_ref();
+            let input = PyString::new_bound(py, raw);
 
-            let err =
-                TryInto::<SelectedColumns>::try_into(Some(input)).expect_err("expected an error");
+            let err = TryInto::<SelectedColumns>::try_into(Some(input.as_ref()))
+                .expect_err("expected an error");
 
             match err.kind {
                 FastExcelErrorKind::InvalidParameters(detail) => {
