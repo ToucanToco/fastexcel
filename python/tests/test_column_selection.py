@@ -1,3 +1,4 @@
+# ruff: noqa: E501
 from __future__ import annotations
 
 import re
@@ -307,7 +308,7 @@ def test_single_sheet_invalid_column_indices_negative_integer(
     expected_message = """invalid parameters: expected list[int] | list[str], got [-2]
 Context:
     0: could not determine selected columns from provided object: [-2]
-    1: expected selected columns to be list[str] | list[int] | str | None, got Some([-2])
+    1: expected selected columns to be list[str] | list[int] | str | Callable[[ColumnInfo], bool] | None, got Some([-2])
 """
     with pytest.raises(fastexcel.InvalidParametersError, match=re.escape(expected_message)):
         excel_reader_single_sheet_with_unnamed_columns.load_sheet(0, use_columns=[-2])
@@ -319,7 +320,7 @@ def test_single_sheet_invalid_column_indices_empty_list(
     expected_message = """invalid parameters: list of selected columns is empty
 Context:
     0: could not determine selected columns from provided object: []
-    1: expected selected columns to be list[str] | list[int] | str | None, got Some([])
+    1: expected selected columns to be list[str] | list[int] | str | Callable[[ColumnInfo], bool] | None, got Some([])
 """
     with pytest.raises(fastexcel.InvalidParametersError, match=re.escape(expected_message)):
         excel_reader_single_sheet_with_unnamed_columns.load_sheet(0, use_columns=[])
@@ -345,3 +346,134 @@ Context:
 """
     with pytest.raises(fastexcel.ColumnNotFoundError, match=expected_message):
         excel_reader_single_sheet_with_unnamed_columns.load_sheet(0, use_columns=[42])
+
+
+def test_use_columns_with_column_names() -> None:
+    excel_reader = fastexcel.read_excel(path_for_fixture("fixture-single-sheet-with-types.xlsx"))
+
+    sheet = excel_reader.load_sheet(
+        0,
+        use_columns=[1, 2],
+        header_row=None,
+        skip_rows=1,
+        column_names=["bools_renamed", "dates_renamed"],
+    )
+
+    assert sheet.available_columns == [
+        fastexcel.ColumnInfo(
+            name="__UNNAMED__0",
+            column_name_from="generated",
+            index=0,
+            dtype="float",
+            dtype_from="guessed",
+        ),
+        fastexcel.ColumnInfo(
+            name="bools_renamed",
+            index=1,
+            dtype="boolean",
+            dtype_from="guessed",
+            column_name_from="provided",
+        ),
+        fastexcel.ColumnInfo(
+            name="dates_renamed",
+            index=2,
+            dtype="datetime",
+            dtype_from="guessed",
+            column_name_from="provided",
+        ),
+        fastexcel.ColumnInfo(
+            name="__UNNAMED__3",
+            index=3,
+            dtype="float",
+            dtype_from="guessed",
+            column_name_from="generated",
+        ),
+    ]
+
+    pd_assert_frame_equal(
+        sheet.to_pandas(),
+        pd.DataFrame(
+            {
+                "bools_renamed": [True, False, True],
+                "dates_renamed": pd.Series([pd.Timestamp("2022-03-02 05:43:04")] * 3).astype(
+                    "datetime64[ms]"
+                ),
+            }
+        ),
+    )
+    pl_assert_frame_equal(
+        sheet.to_polars(),
+        pl.DataFrame(
+            {
+                "bools_renamed": [True, False, True],
+                "dates_renamed": ["2022-03-02 05:43:04"] * 3,
+            }
+        ).with_columns(
+            pl.col("dates_renamed").str.strptime(pl.Datetime, "%F %T").dt.cast_time_unit("ms")
+        ),
+    )
+
+
+def test_use_columns_with_callable() -> None:
+    excel_reader = fastexcel.read_excel(path_for_fixture("fixture-multi-sheet.xlsx"))
+
+    sheet = excel_reader.load_sheet(2)
+    assert (
+        [(c.name, c.dtype) for c in sheet.available_columns]
+        == [(c.name, c.dtype) for c in sheet.selected_columns]
+        == [
+            ("col1", "float"),
+            ("__UNNAMED__1", "float"),
+            ("col3", "string"),
+            ("__UNNAMED__3", "float"),
+            ("col5", "string"),
+        ]
+    )
+
+    sheet = excel_reader.load_sheet(
+        2,
+        use_columns=lambda col: col.name.startswith("col"),
+    )
+    assert [(c.name, c.dtype) for c in sheet.selected_columns] == [
+        ("col1", "float"),
+        ("col3", "string"),
+        ("col5", "string"),
+    ]
+
+    sheet = excel_reader.load_sheet(
+        2,
+        use_columns=lambda col: col.index % 2 == 1,
+    )
+    assert [(c.name, c.dtype) for c in sheet.selected_columns] == [
+        ("__UNNAMED__1", "float"),
+        ("__UNNAMED__3", "float"),
+    ]
+
+    sheet = excel_reader.load_sheet(
+        2,
+        use_columns=lambda col: col.dtype == "string",
+    )
+    assert [(c.name, c.dtype) for c in sheet.selected_columns] == [
+        ("col3", "string"),
+        ("col5", "string"),
+    ]
+
+
+def test_use_columns_with_bad_callable() -> None:
+    excel_reader = fastexcel.read_excel(path_for_fixture("fixture-multi-sheet.xlsx"))
+    with pytest.raises(
+        fastexcel.InvalidParametersError,
+        match=re.escape("`use_columns` callable could not be called (TypeError: "),
+    ):
+        excel_reader.load_sheet(
+            2,
+            use_columns=lambda: True,  # type: ignore
+        )
+
+    with pytest.raises(
+        fastexcel.InvalidParametersError, match="`use_columns` callable should return a boolean"
+    ):
+        excel_reader.load_sheet(
+            2,
+            use_columns=lambda _: 42,  # type: ignore
+        )
