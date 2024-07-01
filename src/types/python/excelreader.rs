@@ -11,7 +11,7 @@ use arrow::{
 use calamine::{
     open_workbook_auto, open_workbook_auto_from_rs, Data, DataRef, Range, Reader, Sheets,
 };
-use pyo3::{prelude::PyObject, pyclass, pymethods, IntoPy, PyAny, PyResult, Python};
+use pyo3::{prelude::PyObject, pyclass, pymethods, Bound, IntoPy, PyAny, PyResult, Python};
 
 use crate::{
     error::{
@@ -81,7 +81,9 @@ pub(crate) struct ExcelReader {
 }
 
 impl ExcelReader {
-    fn build_selected_columns(use_columns: Option<&PyAny>) -> FastExcelResult<SelectedColumns> {
+    fn build_selected_columns(
+        use_columns: Option<&Bound<'_, PyAny>>,
+    ) -> FastExcelResult<SelectedColumns> {
         use_columns.try_into().with_context(|| format!("expected selected columns to be list[str] | list[int] | str | None, got {use_columns:?}"))
     }
 
@@ -148,7 +150,7 @@ impl ExcelReader {
         skip_rows: usize,
         n_rows: Option<usize>,
         schema_sample_rows: Option<usize>,
-        use_columns: Option<&PyAny>,
+        use_columns: Option<&Bound<'_, PyAny>>,
         dtypes: Option<DTypeMap>,
         eager: bool,
         py: Python<'_>,
@@ -229,13 +231,13 @@ impl ExcelReader {
     #[allow(clippy::too_many_arguments)]
     pub fn load_sheet(
         &mut self,
-        idx_or_name: &PyAny,
+        idx_or_name: &Bound<'_, PyAny>,
         header_row: Option<usize>,
         column_names: Option<Vec<String>>,
         skip_rows: usize,
         n_rows: Option<usize>,
         schema_sample_rows: Option<usize>,
-        use_columns: Option<&PyAny>,
+        use_columns: Option<&Bound<'_, PyAny>>,
         dtypes: Option<DTypeMap>,
         eager: bool,
         py: Python<'_>,
