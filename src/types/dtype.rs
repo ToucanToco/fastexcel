@@ -159,8 +159,10 @@ fn get_cell_dtype<DT: CellType + Debug + DataType>(
         Ok(DType::Null)
     } else if cell.is_error() {
         match cell.get_error() {
-            // considering cells with #N/A! as null
-            Some(CellErrorType::NA | CellErrorType::Value | CellErrorType::Null) => Ok(DType::Null),
+            // considering cells with #N/A! or #REF! as null
+            Some(
+                CellErrorType::NA | CellErrorType::Value | CellErrorType::Null | CellErrorType::Ref,
+            ) => Ok(DType::Null),
             Some(err) => Err(FastExcelErrorKind::CalamineCellError(err.to_owned()).into()),
             None => Err(FastExcelErrorKind::Internal(format!(
                 "cell is an error but get_error returned None: {cell:?}"
