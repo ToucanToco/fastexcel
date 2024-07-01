@@ -131,7 +131,7 @@ class ExcelReader:
         use_columns: list[str] | list[int] | str | None = None,
         dtypes: DTypeMap | None = None,
     ) -> ExcelSheet:
-        """Loads a sheet by index or name.
+        """Loads a sheet lazily by index or name.
 
         :param idx_or_name: The index (starting at 0) or the name of the sheet to load.
         :param header_row: The index of the row containing the column labels, default index is 0.
@@ -182,6 +182,9 @@ class ExcelReader:
         dtypes: DTypeMap | None = None,
     ) -> pa.RecordBatch:
         """Loads a sheet eagerly by index or name.
+
+        For xlsx files, this will be faster and more memory-efficient, as it will use
+        `worksheet_range_ref` under the hood, which returns borrowed types.
 
         Refer to `load_sheet` for parameter documentation
         """
