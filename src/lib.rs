@@ -1,5 +1,6 @@
 mod error;
 mod types;
+mod utils;
 
 use error::{py_errors, ErrorContext};
 use pyo3::prelude::*;
