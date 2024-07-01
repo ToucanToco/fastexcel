@@ -40,6 +40,7 @@ def expected_data() -> dict[str, list[Any]]:
         "Date": [datetime(2023, 7, 21)] * 9,
         "Details": ["Healthcare"] * 7 + ["Something"] * 2,
         "Asset ID": ["84444"] * 7 + ["ABC123"] * 2,
+        "Mixed dates": ["2023-07-21 00:00:00"] * 6 + ["July 23rd"] * 3,
     }
 
 
@@ -89,13 +90,29 @@ def test_sheet_with_mixed_dtypes_and_sample_rows(expected_data: dict[str, list[A
         None,
     ]
     expected_data["Asset ID"] = [84444.0] * 7 + [None] * 2
+    expected_data["Mixed dates"] = [datetime(2023, 7, 21)] * 6 + [None] * 3
 
     pd_df = sheet.to_pandas()
-    pd_assert_frame_equal(pd_df, pd.DataFrame(expected_data).astype({"Date": "datetime64[ms]"}))
+    pd_assert_frame_equal(
+        pd_df,
+        pd.DataFrame(expected_data).astype(
+            {
+                "Date": "datetime64[ms]",
+                "Mixed dates": "datetime64[ms]",
+            }
+        ),
+    )
 
     pl_df = sheet.to_polars()
     pl_assert_frame_equal(
-        pl_df, pl.DataFrame(expected_data, schema_overrides={"Date": pl.Datetime(time_unit="ms")})
+        pl_df,
+        pl.DataFrame(
+            expected_data,
+            schema_overrides={
+                "Date": pl.Datetime(time_unit="ms"),
+                "Mixed dates": pl.Datetime(time_unit="ms"),
+            },
+        ),
     )
 
 

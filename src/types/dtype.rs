@@ -187,7 +187,15 @@ fn int_types() -> &'static HashSet<DType> {
 }
 
 fn string_types() -> &'static HashSet<DType> {
-    STRING_TYPES_CELL.get_or_init(|| HashSet::from([DType::Int, DType::Float, DType::String]))
+    STRING_TYPES_CELL.get_or_init(|| {
+        HashSet::from([
+            DType::Int,
+            DType::Float,
+            DType::String,
+            DType::DateTime,
+            DType::Date,
+        ])
+    })
 }
 
 pub(crate) fn get_dtype_for_column<DT: CellType + Debug + DataType>(
