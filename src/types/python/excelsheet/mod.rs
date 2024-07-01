@@ -114,27 +114,53 @@ impl TryFrom<&Bound<'_, PyList>> for SelectedColumns {
     }
 }
 
-#[derive(Debug, PartialEq)]
 pub(crate) enum SelectedColumns {
     All,
     Selection(Vec<IdxOrName>),
+    DynamicSelection(PyObject),
+}
+
+impl std::fmt::Debug for SelectedColumns {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::All => write!(f, "All"),
+            Self::Selection(selection) => write!(f, "Selection({selection:?})"),
+            Self::DynamicSelection(func) => {
+                let addr = func as *const _ as usize;
+                write!(f, "DynamicSelection({addr})")
+            }
+        }
+    }
+}
+
+impl PartialEq for SelectedColumns {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::All, Self::All) => true,
+            (Self::Selection(selection), Self::Selection(other_selection)) => {
+                selection == other_selection
+            }
+            (Self::DynamicSelection(f1), Self::DynamicSelection(f2)) => std::ptr::eq(f1, f2),
+            _ => false,
+        }
+    }
 }
 
 impl SelectedColumns {
     pub(super) fn select_columns(
         &self,
-        column_info: &[ColumnInfo],
+        available_columns: &[ColumnInfo],
     ) -> FastExcelResult<Vec<ColumnInfo>> {
         match self {
-            SelectedColumns::All => Ok(column_info.to_vec()),
+            SelectedColumns::All => Ok(available_columns.to_vec()),
             SelectedColumns::Selection(selection) => selection
                 .iter()
                 .map(|selected_column| {
                     match selected_column {
-                        IdxOrName::Idx(index) => column_info
+                        IdxOrName::Idx(index) => available_columns
                             .iter()
                             .find(|col_info| &col_info.index() == index),
-                        IdxOrName::Name(name) => column_info
+                        IdxOrName::Name(name) => available_columns
                             .iter()
                             .find(|col_info| col_info.name() == name.as_str()),
                     }
@@ -142,9 +168,28 @@ impl SelectedColumns {
                         FastExcelErrorKind::ColumnNotFound(selected_column.clone()).into()
                     })
                     .cloned()
-                    .with_context(|| format!("available columns are: {column_info:?}"))
+                    .with_context(|| format!("available columns are: {available_columns:?}"))
                 })
                 .collect(),
+            SelectedColumns::DynamicSelection(use_col_func) => Python::with_gil(|py| {
+                Ok(available_columns
+                    .iter()
+                    .filter_map(
+                        |col_info| match use_col_func.call1(py, (col_info.clone(),)) {
+                            Err(err) => Some(Err(FastExcelErrorKind::InvalidParameters(format!(
+                                "`use_columns` callable could not be called ({err})"
+                            )))),
+                            Ok(should_use_col) => match should_use_col.extract::<bool>(py) {
+                                Err(_) => Some(Err(FastExcelErrorKind::InvalidParameters(
+                                    "`use_columns` callable should return a boolean".to_string(),
+                                ))),
+                                Ok(true) => Some(Ok(col_info.clone())),
+                                Ok(false) => None,
+                            },
+                        },
+                    )
+                    .collect::<Result<Vec<_>, _>>()?)
+            }),
         }
     }
 
@@ -272,6 +317,8 @@ impl TryFrom<Option<&Bound<'_, PyAny>>> for SelectedColumns {
                         .parse()
                 } else if let Ok(py_list) = py_any.downcast::<PyList>() {
                     py_list.try_into()
+                } else if let Ok(py_function) = py_any.extract::<PyObject>() {
+                    Ok(Self::DynamicSelection(py_function))
                 } else {
                     Err(FastExcelErrorKind::InvalidParameters(format!(
                         "unsupported object type {object_type}",
