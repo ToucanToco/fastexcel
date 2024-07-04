@@ -101,6 +101,41 @@ impl From<&DType> for ArrowDataType {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Copy)]
+pub(crate) enum DTypeCoercion {
+    Coerce,
+    Strict,
+}
+
+impl FromStr for DTypeCoercion {
+    type Err = FastExcelError;
+
+    fn from_str(raw_dtype_coercion: &str) -> FastExcelResult<Self> {
+        match raw_dtype_coercion {
+            "coerce" => Ok(Self::Coerce),
+            "strict" => Ok(Self::Strict),
+            _ => Err(FastExcelErrorKind::InvalidParameters(format!(
+                "unsupported dtype_coercion: \"{raw_dtype_coercion}\""
+            ))
+            .into()),
+        }
+    }
+}
+
+impl FromPyObject<'_> for DTypeCoercion {
+    fn extract_bound(py_dtype_coercion: &Bound<'_, PyAny>) -> PyResult<Self> {
+        if let Ok(dtype_coercion_pystr) = py_dtype_coercion.extract::<&PyString>() {
+            dtype_coercion_pystr.to_str()?.parse()
+        } else {
+            Err(FastExcelErrorKind::InvalidParameters(format!(
+                "{py_dtype_coercion:?} cannot be converted to str"
+            ))
+            .into())
+        }
+        .into_pyresult()
+    }
+}
+
 /// All the possible string values that should be considered as NULL
 const NULL_STRING_VALUES: [&str; 19] = [
     "", "#N/A", "#N/A N/A", "#NA", "-1.#IND", "-1.#QNAN", "-NaN", "-nan", "1.#IND", "1.#QNAN",
@@ -203,6 +238,7 @@ pub(crate) fn get_dtype_for_column<DT: CellType + Debug + DataType>(
     start_row: usize,
     end_row: usize,
     col: usize,
+    dtype_coercion: &DTypeCoercion,
 ) -> FastExcelResult<DType> {
     let mut column_types = (start_row..end_row)
         .map(|row| get_cell_dtype(data, row, col))
@@ -214,6 +250,14 @@ pub(crate) fn get_dtype_for_column<DT: CellType + Debug + DataType>(
     if column_types.is_empty() {
         // If no type apart from NULL was found, it's a NULL column
         Ok(DType::Null)
+    } else if matches!(dtype_coercion, &DTypeCoercion::Strict) && column_types.len() != 1 {
+        // If dtype coercion is strict and we do not have a single dtype, it's an error
+        Err(
+            FastExcelErrorKind::UnsupportedColumnTypeCombination(format!(
+                "type coercion is strict and column contains {column_types:?}"
+            ))
+            .into(),
+        )
     } else if column_types.len() == 1 {
         // If a single non-null type was found, return it
         Ok(column_types.into_iter().next().unwrap())
@@ -288,15 +332,65 @@ mod tests {
     #[case(7, 11, DType::Float)]
     // int + bool
     #[case(10, 12, DType::Int)]
-    fn get_arrow_column_type_multi_dtype_ok(
+    fn get_arrow_column_type_multi_dtype_ok_coerce(
         range: Range<CalData>,
         #[case] start_row: usize,
         #[case] end_row: usize,
         #[case] expected: DType,
     ) {
         assert_eq!(
-            get_dtype_for_column(&range, start_row, end_row, 0).unwrap(),
+            get_dtype_for_column(&range, start_row, end_row, 0, &DTypeCoercion::Coerce).unwrap(),
             expected
         );
+    }
+
+    #[rstest]
+    // pure bool
+    #[case(0, 2, DType::Bool)]
+    // pure int
+    #[case(3, 4, DType::Int)]
+    // pure float
+    #[case(4, 5, DType::Float)]
+    // pure string
+    #[case(5, 6, DType::String)]
+    // empty + null + int
+    #[case(6, 9, DType::Int)]
+    fn get_arrow_column_type_multi_dtype_ok_strict(
+        range: Range<CalData>,
+        #[case] start_row: usize,
+        #[case] end_row: usize,
+        #[case] expected: DType,
+    ) {
+        assert_eq!(
+            get_dtype_for_column(&range, start_row, end_row, 0, &DTypeCoercion::Strict).unwrap(),
+            expected
+        );
+    }
+
+    #[rstest]
+    // pure int + float
+    #[case(3, 5)]
+    // float + string
+    #[case(4, 6)]
+    // int + float + string
+    #[case(3, 6)]
+    // null + int + float + string + empty + null
+    #[case(2, 8)]
+    // int + float + null
+    #[case(7, 10)]
+    // int + float + bool + null
+    #[case(7, 11)]
+    // int + bool
+    #[case(10, 12)]
+    fn get_arrow_column_type_multi_dtype_ko_strict(
+        range: Range<CalData>,
+        #[case] start_row: usize,
+        #[case] end_row: usize,
+    ) {
+        let result = get_dtype_for_column(&range, start_row, end_row, 0, &DTypeCoercion::Strict);
+        assert!(matches!(
+            result.unwrap_err().kind,
+            FastExcelErrorKind::UnsupportedColumnTypeCombination(_)
+        ));
     }
 }
