@@ -128,6 +128,7 @@ class ExcelReader:
         skip_rows: int = 0,
         n_rows: int | None = None,
         schema_sample_rows: int | None = 1_000,
+        dtype_coercion: Literal["coerce", "strict"] = "coerce",
         use_columns: list[str] | list[int] | str | Callable[[ColumnInfo], bool] | None = None,
         dtypes: DTypeMap | None = None,
     ) -> ExcelSheet:
@@ -146,6 +147,11 @@ class ExcelReader:
         :param schema_sample_rows: Specifies how many rows should be used to determine
                                    the dtype of a column.
                                    If `None`, all rows will be used.
+        :param dtype_coercion: Specifies how type coercion should behave. `coerce` (the default)
+                               will try to coerce different dtypes in a column to the same one,
+                               whereas `strict` will raise an error in case a column contains
+                               several dtypes. Note that this only applies to columns whose dtype
+                               is guessed, i.e. not specified via `dtypes`.
         :param use_columns: Specifies the columns to use. Can either be:
                             - `None` to select all columns
                             - A list of strings and ints, the column names and/or indices
@@ -165,6 +171,7 @@ class ExcelReader:
                 skip_rows=skip_rows,
                 n_rows=n_rows,
                 schema_sample_rows=schema_sample_rows,
+                dtype_coercion=dtype_coercion,
                 use_columns=use_columns,
                 dtypes=dtypes,
                 eager=False,
@@ -180,6 +187,7 @@ class ExcelReader:
         skip_rows: int = 0,
         n_rows: int | None = None,
         schema_sample_rows: int | None = 1_000,
+        dtype_coercion: Literal["coerce", "strict"] = "coerce",
         use_columns: list[str] | list[int] | str | None = None,
         dtypes: DTypeMap | None = None,
     ) -> pa.RecordBatch:
@@ -197,6 +205,7 @@ class ExcelReader:
             skip_rows=skip_rows,
             n_rows=n_rows,
             schema_sample_rows=schema_sample_rows,
+            dtype_coercion=dtype_coercion,
             use_columns=use_columns,
             dtypes=dtypes,
             eager=True,
@@ -211,6 +220,7 @@ class ExcelReader:
         skip_rows: int = 0,
         n_rows: int | None = None,
         schema_sample_rows: int | None = 1_000,
+        dtype_coercion: Literal["coerce", "strict"] = "coerce",
         use_columns: list[str] | list[int] | str | Callable[[ColumnInfo], bool] | None = None,
         dtypes: DTypeMap | None = None,
     ) -> ExcelSheet:
@@ -225,6 +235,7 @@ class ExcelReader:
             skip_rows=skip_rows,
             n_rows=n_rows,
             schema_sample_rows=schema_sample_rows,
+            dtype_coercion=dtype_coercion,
             use_columns=use_columns,
             dtypes=dtypes,
         )
@@ -238,6 +249,7 @@ class ExcelReader:
         skip_rows: int = 0,
         n_rows: int | None = None,
         schema_sample_rows: int | None = 1_000,
+        dtype_coercion: Literal["coerce", "strict"] = "coerce",
         use_columns: list[str] | list[int] | str | Callable[[ColumnInfo], bool] | None = None,
         dtypes: DTypeMap | None = None,
     ) -> ExcelSheet:
@@ -252,6 +264,7 @@ class ExcelReader:
             skip_rows=skip_rows,
             n_rows=n_rows,
             schema_sample_rows=schema_sample_rows,
+            dtype_coercion=dtype_coercion,
             use_columns=use_columns,
             dtypes=dtypes,
         )

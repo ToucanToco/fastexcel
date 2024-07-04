@@ -18,7 +18,6 @@ use pyo3::{
     Bound, PyAny, PyObject, PyResult, ToPyObject,
 };
 
-use crate::utils::schema::get_schema_sample_rows;
 use crate::{
     error::{
         py_errors::IntoPyResult, ErrorContext, FastExcelError, FastExcelErrorKind, FastExcelResult,
@@ -28,6 +27,7 @@ use crate::{
         idx_or_name::IdxOrName,
     },
 };
+use crate::{types::dtype::DTypeCoercion, utils::schema::get_schema_sample_rows};
 
 use self::column_info::{build_available_columns, build_available_columns_info, ColumnInfo};
 use self::sheet_data::{
@@ -345,7 +345,7 @@ pub(crate) struct ExcelSheet {
     total_height: Option<usize>,
     width: Option<usize>,
     schema_sample_rows: Option<usize>,
-    // selected_columns: SelectedColumns,
+    dtype_coercion: DTypeCoercion,
     selected_columns: Vec<ColumnInfo>,
     available_columns: Vec<ColumnInfo>,
     dtypes: Option<DTypeMap>,
@@ -356,12 +356,14 @@ impl ExcelSheet {
         &self.data
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn try_new(
         name: String,
         data: ExcelSheetData<'static>,
         header: Header,
         pagination: Pagination,
         schema_sample_rows: Option<usize>,
+        dtype_coercion: DTypeCoercion,
         selected_columns: SelectedColumns,
         dtypes: Option<DTypeMap>,
     ) -> FastExcelResult<Self> {
@@ -373,6 +375,7 @@ impl ExcelSheet {
             pagination,
             data,
             schema_sample_rows,
+            dtype_coercion,
             dtypes,
             height: None,
             total_height: None,
@@ -391,6 +394,7 @@ impl ExcelSheet {
             sheet.offset(),
             row_limit,
             sheet.dtypes.as_ref(),
+            &sheet.dtype_coercion,
         )?;
 
         let selected_columns = selected_columns.select_columns(&available_columns)?;

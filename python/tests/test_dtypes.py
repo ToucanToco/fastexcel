@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from datetime import date, datetime
-from typing import Any
+from typing import Any, Literal
 
 import fastexcel
+import numpy as np
 import pandas as pd
 import polars as pl
 import pytest
@@ -190,3 +191,66 @@ def test_sheet_datetime_conversion(
     pl_df = sheet.to_polars()
     assert pl_df["Date"].dtype == expected_pl_dtype
     assert pl_df["Date"].to_list() == [expected] * 9
+
+
+@pytest.mark.parametrize("eager", [True, False])
+@pytest.mark.parametrize("dtype_coercion", ["coerce", None])
+def test_dtype_coercion_behavior__coerce(
+    dtype_coercion: Literal["coerce"] | None, eager: bool
+) -> None:
+    excel_reader = fastexcel.read_excel(path_for_fixture("fixture-multi-dtypes-columns.xlsx"))
+
+    kwargs = {"dtype_coercion": dtype_coercion} if dtype_coercion else {}
+    sheet = (
+        excel_reader.load_sheet_eager(0, **kwargs)  # type:ignore[arg-type]
+        if eager
+        else excel_reader.load_sheet(0, **kwargs).to_arrow()  # type:ignore[arg-type]
+    )
+
+    pd_df = sheet.to_pandas()
+    assert pd_df["Mixed dates"].dtype == "object"
+    assert pd_df["Mixed dates"].to_list() == ["2023-07-21 00:00:00"] * 6 + ["July 23rd"] * 3
+
+    pl_df = pl.from_arrow(data=sheet)
+    assert isinstance(pl_df, pl.DataFrame)
+    assert pl_df["Mixed dates"].dtype == pl.Utf8
+    assert pl_df["Mixed dates"].to_list() == ["2023-07-21 00:00:00"] * 6 + ["July 23rd"] * 3
+
+
+@pytest.mark.parametrize("eager", [True, False])
+def test_dtype_coercion_behavior__strict_sampling_eveything(eager: bool) -> None:
+    excel_reader = fastexcel.read_excel(path_for_fixture("fixture-multi-dtypes-columns.xlsx"))
+
+    with pytest.raises(
+        fastexcel.UnsupportedColumnTypeCombinationError, match="type coercion is strict"
+    ):
+        if eager:
+            excel_reader.load_sheet_eager(0, dtype_coercion="strict")
+        else:
+            excel_reader.load_sheet(0, dtype_coercion="strict").to_arrow()
+
+
+@pytest.mark.parametrize("eager", [True, False])
+def test_dtype_coercion_behavior__strict_sampling_limit(eager: bool) -> None:
+    excel_reader = fastexcel.read_excel(path_for_fixture("fixture-multi-dtypes-columns.xlsx"))
+
+    sheet = (
+        excel_reader.load_sheet_eager(0, dtype_coercion="strict", schema_sample_rows=5)
+        if eager
+        else excel_reader.load_sheet(0, dtype_coercion="strict", schema_sample_rows=5).to_arrow()
+    )
+
+    pd_df = sheet.to_pandas()
+    assert pd_df["Mixed dates"].dtype == "datetime64[ms]"
+    assert (
+        pd_df["Mixed dates"].to_list() == [pd.Timestamp("2023-07-21 00:00:00")] * 6 + [pd.NaT] * 3
+    )
+    assert pd_df["Asset ID"].dtype == "float64"
+    assert pd_df["Asset ID"].replace(np.nan, None).to_list() == [84444.0] * 7 + [None] * 2
+
+    pl_df = pl.from_arrow(data=sheet)
+    assert isinstance(pl_df, pl.DataFrame)
+    assert pl_df["Mixed dates"].dtype == pl.Datetime
+    assert pl_df["Mixed dates"].to_list() == [datetime(2023, 7, 21)] * 6 + [None] * 3
+    assert pl_df["Asset ID"].dtype == pl.Float64
+    assert pl_df["Asset ID"].to_list() == [84444.0] * 7 + [None] * 2
