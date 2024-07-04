@@ -5,7 +5,7 @@ use calamine::{Data as CalData, DataRef as CalDataRef, DataType, Range};
 
 use crate::{
     error::FastExcelResult,
-    types::dtype::{get_dtype_for_column, DType},
+    types::dtype::{get_dtype_for_column, DType, DTypeCoercion},
 };
 
 pub(crate) enum ExcelSheetData<'r> {
@@ -40,10 +40,15 @@ impl ExcelSheetData<'_> {
         start_row: usize,
         end_row: usize,
         col: usize,
+        dtype_coercion: &DTypeCoercion,
     ) -> FastExcelResult<DType> {
         match self {
-            ExcelSheetData::Owned(data) => get_dtype_for_column(data, start_row, end_row, col),
-            ExcelSheetData::Ref(data) => get_dtype_for_column(data, start_row, end_row, col),
+            ExcelSheetData::Owned(data) => {
+                get_dtype_for_column(data, start_row, end_row, col, dtype_coercion)
+            }
+            ExcelSheetData::Ref(data) => {
+                get_dtype_for_column(data, start_row, end_row, col, dtype_coercion)
+            }
         }
     }
 }

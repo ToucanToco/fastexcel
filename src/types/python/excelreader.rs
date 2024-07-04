@@ -17,7 +17,10 @@ use crate::{
     error::{
         py_errors::IntoPyResult, ErrorContext, FastExcelError, FastExcelErrorKind, FastExcelResult,
     },
-    types::{dtype::DTypeMap, idx_or_name::IdxOrName},
+    types::{
+        dtype::{DTypeCoercion, DTypeMap},
+        idx_or_name::IdxOrName,
+    },
 };
 
 use crate::utils::schema::get_schema_sample_rows;
@@ -108,6 +111,7 @@ impl ExcelReader {
         sample_rows: Option<usize>,
         selected_columns: &SelectedColumns,
         dtypes: Option<&DTypeMap>,
+        dtype_coercion: &DTypeCoercion,
     ) -> FastExcelResult<RecordBatch> {
         let offset = header.offset() + pagination.offset();
         let limit = {
@@ -129,6 +133,7 @@ impl ExcelReader {
             offset,
             sample_rows_limit,
             dtypes,
+            dtype_coercion,
         )?;
 
         let fields = available_columns
@@ -150,6 +155,7 @@ impl ExcelReader {
         skip_rows: usize,
         n_rows: Option<usize>,
         schema_sample_rows: Option<usize>,
+        dtype_coercion: DTypeCoercion,
         use_columns: Option<&Bound<'_, PyAny>>,
         dtypes: Option<DTypeMap>,
         eager: bool,
@@ -167,6 +173,7 @@ impl ExcelReader {
                 schema_sample_rows,
                 &selected_columns,
                 dtypes.as_ref(),
+                &dtype_coercion,
             )
             .into_pyresult()
             .and_then(|rb| rb.to_pyarrow(py))
@@ -179,6 +186,7 @@ impl ExcelReader {
                 header,
                 pagination,
                 schema_sample_rows,
+                dtype_coercion,
                 selected_columns,
                 dtypes,
             )
@@ -224,6 +232,7 @@ impl ExcelReader {
         skip_rows = 0,
         n_rows = None,
         schema_sample_rows = 1_000,
+        dtype_coercion = DTypeCoercion::Coerce,
         use_columns = None,
         dtypes = None,
         eager = false,
@@ -237,6 +246,7 @@ impl ExcelReader {
         skip_rows: usize,
         n_rows: Option<usize>,
         schema_sample_rows: Option<usize>,
+        dtype_coercion: DTypeCoercion,
         use_columns: Option<&Bound<'_, PyAny>>,
         dtypes: Option<DTypeMap>,
         eager: bool,
@@ -278,6 +288,7 @@ impl ExcelReader {
             skip_rows,
             n_rows,
             schema_sample_rows,
+            dtype_coercion,
             use_columns,
             dtypes,
             eager,

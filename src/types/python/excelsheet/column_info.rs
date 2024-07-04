@@ -8,7 +8,7 @@ use crate::{
         py_errors::IntoPyResult, ErrorContext, FastExcelError, FastExcelErrorKind, FastExcelResult,
     },
     types::{
-        dtype::{DType, DTypeMap},
+        dtype::{DType, DTypeCoercion, DTypeMap},
         idx_or_name::IdxOrName,
     },
 };
@@ -237,6 +237,7 @@ impl ColumnInfoBuilder {
         start_row: usize,
         end_row: usize,
         specified_dtypes: Option<&DTypeMap>,
+        dtype_coercion: &DTypeCoercion,
     ) -> FastExcelResult<(DType, DTypeFrom)> {
         specified_dtypes
             .and_then(|dtypes| {
@@ -253,7 +254,7 @@ impl ColumnInfoBuilder {
             .map(FastExcelResult::Ok)
             // If we could not look up a dtype, guess it from the data
             .unwrap_or_else(|| {
-                data.dtype_for_column(start_row, end_row, self.index)
+                data.dtype_for_column(start_row, end_row, self.index, dtype_coercion)
                     .map(|dtype| (dtype, DTypeFrom::Guessed))
             })
     }
@@ -264,9 +265,10 @@ impl ColumnInfoBuilder {
         start_row: usize,
         end_row: usize,
         specified_dtypes: Option<&DTypeMap>,
+        dtype_coercion: &DTypeCoercion,
     ) -> FastExcelResult<ColumnInfo> {
         let (dtype, dtype_from) = self
-            .dtype_info(data, start_row, end_row, specified_dtypes)
+            .dtype_info(data, start_row, end_row, specified_dtypes, dtype_coercion)
             .with_context(|| format!("could not determine dtype for column {}", self.name))?;
         Ok(ColumnInfo::new(
             self.name,
@@ -401,6 +403,7 @@ pub(crate) fn build_available_columns(
     start_row: usize,
     end_row: usize,
     specified_dtypes: Option<&DTypeMap>,
+    dtype_coercion: &DTypeCoercion,
 ) -> FastExcelResult<Vec<ColumnInfo>> {
     let mut aliased_available_columns = Vec::with_capacity(available_columns_info.len());
 
@@ -414,7 +417,7 @@ pub(crate) fn build_available_columns(
             }
             aliased_available_columns.push(alias);
             // Setting the dtype info
-            column_info_builder.finish(data, start_row, end_row, specified_dtypes)
+            column_info_builder.finish(data, start_row, end_row, specified_dtypes, dtype_coercion)
         })
         .collect()
 }
