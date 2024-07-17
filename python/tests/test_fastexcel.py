@@ -582,14 +582,11 @@ def test_null_values_in_cells() -> None:
     pd_assert_frame_equal(sheet.to_pandas(), pd_expected)
 
 
-def test_bool_casting_to_string_for_polars() -> None:
+def test_bool_casting_to_string() -> None:
     excel_reader = fastexcel.read_excel(path_for_fixture("sheet-bool.xlsx"))
-
-    actual_polars_df = excel_reader.load_sheet(0, header_row=None, column_names=["0"]).to_polars()
-    expected_polars_df = pl.DataFrame(
-        {
-            "0": ["true", "false", "some string"],
-        }
-    )
-
-    pl_assert_frame_equal(actual_polars_df, expected_polars_df)
+    sheet = excel_reader.load_sheet(0, column_names=["col1"])
+    expected = {
+        "col1": ["true", "false", "some string"],
+    }
+    pl_assert_frame_equal(sheet.to_polars(), pl.DataFrame(expected))
+    pd_assert_frame_equal(sheet.to_pandas(), pd.DataFrame(expected))
