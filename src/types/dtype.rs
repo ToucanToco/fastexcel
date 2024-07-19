@@ -224,6 +224,7 @@ fn int_types() -> &'static HashSet<DType> {
 fn string_types() -> &'static HashSet<DType> {
     STRING_TYPES_CELL.get_or_init(|| {
         HashSet::from([
+            DType::Bool,
             DType::Int,
             DType::Float,
             DType::String,

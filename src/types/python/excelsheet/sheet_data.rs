@@ -134,6 +134,8 @@ mod array_impls {
                         .map(|dt| dt.to_string())
                 } else if cell.is_datetime_iso() {
                     cell.get_datetime_iso().map(str::to_string)
+                } else if cell.is_bool() {
+                    cell.get_bool().map(|v| v.to_string())
                 } else {
                     cell.as_string()
                 }
