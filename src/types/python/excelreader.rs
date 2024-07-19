@@ -136,7 +136,9 @@ impl ExcelReader {
             dtype_coercion,
         )?;
 
-        let fields = available_columns
+        let final_columns = selected_columns.select_columns(&available_columns)?;
+
+        let fields = final_columns
             .iter()
             .map(Into::<Field>::into)
             .collect::<Vec<_>>();
