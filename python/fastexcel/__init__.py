@@ -137,11 +137,13 @@ class ExcelReader:
         :param idx_or_name: The index (starting at 0) or the name of the sheet to load.
         :param header_row: The index of the row containing the column labels, default index is 0.
                            If `None`, the sheet does not have any column labels.
+                           Any rows before the `header_row` will be automatically skipped.
         :param column_names: Overrides headers found in the document.
                              If `column_names` is used, `header_row` will be ignored.
         :param n_rows: Specifies how many rows should be loaded.
                        If `None`, all rows are loaded
-        :param skip_rows: Specifies how many rows should be skipped after the header.
+        :param skip_rows: Specifies how many rows should be skipped after the `header_row`.
+                          Any rows before the `header_row` are automatically skipped.
                           If `header_row` is `None`, it skips the number of rows from the
                           start of the sheet.
         :param schema_sample_rows: Specifies how many rows should be used to determine
