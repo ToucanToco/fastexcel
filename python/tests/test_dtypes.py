@@ -42,6 +42,7 @@ def expected_data() -> dict[str, list[Any]]:
         "Details": ["Healthcare"] * 7 + ["Something"] * 2,
         "Asset ID": ["84444"] * 7 + ["ABC123"] * 2,
         "Mixed dates": ["2023-07-21 00:00:00"] * 6 + ["July 23rd"] * 3,
+        "Mixed bools": ["true"] * 5 + ["false"] * 3 + ["other"],
     }
 
 
@@ -92,6 +93,7 @@ def test_sheet_with_mixed_dtypes_and_sample_rows(expected_data: dict[str, list[A
     ]
     expected_data["Asset ID"] = [84444.0] * 7 + [None] * 2
     expected_data["Mixed dates"] = [datetime(2023, 7, 21)] * 6 + [None] * 3
+    expected_data["Mixed bools"] = [True] * 5 + [False] * 3 + [None]
 
     pd_df = sheet.to_pandas()
     pd_assert_frame_equal(

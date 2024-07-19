@@ -580,13 +580,3 @@ def test_null_values_in_cells() -> None:
     pd_expected = pd.DataFrame(expected)
     pd_expected["Date"] = pd_expected["Date"].dt.as_unit("ms")
     pd_assert_frame_equal(sheet.to_pandas(), pd_expected)
-
-
-def test_bool_casting_to_string() -> None:
-    excel_reader = fastexcel.read_excel(path_for_fixture("sheet-bool.xlsx"))
-    sheet = excel_reader.load_sheet(0, column_names=["col1"])
-    expected = {
-        "col1": ["true", "false", "some string"],
-    }
-    pl_assert_frame_equal(sheet.to_polars(), pl.DataFrame(expected))
-    pd_assert_frame_equal(sheet.to_pandas(), pd.DataFrame(expected))
