@@ -477,3 +477,17 @@ def test_use_columns_with_bad_callable() -> None:
             2,
             use_columns=lambda _: 42,  # type: ignore
         )
+
+
+def test_use_columns_with_eager_loading() -> None:
+    excel_reader = fastexcel.read_excel(path_for_fixture("fixture-single-sheet.xlsx"))
+
+    # default
+    rb = excel_reader.load_sheet_eager(0)
+    assert rb.schema.names == ["Month", "Year"]
+    # changing order
+    rb = excel_reader.load_sheet_eager(0, use_columns=["Year", "Month"])
+    assert rb.schema.names == ["Year", "Month"]
+    # subset
+    rb = excel_reader.load_sheet_eager(0, use_columns=["Year"])
+    assert rb.schema.names == ["Year"]
