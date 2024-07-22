@@ -88,7 +88,7 @@ impl FromStr for DTypeFrom {
 pub(crate) struct ColumnInfo {
     /// `str`. The name of the column
     #[pyo3(get)]
-    name: String,
+    pub name: String,
     /// `int`. The index of the column
     #[pyo3(get)]
     index: usize,
