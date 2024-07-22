@@ -33,17 +33,20 @@ format-rust:
 
 format: format-rust format-python
 
-install-test-requirements:
-	pip install -U -r test-requirements.txt -r build-requirements.txt
+install-build-requirements:
+	pip install -U -r build-requirements.txt
 
-install-doc-requirements:
-	pip install -r doc-requirements.txt
+install-test-requirements: install-build-requirements
+	uv pip install -U -r test-requirements.txt
+
+install-doc-requirements: install-build-requirements
+	uv pip install -r doc-requirements.txt
 
 dev-setup: install-test-requirements install-doc-requirements
 	pre-commit install
 
 dev-install:
-	maturin develop -E pandas,polars
+	maturin develop --uv --all-features
 
 prod-install:
 	./prod_install.sh
