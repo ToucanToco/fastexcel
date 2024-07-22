@@ -20,7 +20,7 @@ jobs:
       with:
         manylinux: auto
         command: build
-        args: "--release -o dist --interpreter python${{ matrix.python-version }}"
+        args: "--release -o dist"
         target: ${{ matrix.architecture == 'aarch64' && 'aarch64-unknown-linux-gnu' || null }}
     - name: Upload wheels
       uses: actions/upload-artifact@v4
@@ -40,7 +40,7 @@ jobs:
       uses: messense/maturin-action@v1
       with:
         command: build
-        args: "--release -o dist --interpreter python${{ matrix.python-version }}"
+        args: "--release -o dist"
         target: ${{ matrix.architecture == 'aarch64' && 'aarch64-apple-darwin' || null }}
     - name: Upload wheels
       uses: actions/upload-artifact@v4
@@ -60,7 +60,7 @@ jobs:
       uses: messense/maturin-action@v1
       with:
         command: build
-        args: "--release -o dist --interpreter python${{ matrix.python-version }}"
+        args: "--release -o dist"
     - name: Upload wheels
       uses: actions/upload-artifact@v4
       with:
