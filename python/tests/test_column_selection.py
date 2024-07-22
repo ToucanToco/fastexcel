@@ -481,13 +481,70 @@ def test_use_columns_with_bad_callable() -> None:
 
 def test_use_columns_with_eager_loading() -> None:
     excel_reader = fastexcel.read_excel(path_for_fixture("fixture-single-sheet.xlsx"))
+    expected_months = [1.0, 2.0]
+    expected_years = [2019.0, 2020.0]
 
     # default
     rb = excel_reader.load_sheet_eager(0)
     assert rb.schema.names == ["Month", "Year"]
+    assert rb["Year"].tolist() == expected_years
+    assert rb["Month"].tolist() == expected_months
+
     # changing order
     rb = excel_reader.load_sheet_eager(0, use_columns=["Year", "Month"])
     assert rb.schema.names == ["Year", "Month"]
+    assert rb["Year"].tolist() == expected_years
+    assert rb["Month"].tolist() == expected_months
+
     # subset
     rb = excel_reader.load_sheet_eager(0, use_columns=["Year"])
     assert rb.schema.names == ["Year"]
+    assert rb["Year"].tolist() == expected_years
+    assert "Month" not in (field.name for field in rb.schema)
+
+
+@pytest.mark.parametrize("excel_file", ["sheet-null-strings.xlsx", "sheet-null-strings-empty.xlsx"])
+def test_use_columns_dtypes_eager_loading(
+    excel_file: str, expected_data_sheet_null_strings: dict[str, list[Any]]
+) -> None:
+    expected_pl_df = pl.DataFrame(expected_data_sheet_null_strings).with_columns(
+        pl.col("DATES_AND_NULLS").dt.cast_time_unit("ms"),
+        pl.col("TIMESTAMPS_AND_NULLS").dt.cast_time_unit("ms"),
+    )
+    expected_pd_df = pd.DataFrame(expected_data_sheet_null_strings)
+    expected_pd_df["DATES_AND_NULLS"] = expected_pd_df["DATES_AND_NULLS"].dt.as_unit("ms")
+    expected_pd_df["TIMESTAMPS_AND_NULLS"] = expected_pd_df["TIMESTAMPS_AND_NULLS"].dt.as_unit("ms")
+
+    for use_columns in (
+        list(expected_data_sheet_null_strings.keys()),
+        [key for idx, key in enumerate(expected_data_sheet_null_strings.keys()) if idx % 2],
+        [key for idx, key in enumerate(expected_data_sheet_null_strings.keys()) if idx % 2 == 0],
+        list(reversed(expected_data_sheet_null_strings.keys())),
+        [
+            key
+            for idx, key in enumerate(reversed(expected_data_sheet_null_strings.keys()))
+            if idx % 2
+        ],
+        [
+            key
+            for idx, key in enumerate(reversed(expected_data_sheet_null_strings.keys()))
+            if idx % 2 == 0
+        ],
+    ):
+        excel_reader = fastexcel.read_excel(path_for_fixture(excel_file))
+        sheet = excel_reader.load_sheet_eager(0, use_columns=use_columns)
+        pd_df = sheet.to_pandas()
+        pl_df = pl.from_arrow(data=sheet)
+        assert isinstance(pl_df, pl.DataFrame)
+        sheet_lazy = excel_reader.load_sheet(0, use_columns=use_columns)
+        pl_df_lazy = sheet_lazy.to_polars()
+        pd_df_lazy = sheet_lazy.to_pandas()
+
+        pl_assert_frame_equal(pl_df_lazy, pl_df)
+        pd_assert_frame_equal(pd_df_lazy, pd_df)
+
+        pl_assert_frame_equal(expected_pl_df.select(use_columns), pl_df)
+        pd_assert_frame_equal(expected_pd_df[use_columns], pd_df)
+
+        assert pd_df.columns.to_list() == use_columns
+        assert pl_df.columns == use_columns
