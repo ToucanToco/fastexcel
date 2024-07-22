@@ -3,11 +3,7 @@ use std::{
     io::{BufReader, Cursor},
 };
 
-use arrow::{
-    datatypes::{Field, Schema},
-    pyarrow::ToPyArrow,
-    record_batch::RecordBatch,
-};
+use arrow::{pyarrow::ToPyArrow, record_batch::RecordBatch};
 use calamine::{
     open_workbook_auto, open_workbook_auto_from_rs, Data, DataRef, Range, Reader, Sheets,
 };
@@ -25,7 +21,7 @@ use crate::{
 
 use crate::utils::schema::get_schema_sample_rows;
 
-use super::excelsheet::record_batch_from_data_and_schema;
+use super::excelsheet::record_batch_from_data_and_columns;
 use super::excelsheet::{
     column_info::{build_available_columns, build_available_columns_info},
     sheet_data::ExcelSheetData,
@@ -138,14 +134,7 @@ impl ExcelReader {
 
         let final_columns = selected_columns.select_columns(&available_columns)?;
 
-        let fields = final_columns
-            .iter()
-            .map(Into::<Field>::into)
-            .collect::<Vec<_>>();
-
-        let schema = Schema::new(fields);
-
-        record_batch_from_data_and_schema(schema, data, offset, limit)
+        record_batch_from_data_and_columns(final_columns, data, offset, limit)
     }
 
     #[allow(clippy::too_many_arguments)]

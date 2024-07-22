@@ -7,7 +7,7 @@ use std::{cmp, collections::HashSet, fmt::Debug, str::FromStr, sync::Arc};
 
 use arrow::{
     array::NullArray,
-    datatypes::{DataType as ArrowDataType, Field, Schema, TimeUnit},
+    datatypes::{Field, Schema},
     pyarrow::ToPyArrow,
     record_batch::RecordBatch,
 };
@@ -433,33 +433,32 @@ impl From<&ExcelSheet> for Schema {
     }
 }
 
-pub(crate) fn record_batch_from_data_and_schema(
-    schema: Schema,
+pub(crate) fn record_batch_from_data_and_columns(
+    columns: Vec<ColumnInfo>,
     data: &ExcelSheetData,
     offset: usize,
     limit: usize,
 ) -> FastExcelResult<RecordBatch> {
-    let mut iter = schema
-        .fields()
-        .iter()
-        .enumerate()
-        .map(|(col_idx, field)| {
+    let fields = columns.iter().map(Into::<Field>::into).collect::<Vec<_>>();
+
+    let schema = Schema::new(fields);
+
+    let mut iter = columns
+        .into_iter()
+        .map(|column_info| {
+            let col_idx = column_info.index();
+            let dtype = *column_info.dtype();
             (
-                field.name(),
-                match field.data_type() {
-                    ArrowDataType::Boolean => create_boolean_array(data, col_idx, offset, limit),
-                    ArrowDataType::Int64 => create_int_array(data, col_idx, offset, limit),
-                    ArrowDataType::Float64 => create_float_array(data, col_idx, offset, limit),
-                    ArrowDataType::Utf8 => create_string_array(data, col_idx, offset, limit),
-                    ArrowDataType::Timestamp(TimeUnit::Millisecond, None) => {
-                        create_datetime_array(data, col_idx, offset, limit)
-                    }
-                    ArrowDataType::Date32 => create_date_array(data, col_idx, offset, limit),
-                    ArrowDataType::Duration(TimeUnit::Millisecond) => {
-                        create_duration_array(data, col_idx, offset, limit)
-                    }
-                    ArrowDataType::Null => Arc::new(NullArray::new(limit - offset)),
-                    _ => unreachable!(),
+                column_info.name,
+                match dtype {
+                    DType::Null => Arc::new(NullArray::new(limit - offset)),
+                    DType::Int => create_int_array(data, col_idx, offset, limit),
+                    DType::Float => create_float_array(data, col_idx, offset, limit),
+                    DType::String => create_string_array(data, col_idx, offset, limit),
+                    DType::Bool => create_boolean_array(data, col_idx, offset, limit),
+                    DType::DateTime => create_datetime_array(data, col_idx, offset, limit),
+                    DType::Date => create_date_array(data, col_idx, offset, limit),
+                    DType::Duration => create_duration_array(data, col_idx, offset, limit),
                 },
             )
         })
