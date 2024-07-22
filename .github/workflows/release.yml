@@ -28,12 +28,12 @@ jobs:
         name: "wheels-linux-python-${{ matrix.python-version }}-${{ matrix.architecture }}"
         path: dist
 
-  macos:
-    runs-on: macos-13
+  macos-x86-64:
+    runs-on: macos-12
     strategy:
       matrix:
         python-version: ["3.8"]
-        architecture: [x86-64, aarch64]
+        architecture: [x86-64]
     steps:
     - uses: actions/checkout@v4
     - name: build (release)
@@ -41,7 +41,27 @@ jobs:
       with:
         command: build
         args: "--release -o dist --interpreter python${{ matrix.python-version }}"
-        target: ${{ matrix.architecture == 'aarch64' && 'aarch64-apple-darwin' || null }}
+        target: x86_64
+    - name: Upload wheels
+      uses: actions/upload-artifact@v4
+      with:
+        name: "wheels-macos-python-${{ matrix.python-version }}-${{ matrix.architecture }}"
+        path: dist
+
+  macos-aarch64:
+    runs-on: macos-13
+    strategy:
+      matrix:
+        python-version: ["3.8"]
+        architecture: [aarch64]
+    steps:
+    - uses: actions/checkout@v4
+    - name: build (release)
+      uses: messense/maturin-action@v1
+      with:
+        command: build
+        args: "--release -o dist --interpreter python${{ matrix.python-version }}"
+        target: aarch64
     - name: Upload wheels
       uses: actions/upload-artifact@v4
       with:

@@ -117,10 +117,15 @@ jobs:
         # Only testing the build on the smallest supported Python version
         # since we're building abi3 wheels
         python-version: ["3.8"]
-        os: ["ubuntu-latest", "macos-13", "windows-latest"]
+        os: ["ubuntu-latest", "macos-12", "macos-13", "windows-latest"]
         architecture: [x86-64, aarch64]
         exclude:
           - os: windows-latest
+            architecture: aarch64
+          # Using macOS 13 for arm wheels and macOS 12 for x86_64
+          - os: macos-13
+            architecture: x86-64
+          - os: macos-12
             architecture: aarch64
     steps:
     - uses: actions/checkout@v4
