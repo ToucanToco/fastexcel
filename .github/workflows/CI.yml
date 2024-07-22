@@ -136,5 +136,5 @@ jobs:
       with:
         manylinux: auto
         command: build
-        args: "-o dist --interpreter python${{ matrix.python-version }}"
+        args: "-o dist"
         target: ${{ steps.target.outputs.target }}
