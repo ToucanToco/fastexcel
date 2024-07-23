@@ -128,7 +128,7 @@ jobs:
       id: target
       if: matrix.os != 'windows-latest'
       run: |
-        TARGET=${{ matrix.os == 'macos-14' && (matrix.architecture == 'aarch64' && 'aarch64-apple-darwin' || 'x86_64-apple-darwin') || 'aarch64-unknown-linux-gnu'}}
+        TARGET=${{ matrix.os == 'macos-14' && (matrix.architecture == 'aarch64' && 'aarch64-apple-darwin' || 'x86_64-apple-darwin') || (matrix.architecture == 'aarch64' && 'aarch64-unknown-linux-gnu' || null) }}
         echo "target=$TARGET" >> $GITHUB_OUTPUT
 
     - name: build (fast)
