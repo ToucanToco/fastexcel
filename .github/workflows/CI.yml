@@ -124,8 +124,9 @@ jobs:
             architecture: aarch64
     steps:
     - uses: actions/checkout@v4
-    - name: Set Rust target for aarch64
+    - name: Set Rust target
       id: target
+      if: matrix.os != 'windows-latest'
       run: |
         TARGET=${{ matrix.os == 'macos-14' && (matrix.architecture == 'aarch64' && 'aarch64-apple-darwin' || 'x86_64-apple-darwin') || 'aarch64-unknown-linux-gnu'}}
         echo "target=$TARGET" >> $GITHUB_OUTPUT
