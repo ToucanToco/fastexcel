@@ -29,11 +29,15 @@ jobs:
         path: dist
 
   macos:
-    runs-on: macos-13
+    runs-on: macos-14
     strategy:
       matrix:
-        python-version: ["3.8"]
-        architecture: [x86-64, aarch64]
+        - python-version: ["3.8"]
+          architecture: x86-64
+          target: x86_64-apple-darwin
+        - python-version: ["3.8"]
+          architecture: aarch64
+          target: aarch64-apple-darwin
     steps:
     - uses: actions/checkout@v4
     - name: build (release)
@@ -41,7 +45,7 @@ jobs:
       with:
         command: build
         args: "--release -o dist"
-        target: ${{ matrix.architecture == 'aarch64' && 'aarch64-apple-darwin' || null }}
+        target: ${{ matrix.target }}
     - name: Upload wheels
       uses: actions/upload-artifact@v4
       with:

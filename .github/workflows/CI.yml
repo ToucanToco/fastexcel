@@ -80,7 +80,7 @@ jobs:
     strategy:
       matrix:
         python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
-        os: ["ubuntu-latest", "macos-13", "windows-latest"]
+        os: ["ubuntu-latest", "macos-14", "windows-latest"]
     steps:
     - uses: actions/checkout@v4
     - name: Set up Python
@@ -117,7 +117,7 @@ jobs:
         # Only testing the build on the smallest supported Python version
         # since we're building abi3 wheels
         python-version: ["3.8"]
-        os: ["ubuntu-latest", "macos-13", "windows-latest"]
+        os: ["ubuntu-latest", "macos-14", "windows-latest"]
         architecture: [x86-64, aarch64]
         exclude:
           - os: windows-latest
@@ -125,10 +125,9 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: Set Rust target for aarch64
-      if: matrix.architecture == 'aarch64'
       id: target
       run: |
-        TARGET=${{ matrix.os == 'macos-13' && 'aarch64-apple-darwin' || 'aarch64-unknown-linux-gnu'}}
+        TARGET=${{ matrix.os == 'macos-14' && (matrix.architecture == 'aarch64' && 'aarch64-apple-darwin' || 'x86_64-apple-darwin') || 'aarch64-unknown-linux-gnu'}}
         echo "target=$TARGET" >> $GITHUB_OUTPUT
 
     - name: build (fast)
