@@ -15,7 +15,7 @@ chrono = { version = "0.4.38", default-features = false }
 pyo3 = { version = "0.21.2", features = ["abi3-py38"] }
 
 [dependencies.arrow]
-version = "52.1.0"
+version = "52.2.0"
 # There's a lot of stuff we don't want here, such as serde support
 default-features = false
 features = ["pyarrow"]
