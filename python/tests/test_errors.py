@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import fastexcel
 import pytest
+
 from utils import path_for_fixture
 
 
