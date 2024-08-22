@@ -6,7 +6,7 @@ use sheet_data::ExcelSheetData;
 use std::{cmp, collections::HashSet, fmt::Debug, str::FromStr, sync::Arc};
 
 use arrow::{
-    array::NullArray,
+    array::{Array, NullArray},
     datatypes::{Field, Schema},
     pyarrow::ToPyArrow,
     record_batch::RecordBatch,
@@ -521,9 +521,14 @@ impl TryFrom<&ExcelSheet> for RecordBatch {
             let schema: Schema = sheet.into();
             Ok(RecordBatch::new_empty(Arc::new(schema)))
         } else {
-            RecordBatch::try_from_iter(iter)
-                .map_err(|err| FastExcelErrorKind::ArrowError(err.to_string()).into())
-                .with_context(|| format!("could not convert sheet {} to RecordBatch", sheet.name))
+            // We use `try_from_iter_with_nullable` because `try_from_iter` relies on `array.null_count() > 0;`
+            // to determine if the array is nullable. This is not the case for `NullArray` which has no nulls.
+            RecordBatch::try_from_iter_with_nullable(iter.map(|(field_name, array)| {
+                let nullable = array.is_nullable();
+                (field_name, array, nullable)
+            }))
+            .map_err(|err| FastExcelErrorKind::ArrowError(err.to_string()).into())
+            .with_context(|| format!("could not convert sheet {} to RecordBatch", sheet.name))
         }
     }
 }
