@@ -5,6 +5,7 @@ __pycache__
 *.pyc
 *.so
 *.dat
+.DS_Store
 
 .python-version
 .venv
