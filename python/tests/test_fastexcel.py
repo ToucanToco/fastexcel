@@ -531,3 +531,8 @@ def test_null_values_in_cells() -> None:
     pd_expected = pd.DataFrame(expected)
     pd_expected["Date"] = pd_expected["Date"].dt.as_unit("ms")
     pd_assert_frame_equal(sheet.to_pandas(), pd_expected)
+
+
+def test_null_column_is_nullable() -> None:
+    sheet = fastexcel.read_excel(path_for_fixture("null-column.xlsx")).load_sheet(0)
+    assert sheet.to_arrow().schema.field("nullonly").nullable is True
