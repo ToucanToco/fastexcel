@@ -180,6 +180,70 @@ class ExcelReader:
             )
         )
 
+    def table_names(self, sheet_name: str | None = None) -> list[str] | None:
+        return self._reader.table_names(sheet_name)
+
+    def load_table(
+        self,
+        name: str,
+        *,
+        header_row: int | None = 0,
+        column_names: list[str] | None = None,
+        skip_rows: int = 0,
+        n_rows: int | None = None,
+        schema_sample_rows: int | None = 1_000,
+        dtype_coercion: Literal["coerce", "strict"] = "coerce",
+        use_columns: list[str] | list[int] | str | Callable[[ColumnInfo], bool] | None = None,
+        dtypes: DTypeMap | None = None,
+    ) -> ExcelSheet:
+        """Loads a table lazily by name.
+
+        :param name: The name of the table to load.
+        :param header_row: The index of the row containing the column labels, default index is 0.
+                           If `None`, the sheet does not have any column labels.
+                           Any rows before the `header_row` will be automatically skipped.
+        :param column_names: Overrides headers found in the document.
+                             If `column_names` is used, `header_row` will be ignored.
+        :param n_rows: Specifies how many rows should be loaded.
+                       If `None`, all rows are loaded
+        :param skip_rows: Specifies how many rows should be skipped after the `header_row`.
+                          Any rows before the `header_row` are automatically skipped.
+                          If `header_row` is `None`, it skips the number of rows from the
+                          start of the sheet.
+        :param schema_sample_rows: Specifies how many rows should be used to determine
+                                   the dtype of a column.
+                                   If `None`, all rows will be used.
+        :param dtype_coercion: Specifies how type coercion should behave. `coerce` (the default)
+                               will try to coerce different dtypes in a column to the same one,
+                               whereas `strict` will raise an error in case a column contains
+                               several dtypes. Note that this only applies to columns whose dtype
+                               is guessed, i.e. not specified via `dtypes`.
+        :param use_columns: Specifies the columns to use. Can either be:
+                            - `None` to select all columns
+                            - A list of strings and ints, the column names and/or indices
+                              (starting at 0)
+                            - A string, a comma separated list of Excel column letters and column
+                              ranges (e.g. `“A:E”` or `“A,C,E:F”`, which would result in
+                              `A,B,C,D,E` and `A,C,E,F`)
+                            - A callable, a function that takes a column and returns a boolean
+                              indicating whether the column should be used
+        :param dtypes: An optional dict of dtypes. Keys can be column indices or names
+        """
+        return ExcelSheet(
+            self._reader.load_table(
+                name=name,
+                header_row=header_row,
+                column_names=column_names,
+                skip_rows=skip_rows,
+                n_rows=n_rows,
+                schema_sample_rows=schema_sample_rows,
+                dtype_coercion=dtype_coercion,
+                use_columns=use_columns,
+                dtypes=dtypes,
+                eager=False,
+            )
+        )
+
     def load_sheet_eager(
         self,
         idx_or_name: int | str,
