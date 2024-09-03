@@ -16,7 +16,7 @@ def get_args() -> argparse.Namespace:
     )
     parser.add_argument("-t", "--table", type=str, help="the name of the table to load")
     parser.add_argument(
-        "-pt", "--print_tables", action="store_true", help="whether to print the tables in the file"
+        "--print-tables", action="store_true", help="whether to print the tables in the file"
     )
 
     return parser.parse_args()
