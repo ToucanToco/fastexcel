@@ -206,8 +206,8 @@ class ExcelReader:
         """Loads a table by name.
 
         :param name: The name of the table to load.
-        :param header_row: The index of the row containing the column labels, default index is 0.
-                           If `None`, the sheet does not have any column labels.
+        :param header_row: The index of the row containing the column labels.
+                           If `None`, the table's column names will be used.
                            Any rows before the `header_row` will be automatically skipped.
         :param column_names: Overrides headers found in the document.
                              If `column_names` is used, `header_row` will be ignored.
