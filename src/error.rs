@@ -161,13 +161,6 @@ pub(crate) mod py_errors {
         FastExcelError,
         "Generic calamine error"
     );
-    // Xlsx error
-    create_exception!(
-        _fastexcel,
-        XlsxError,
-        FastExcelError,
-        "Generic calamine error"
-    );
     // Sheet not found
     create_exception!(
         _fastexcel,
