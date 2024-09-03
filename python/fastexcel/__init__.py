@@ -244,7 +244,6 @@ class ExcelReader:
                 dtype_coercion=dtype_coercion,
                 use_columns=use_columns,
                 dtypes=dtypes,
-                eager=False,
             )
         )
 
