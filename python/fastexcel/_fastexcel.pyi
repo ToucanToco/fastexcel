@@ -92,24 +92,21 @@ class _ExcelReader:
         dtypes: DTypeMap | None = None,
         eager: Literal[True] = ...,
     ) -> pa.RecordBatch: ...
-
     def load_table(
-            self,
-            name: str,
-            *,
-            header_row: int | None = 0,
-            column_names: list[str] | None = None,
-            skip_rows: int = 0,
-            n_rows: int | None = None,
-            schema_sample_rows: int | None = 1_000,
-            dtype_coercion: Literal["coerce", "strict"] = "coerce",
-            use_columns: list[str] | list[int] | str | Callable[[ColumnInfo], bool] | None = None,
-            dtypes: DTypeMap | None = None,
+        self,
+        name: str,
+        *,
+        header_row: int | None = 0,
+        column_names: list[str] | None = None,
+        skip_rows: int = 0,
+        n_rows: int | None = None,
+        schema_sample_rows: int | None = 1_000,
+        dtype_coercion: Literal["coerce", "strict"] = "coerce",
+        use_columns: list[str] | list[int] | str | Callable[[ColumnInfo], bool] | None = None,
+        dtypes: DTypeMap | None = None,
     ) -> pa.RecordBatch: ...
-
     @property
     def sheet_names(self) -> list[str]: ...
-
     def table_names(self, sheet_name: str | None = None) -> list[str] | None: ...
 
 def read_excel(source: str | bytes) -> _ExcelReader:

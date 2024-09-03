@@ -14,9 +14,7 @@ def get_args() -> argparse.Namespace:
     parser.add_argument(
         "-i", "--iterations", type=int, help="the number of iterations to do", default=1
     )
-    parser.add_argument(
-        "-t", "--table", type=str, help="the name of the table to load"
-    )
+    parser.add_argument("-t", "--table", type=str, help="the name of the table to load")
     parser.add_argument(
         "-pt", "--print_tables", action="store_true", help="whether to print the tables in the file"
     )
