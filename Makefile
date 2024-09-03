@@ -34,7 +34,7 @@ format-rust:
 format: format-rust format-python
 
 install-build-requirements:
-	uv pip install -U -r build-requirements.txt
+	pip install -U -r build-requirements.txt
 
 install-test-requirements: install-build-requirements
 	uv pip install -U -r test-requirements.txt
