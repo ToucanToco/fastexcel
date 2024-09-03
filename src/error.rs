@@ -1,8 +1,6 @@
-use std::{error::Error, fmt::Display};
-
-use calamine::XlsxError;
-
 use crate::types::idx_or_name::IdxOrName;
+use calamine::XlsxError;
+use std::{error::Error, fmt::Display};
 
 #[derive(Debug)]
 pub(crate) enum FastExcelErrorKind {
@@ -10,7 +8,6 @@ pub(crate) enum FastExcelErrorKind {
     CannotRetrieveCellData(usize, usize),
     CalamineCellError(calamine::CellErrorType),
     CalamineError(calamine::Error),
-    XlsxError(XlsxError),
     SheetNotFound(IdxOrName),
     ColumnNotFound(IdxOrName),
     // Arrow errors can be of several different types (arrow::error::Error, PyError), and having
@@ -34,9 +31,6 @@ impl Display for FastExcelErrorKind {
             }
             FastExcelErrorKind::CalamineError(calamine_error) => {
                 write!(f, "calamine error: {calamine_error}")
-            }
-            FastExcelErrorKind::XlsxError(xlsx_error) => {
-                write!(f, "xlsx error: {xlsx_error}")
             }
             FastExcelErrorKind::SheetNotFound(idx_or_name) => {
                 let message = idx_or_name.format_message();
@@ -235,7 +229,6 @@ pub(crate) mod py_errors {
                             CalamineCellError::new_err(message)
                         }
                         FastExcelErrorKind::CalamineError(_) => CalamineError::new_err(message),
-                        FastExcelErrorKind::XlsxError(_) => XlsxError::new_err(message),
                         FastExcelErrorKind::SheetNotFound(_) => {
                             SheetNotFoundError::new_err(message)
                         }

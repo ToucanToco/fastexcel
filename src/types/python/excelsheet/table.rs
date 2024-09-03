@@ -1,4 +1,4 @@
-use crate::error::{ErrorContext, FastExcelError, FastExcelErrorKind, FastExcelResult};
+use crate::error::{FastExcelError, FastExcelErrorKind, FastExcelResult};
 use calamine::{Data, Sheets, Table};
 use std::io::{Read, Seek};
 
@@ -33,9 +33,7 @@ pub(crate) fn extract_table_range<RS: Read + Seek>(
             xlsx.load_tables()?;
 
             let table_result = xlsx.table_by_name(name);
-            let table = table_result
-                .map_err(|err| FastExcelErrorKind::XlsxError(err).into())
-                .with_context(|| format!("Could not load table named {name}"))?;
+            let table = table_result?;
 
             Ok(table)
         }
