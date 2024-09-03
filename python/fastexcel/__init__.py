@@ -180,18 +180,21 @@ class ExcelReader:
             )
         )
 
-    def table_names(self, sheet_name: str | None = None) -> list[str] | None:
+    def table_names(self, sheet_idx_or_name: str | int | None = None) -> list[str]:
         """The list of table names.
 
-        :param sheet_name: If given, will limit the list to the given sheet, will be faster too.
+        Will return an empty list if no tables are found.
+
+        :param sheet_idx_or_name: If given, will limit the list to the given sheet, will be faster
+        too.
         """
-        return self._reader.table_names(sheet_name)
+        return self._reader.table_names(sheet_idx_or_name)
 
     def load_table(
         self,
         name: str,
         *,
-        header_row: int | None = 0,
+        header_row: int | None = None,
         column_names: list[str] | None = None,
         skip_rows: int = 0,
         n_rows: int | None = None,

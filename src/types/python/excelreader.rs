@@ -226,10 +226,11 @@ impl ExcelReader {
         let selected_columns = Self::build_selected_columns(use_columns).into_pyresult()?;
 
         let table = self.sheets.get_table(&name).into_pyresult()?;
-        let (column_names, header): (Vec<String>, Header)  = {
-            match column_names {
-                None => (Vec::from(table.columns()), Header::At(0)),
-                Some(column_names) => (column_names, Header::With(column_names)),
+        let header = {
+            match (column_names, header_row) {
+                (None, None) => Header::With(table.columns().into()),
+                (None, Some(row)) => Header::At(row),
+                (Some(column_names), _) => Header::With(column_names),
             }
         };
         let range = table.data();
@@ -325,8 +326,7 @@ impl ExcelReader {
                                     .map(|s| format!("\"{s}\""))
                                     .collect::<Vec<_>>()
                                     .join(", ");
-                                format!(
-								"Sheet \"{name}\" not found in file. Available sheets: {available_sheets}."
+                                format!("Sheet \"{name}\" not found in file. Available sheets: {available_sheets}."
 							)
                             })
                     }

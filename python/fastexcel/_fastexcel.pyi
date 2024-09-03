@@ -96,7 +96,7 @@ class _ExcelReader:
         self,
         name: str,
         *,
-        header_row: int | None = 0,
+        header_row: int | None = None,
         column_names: list[str] | None = None,
         skip_rows: int = 0,
         n_rows: int | None = None,
@@ -107,7 +107,7 @@ class _ExcelReader:
     ) -> pa.RecordBatch: ...
     @property
     def sheet_names(self) -> list[str]: ...
-    def table_names(self, sheet_name: str | None = None) -> list[str] | None: ...
+    def table_names(self, sheet_idx_or_name: str | int | None = None) -> list[str]: ...
 
 def read_excel(source: str | bytes) -> _ExcelReader:
     """Reads an excel file and returns an ExcelReader"""
