@@ -181,6 +181,10 @@ class ExcelReader:
         )
 
     def table_names(self, sheet_name: str | None = None) -> list[str] | None:
+        """The list of table names.
+
+        :param sheet_name: If given, will limit the list to the given sheet, will be faster too.
+        """
         return self._reader.table_names(sheet_name)
 
     def load_table(
@@ -196,7 +200,7 @@ class ExcelReader:
         use_columns: list[str] | list[int] | str | Callable[[ColumnInfo], bool] | None = None,
         dtypes: DTypeMap | None = None,
     ) -> ExcelSheet:
-        """Loads a table lazily by name.
+        """Loads a table by name.
 
         :param name: The name of the table to load.
         :param header_row: The index of the row containing the column labels, default index is 0.
