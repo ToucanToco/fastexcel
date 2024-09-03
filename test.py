@@ -28,11 +28,16 @@ def main():
     use_columns = args.column or None
 
     if args.print_tables:
-        print(excel_file.table_names())
+        table_names = excel_file.table_names()
+        if len(table_names) > 0:
+            print(f"Available tables are {', '.join(table_names)}")
+        else:
+            print("No tables found")
 
     for _ in range(args.iterations):
         if args.table:
-            tbl = excel_file.load_table(args.table, header_row=0)
+            tbl = excel_file.load_table(args.table)
+            print(f"Found table {args.table}:")
             print(tbl.to_polars())
         else:
             for sheet_name in excel_file.sheet_names:
