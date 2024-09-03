@@ -95,6 +95,9 @@ class _ExcelReader:
     @property
     def sheet_names(self) -> list[str]: ...
 
+    @property
+    def table_names(self, sheet_name: str | None = None) -> list[str] | None: ...
+
 def read_excel(source: str | bytes) -> _ExcelReader:
     """Reads an excel file and returns an ExcelReader"""
 
