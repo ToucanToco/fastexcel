@@ -226,13 +226,12 @@ impl ExcelReader {
         let selected_columns = Self::build_selected_columns(use_columns).into_pyresult()?;
 
         let table = self.sheets.get_table(&name).into_pyresult()?;
-        let column_names: Vec<String> = {
+        let (column_names, header): (Vec<String>, Header)  = {
             match column_names {
-                None => Vec::from(table.columns()),
-                Some(cn) => cn,
+                None => (Vec::from(table.columns()), Header::At(0)),
+                Some(column_names) => (column_names, Header::With(column_names)),
             }
         };
-        let header = Header::new(header_row, Some(column_names));
         let range = table.data();
         let pagination = Pagination::new(skip_rows, n_rows, range).into_pyresult()?;
         let sheet = ExcelSheet::try_new(
