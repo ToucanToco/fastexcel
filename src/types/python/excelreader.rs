@@ -326,8 +326,7 @@ impl ExcelReader {
                                     .map(|s| format!("\"{s}\""))
                                     .collect::<Vec<_>>()
                                     .join(", ");
-                                format!("Sheet \"{name}\" not found in file. Available sheets: {available_sheets}."
-							)
+                                format!("Sheet \"{name}\" not found in file. Available sheets: {available_sheets}.")
                             })
                     }
                 }
