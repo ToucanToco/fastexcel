@@ -9,6 +9,7 @@ DType = Literal["null", "int", "float", "string", "boolean", "datetime", "date",
 DTypeMap = dict[str | int, DType]
 ColumnNameFrom = Literal["provided", "looked_up", "generated"]
 DTypeFrom = Literal["provided_by_index", "provided_by_name", "guessed"]
+SheetVisible = Literal["visible", "hidden", "veryhidden"]
 
 class ColumnInfo:
     def __init__(
@@ -56,6 +57,9 @@ class _ExcelSheet:
     @property
     def specified_dtypes(self) -> DTypeMap | None:
         """The dtypes specified for the sheet"""
+    @property
+    def visible(self) -> SheetVisible:
+        """The visibility of the sheet"""
     def to_arrow(self) -> pa.RecordBatch:
         """Converts the sheet to a pyarrow `RecordBatch`"""
 
