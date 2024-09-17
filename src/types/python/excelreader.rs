@@ -233,11 +233,13 @@ impl ExcelReader {
                 (Some(column_names), _) => Header::With(column_names),
             }
         };
+
+        // TODO: Use From<Table<T>> for Range<T> once https://github.com/tafia/calamine/pull/464 is merged
         let range = table.data();
         let pagination = Pagination::new(skip_rows, n_rows, range).into_pyresult()?;
         let sheet = ExcelSheet::try_new(
             name,
-            // TODO: Remove clone
+            // TODO: Remove clone when aforementioned .from() is used
             ExcelSheetData::from(range.clone()),
             header,
             pagination,
