@@ -21,7 +21,7 @@ default-features = false
 features = ["pyarrow"]
 
 [dev-dependencies]
-pretty_assertions = "1.4.0"
+pretty_assertions = "1.4.1"
 rstest = { version = "0.22.0", default-features = false }
 
 # NOTE: This is a hack to bypass pyo3 limitations when testing:
