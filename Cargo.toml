@@ -2,6 +2,17 @@
 name = "fastexcel"
 version = "0.11.6"
 edition = "2021"
+include = [
+    "/pyproject.toml",
+    "/README.md",
+    "/LICENSE",
+    "/Makefile",
+    "/src",
+    "/python/fastexcel",
+    "!__pycache__",
+    "!*.pyc",
+    "!*.so",
+]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]

@@ -144,3 +144,19 @@ jobs:
       with:
         name: "wheels-${{ matrix.os }}-python-${{ matrix.python-version }}-${{ matrix.architecture }}"
         path: dist
+
+  check-sdist-build:
+    runs-on: "ubuntu-latest"
+    steps:
+      - uses: actions/checkout@v4
+      - name: build sdist
+        uses: messense/maturin-action@v1
+        with:
+          manylinux: auto
+          command: sdist
+          args: "-o dist"
+      - name: upload sdist
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdist
+          path: dist
