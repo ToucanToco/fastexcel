@@ -476,13 +476,19 @@ pub(crate) fn record_batch_from_data_and_columns(
             )
         })
         .peekable();
+
     // If the iterable is empty, try_from_iter returns an Err
     if iter.peek().is_none() {
         Ok(RecordBatch::new_empty(Arc::new(schema)))
     } else {
-        RecordBatch::try_from_iter(iter)
-            .map_err(|err| FastExcelErrorKind::ArrowError(err.to_string()).into())
-            .with_context(|| "could not create RecordBatch from iterable")
+        // We use `try_from_iter_with_nullable` because `try_from_iter` relies on `array.null_count() > 0;`
+        // to determine if the array is nullable. This is not the case for `NullArray` which has no nulls.
+        RecordBatch::try_from_iter_with_nullable(iter.map(|(field_name, array)| {
+            let nullable = array.is_nullable();
+            (field_name, array, nullable)
+        }))
+        .map_err(|err| FastExcelErrorKind::ArrowError(err.to_string()).into())
+        .with_context(|| "could not create RecordBatch from iterable")
     }
 }
 
@@ -493,54 +499,13 @@ impl TryFrom<&ExcelSheet> for RecordBatch {
         let offset = sheet.offset();
         let limit = sheet.limit();
 
-        let mut iter = sheet
-            .selected_columns
-            .iter()
-            .map(|column_info| {
-                (
-                    column_info.name(),
-                    match column_info.dtype() {
-                        DType::Bool => {
-                            create_boolean_array(sheet.data(), column_info.index(), offset, limit)
-                        }
-                        DType::Int => {
-                            create_int_array(sheet.data(), column_info.index(), offset, limit)
-                        }
-                        DType::Float => {
-                            create_float_array(sheet.data(), column_info.index(), offset, limit)
-                        }
-                        DType::String => {
-                            create_string_array(sheet.data(), column_info.index(), offset, limit)
-                        }
-                        DType::DateTime => {
-                            create_datetime_array(sheet.data(), column_info.index(), offset, limit)
-                        }
-                        DType::Date => {
-                            create_date_array(sheet.data(), column_info.index(), offset, limit)
-                        }
-                        DType::Duration => {
-                            create_duration_array(sheet.data(), column_info.index(), offset, limit)
-                        }
-                        DType::Null => Arc::new(NullArray::new(limit - offset)),
-                    },
-                )
-            })
-            .peekable();
-
-        // If the iterable is empty, try_from_iter returns an Err
-        if iter.peek().is_none() {
-            let schema = selected_columns_to_schema(&sheet.selected_columns);
-            Ok(RecordBatch::new_empty(Arc::new(schema)))
-        } else {
-            // We use `try_from_iter_with_nullable` because `try_from_iter` relies on `array.null_count() > 0;`
-            // to determine if the array is nullable. This is not the case for `NullArray` which has no nulls.
-            RecordBatch::try_from_iter_with_nullable(iter.map(|(field_name, array)| {
-                let nullable = array.is_nullable();
-                (field_name, array, nullable)
-            }))
-            .map_err(|err| FastExcelErrorKind::ArrowError(err.to_string()).into())
-            .with_context(|| format!("could not convert sheet {} to RecordBatch", sheet.name()))
-        }
+        record_batch_from_data_and_columns(
+            sheet.selected_columns.clone(),
+            sheet.data(),
+            offset,
+            limit,
+        )
+        .with_context(|| format!("could not convert sheet {} to RecordBatch", sheet.name()))
     }
 }
 
