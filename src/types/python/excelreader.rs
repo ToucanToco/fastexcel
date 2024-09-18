@@ -247,6 +247,8 @@ impl ExcelReader {
         // TODO: Use From<Table<T>> for Range<T> once https://github.com/tafia/calamine/pull/464 is merged
         let range = table.data();
         let pagination = Pagination::new(skip_rows, n_rows, range).into_pyresult()?;
+
+        // FIXME: We're creating sheet metadata here, but it should not be required by the future Table object
         let sheet_meta = CalamineSheet {
             name,
             typ: calamine::SheetType::WorkSheet,
