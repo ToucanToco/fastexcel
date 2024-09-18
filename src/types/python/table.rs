@@ -31,7 +31,9 @@ use super::excelsheet::{
 
 #[pyclass(name = "_ExcelTable")]
 pub(crate) struct ExcelTable {
+    #[pyo3(get)]
     name: String,
+    #[pyo3(get)]
     sheet_name: String,
     selected_columns: Vec<ColumnInfo>,
     available_columns: Vec<ColumnInfo>,
@@ -40,6 +42,9 @@ pub(crate) struct ExcelTable {
     pagination: Pagination,
     dtypes: Option<DTypeMap>,
     dtype_coercion: DTypeCoercion,
+    height: Option<usize>,
+    total_height: Option<usize>,
+    width: Option<usize>,
 }
 
 impl ExcelTable {
@@ -66,6 +71,9 @@ impl ExcelTable {
             pagination,
             dtypes,
             dtype_coercion,
+            height: None,
+            total_height: None,
+            width: None,
         };
 
         let row_limit = get_schema_sample_rows(
@@ -203,15 +211,38 @@ impl ExcelTable {
     }
 
     #[getter]
-    pub fn name(&self) -> &str {
-        &self.name
+    pub fn width(&mut self) -> usize {
+        self.width.unwrap_or_else(|| {
+            let width = self.data().width();
+            self.width = Some(width);
+            width
+        })
     }
+
+    #[getter]
+    pub fn height(&mut self) -> usize {
+        self.height.unwrap_or_else(|| {
+            let height = self.limit() - self.offset();
+            self.height = Some(height);
+            height
+        })
+    }
+
+    #[getter]
+    pub fn total_height(&mut self) -> usize {
+        self.total_height.unwrap_or_else(|| {
+            let total_height = self.data().height() - self.header.offset();
+            self.total_height = Some(total_height);
+            total_height
+        })
+    }
+
     pub fn to_arrow(&self, py: Python<'_>) -> PyResult<PyObject> {
         RecordBatch::try_from(self)
             .with_context(|| {
                 format!(
                     "could not create RecordBatch from sheet \"{}\"",
-                    self.name()
+                    self.name
                 )
             })
             .and_then(|rb| {
