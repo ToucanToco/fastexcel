@@ -1,14 +1,17 @@
+use crate::types::python::excelsheet::table::{extract_table_names, extract_table_range};
+use crate::utils::schema::get_schema_sample_rows;
 use std::{
     fs::File,
     io::{BufReader, Cursor},
 };
 
 use arrow::{pyarrow::ToPyArrow, record_batch::RecordBatch};
+use pyo3::{prelude::PyObject, pyclass, pymethods, Bound, IntoPy, PyAny, PyResult, Python};
+
 use calamine::{
     open_workbook_auto, open_workbook_auto_from_rs, Data, DataRef, Range, Reader,
-    Sheet as CalamineSheet, Sheets,
+    Sheet as CalamineSheet, Sheets, Table,
 };
-use pyo3::{prelude::PyObject, pyclass, pymethods, Bound, IntoPy, PyAny, PyResult, Python};
 
 use crate::{
     error::{
@@ -20,7 +23,7 @@ use crate::{
     },
 };
 
-use crate::utils::schema::get_schema_sample_rows;
+use pyo3::types::PyString;
 
 use super::excelsheet::record_batch_from_data_and_columns;
 use super::excelsheet::{
@@ -52,6 +55,17 @@ impl ExcelSheets {
         }
     }
 
+    fn table_names(&mut self, sheet_name: Option<&str>) -> FastExcelResult<Vec<String>> {
+        match self {
+            Self::File(sheets) => {
+                extract_table_names(sheets, sheet_name)?.map(|v| v.into_iter().cloned().collect())
+            }
+            Self::Bytes(sheets) => {
+                extract_table_names(sheets, sheet_name)?.map(|v| v.into_iter().cloned().collect())
+            }
+        }
+    }
+
     fn supports_by_ref(&self) -> bool {
         matches!(
             self,
@@ -59,7 +73,7 @@ impl ExcelSheets {
         )
     }
 
-    fn worksheet_range_ref<'a>(&'a mut self, name: &str) -> FastExcelResult<Range<DataRef<'a>>> {
+    fn worksheet_range_ref(&mut self, name: &str) -> FastExcelResult<Range<DataRef>> {
         match self {
             ExcelSheets::File(Sheets::Xlsx(sheets)) => Ok(sheets.worksheet_range_ref(name)?),
             ExcelSheets::Bytes(Sheets::Xlsx(sheets)) => Ok(sheets.worksheet_range_ref(name)?),
@@ -69,6 +83,13 @@ impl ExcelSheets {
             .into()),
         }
         .with_context(|| format!("Error while loading sheet {name}"))
+    }
+
+    fn get_table(&mut self, name: &str) -> FastExcelResult<Table<Data>> {
+        match self {
+            Self::File(sheets) => extract_table_range(name, sheets)?,
+            Self::Bytes(sheets) => extract_table_range(name, sheets)?,
+        }
     }
 }
 
@@ -196,6 +217,63 @@ impl ExcelReader {
             }
         }
     }
+
+    #[allow(clippy::too_many_arguments)]
+    fn build_table(
+        &mut self,
+        name: String,
+        header_row: Option<usize>,
+        column_names: Option<Vec<String>>,
+        skip_rows: usize,
+        n_rows: Option<usize>,
+        schema_sample_rows: Option<usize>,
+        dtype_coercion: DTypeCoercion,
+        use_columns: Option<&Bound<'_, PyAny>>,
+        dtypes: Option<DTypeMap>,
+        eager: bool,
+        py: Python<'_>,
+    ) -> PyResult<PyObject> {
+        let selected_columns = Self::build_selected_columns(use_columns).into_pyresult()?;
+
+        let table = self.sheets.get_table(&name).into_pyresult()?;
+        let header = {
+            match (column_names, header_row) {
+                (None, None) => Header::With(table.columns().into()),
+                (None, Some(row)) => Header::At(row),
+                (Some(column_names), _) => Header::With(column_names),
+            }
+        };
+
+        // TODO: Use From<Table<T>> for Range<T> once https://github.com/tafia/calamine/pull/464 is merged
+        let range = table.data();
+        let pagination = Pagination::new(skip_rows, n_rows, range).into_pyresult()?;
+
+        // FIXME: We're creating sheet metadata here, but it should not be required by the future Table object
+        let sheet_meta = CalamineSheet {
+            name,
+            typ: calamine::SheetType::WorkSheet,
+            visible: calamine::SheetVisible::Visible,
+        };
+
+        let sheet = ExcelSheet::try_new(
+            sheet_meta,
+            // TODO: Remove clone when aforementioned .from() is used
+            ExcelSheetData::from(range.clone()),
+            header,
+            pagination,
+            schema_sample_rows,
+            dtype_coercion,
+            selected_columns,
+            dtypes,
+        )
+        .into_pyresult()?;
+
+        if eager {
+            sheet.to_arrow(py)
+        } else {
+            Ok(sheet.into_py(py))
+        }
+    }
 }
 
 impl TryFrom<&[u8]> for ExcelReader {
@@ -219,6 +297,10 @@ impl TryFrom<&[u8]> for ExcelReader {
 impl ExcelReader {
     pub fn __repr__(&self) -> String {
         format!("ExcelReader<{}>", &self.source)
+    }
+
+    pub fn table_names(&mut self, sheet_name: Option<&str>) -> PyResult<Vec<String>> {
+        self.sheets.table_names(sheet_name).into_pyresult()
     }
 
     #[pyo3(signature = (
@@ -278,6 +360,49 @@ impl ExcelReader {
 
         self.build_sheet(
             sheet,
+            header_row,
+            column_names,
+            skip_rows,
+            n_rows,
+            schema_sample_rows,
+            dtype_coercion,
+            use_columns,
+            dtypes,
+            eager,
+            py,
+        )
+    }
+
+    #[pyo3(signature = (
+        name,
+        *,
+        header_row = 0,
+        column_names = None,
+        skip_rows = 0,
+        n_rows = None,
+        schema_sample_rows = 1_000,
+        dtype_coercion = DTypeCoercion::Coerce,
+        use_columns = None,
+        dtypes = None,
+        eager = false,
+    ))]
+    #[allow(clippy::too_many_arguments)]
+    pub fn load_table(
+        &mut self,
+        name: &Bound<'_, PyString>,
+        header_row: Option<usize>,
+        column_names: Option<Vec<String>>,
+        skip_rows: usize,
+        n_rows: Option<usize>,
+        schema_sample_rows: Option<usize>,
+        dtype_coercion: DTypeCoercion,
+        use_columns: Option<&Bound<'_, PyAny>>,
+        dtypes: Option<DTypeMap>,
+        eager: bool,
+        py: Python<'_>,
+    ) -> PyResult<PyObject> {
+        self.build_table(
+            name.to_string(),
             header_row,
             column_names,
             skip_rows,

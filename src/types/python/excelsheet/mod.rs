@@ -1,5 +1,6 @@
 pub(crate) mod column_info;
 pub(crate) mod sheet_data;
+pub(crate) mod table;
 
 use calamine::{CellType, Range, Sheet as CalamineSheet, SheetVisible as CalamineSheetVisible};
 use sheet_data::ExcelSheetData;

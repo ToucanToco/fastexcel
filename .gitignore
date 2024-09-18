@@ -13,3 +13,6 @@ docs
 .vscode
 .idea
 .benchmarks
+uv.lock
+notebooks
+/python/tests/fixtures/~$*.xlsx
