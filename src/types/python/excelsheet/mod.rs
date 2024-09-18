@@ -446,7 +446,10 @@ pub(crate) fn selected_columns_to_schema(columns: &[ColumnInfo]) -> Schema {
     Schema::new(fields)
 }
 
-fn record_batch_from_name_array_iterator<'a, I: Iterator<Item = (&'a str, Arc<dyn Array>)>>(
+pub(crate) fn record_batch_from_name_array_iterator<
+    'a,
+    I: Iterator<Item = (&'a str, Arc<dyn Array>)>,
+>(
     iter: I,
     schema: Schema,
 ) -> FastExcelResult<RecordBatch> {
@@ -472,11 +475,8 @@ pub(crate) fn record_batch_from_data_and_columns(
     offset: usize,
     limit: usize,
 ) -> FastExcelResult<RecordBatch> {
-    let fields = columns.iter().map(Into::<Field>::into).collect::<Vec<_>>();
-
-    let schema = Schema::new(fields);
-
-    let iter = columns.into_iter().map(|column_info| {
+    let schema = selected_columns_to_schema(columns);
+    let iter = columns.iter().map(|column_info| {
         let col_idx = column_info.index();
         let dtype = *column_info.dtype();
         (

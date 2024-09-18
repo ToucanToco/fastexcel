@@ -1,8 +1,9 @@
 use std::sync::Arc;
 
-use crate::types::python::excelsheet::selected_columns_to_schema;
-use arrow::array::{Array, NullArray, RecordBatch};
-use arrow::pyarrow::ToPyArrow;
+use arrow::{
+    array::{NullArray, RecordBatch},
+    pyarrow::ToPyArrow,
+};
 use calamine::{Data, Range, Table};
 use pyo3::{pyclass, pymethods, PyObject, PyResult, Python, ToPyObject};
 
@@ -26,6 +27,7 @@ use super::excelsheet::{
     },
     Header, Pagination, SelectedColumns,
 };
+use super::excelsheet::{record_batch_from_name_array_iterator, selected_columns_to_schema};
 
 #[pyclass(name = "_ExcelTable")]
 pub(crate) struct ExcelTable {
@@ -153,7 +155,9 @@ impl TryFrom<&ExcelTable> for RecordBatch {
             )
         });
 
-        record_batch_from_name_array_iterator(iter, &table.selected_columns).with_context(|| {
+        let schema = selected_columns_to_schema(&table.selected_columns);
+
+        record_batch_from_name_array_iterator(iter, schema).with_context(|| {
             format!(
                 "could not convert table {table} in sheet {sheet} to RecordBatch",
                 table = &table.name,
