@@ -31,6 +31,7 @@ use super::excelsheet::{
     sheet_data::ExcelSheetData,
 };
 use super::excelsheet::{ExcelSheet, Header, Pagination, SelectedColumns};
+use super::table::ExcelTable;
 
 enum ExcelSheets {
     File(Sheets<BufReader<File>>),
@@ -244,21 +245,10 @@ impl ExcelReader {
             }
         };
 
-        // TODO: Use From<Table<T>> for Range<T> once https://github.com/tafia/calamine/pull/464 is merged
-        let range = table.data();
-        let pagination = Pagination::new(skip_rows, n_rows, range).into_pyresult()?;
+        let pagination = Pagination::new(skip_rows, n_rows, table.data()).into_pyresult()?;
 
-        // FIXME: We're creating sheet metadata here, but it should not be required by the future Table object
-        let sheet_meta = CalamineSheet {
-            name,
-            typ: calamine::SheetType::WorkSheet,
-            visible: calamine::SheetVisible::Visible,
-        };
-
-        let sheet = ExcelSheet::try_new(
-            sheet_meta,
-            // TODO: Remove clone when aforementioned .from() is used
-            ExcelSheetData::from(range.clone()),
+        let excel_table = ExcelTable::try_new(
+            table,
             header,
             pagination,
             schema_sample_rows,
@@ -269,9 +259,9 @@ impl ExcelReader {
         .into_pyresult()?;
 
         if eager {
-            sheet.to_arrow(py)
+            excel_table.to_arrow(py)
         } else {
-            Ok(sheet.into_py(py))
+            Ok(excel_table.into_py(py))
         }
     }
 }

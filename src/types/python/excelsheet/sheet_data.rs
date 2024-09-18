@@ -75,7 +75,7 @@ mod array_impls {
     use calamine::{CellType, DataType, Range};
     use chrono::NaiveDate;
 
-    pub(super) fn create_boolean_array<DT: CellType + DataType>(
+    pub(crate) fn create_boolean_array<DT: CellType + DataType>(
         data: &Range<DT>,
         col: usize,
         offset: usize,
@@ -96,7 +96,7 @@ mod array_impls {
         })))
     }
 
-    pub(super) fn create_int_array<DT: CellType + DataType>(
+    pub(crate) fn create_int_array<DT: CellType + DataType>(
         data: &Range<DT>,
         col: usize,
         offset: usize,
@@ -107,7 +107,7 @@ mod array_impls {
         ))
     }
 
-    pub(super) fn create_float_array<DT: CellType + DataType>(
+    pub(crate) fn create_float_array<DT: CellType + DataType>(
         data: &Range<DT>,
         col: usize,
         offset: usize,
@@ -118,7 +118,7 @@ mod array_impls {
         ))
     }
 
-    pub(super) fn create_string_array<DT: CellType + DataType>(
+    pub(crate) fn create_string_array<DT: CellType + DataType>(
         data: &Range<DT>,
         col: usize,
         offset: usize,
@@ -147,7 +147,7 @@ mod array_impls {
         caldt.as_duration().map(|d| d.num_milliseconds())
     }
 
-    pub(super) fn create_date_array<DT: CellType + DataType>(
+    pub(crate) fn create_date_array<DT: CellType + DataType>(
         data: &Range<DT>,
         col: usize,
         offset: usize,
@@ -161,7 +161,7 @@ mod array_impls {
         })))
     }
 
-    pub(super) fn create_datetime_array<DT: CellType + DataType>(
+    pub(crate) fn create_datetime_array<DT: CellType + DataType>(
         data: &Range<DT>,
         col: usize,
         offset: usize,
@@ -176,7 +176,7 @@ mod array_impls {
         )))
     }
 
-    pub(super) fn create_duration_array<DT: CellType + DataType>(
+    pub(crate) fn create_duration_array<DT: CellType + DataType>(
         data: &Range<DT>,
         col: usize,
         offset: usize,
@@ -212,3 +212,11 @@ create_array_function!(create_float_array);
 create_array_function!(create_datetime_array);
 create_array_function!(create_date_array);
 create_array_function!(create_duration_array);
+
+pub(crate) use array_impls::create_boolean_array as create_boolean_array_from_range;
+pub(crate) use array_impls::create_date_array as create_date_array_from_range;
+pub(crate) use array_impls::create_datetime_array as create_datetime_array_from_range;
+pub(crate) use array_impls::create_duration_array as create_duration_array_from_range;
+pub(crate) use array_impls::create_float_array as create_float_array_from_range;
+pub(crate) use array_impls::create_int_array as create_int_array_from_range;
+pub(crate) use array_impls::create_string_array as create_string_array_from_range;

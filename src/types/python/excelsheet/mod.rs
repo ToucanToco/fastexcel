@@ -416,11 +416,11 @@ impl ExcelSheet {
             &sheet.dtype_coercion,
         )?;
 
+        // Figure out dtype for every column
         let selected_columns = selected_columns.select_columns(&available_columns)?;
         sheet.available_columns = available_columns;
         sheet.selected_columns = selected_columns;
 
-        // Figure out dtype for every column
         Ok(sheet)
     }
 
@@ -441,15 +441,9 @@ impl ExcelSheet {
     }
 }
 
-impl From<&ExcelSheet> for Schema {
-    fn from(sheet: &ExcelSheet) -> Self {
-        let fields: Vec<_> = sheet
-            .selected_columns
-            .iter()
-            .map(Into::<Field>::into)
-            .collect();
-        Schema::new(fields)
-    }
+pub(crate) fn selected_columns_to_schema(columns: &[ColumnInfo]) -> Schema {
+    let fields: Vec<_> = columns.iter().map(Into::<Field>::into).collect();
+    Schema::new(fields)
 }
 
 pub(crate) fn record_batch_from_data_and_columns(
@@ -503,8 +497,6 @@ impl TryFrom<&ExcelSheet> for RecordBatch {
             .selected_columns
             .iter()
             .map(|column_info| {
-                // At this point, we know for sure that the column is in the schema so we can
-                // safely unwrap
                 (
                     column_info.name(),
                     match column_info.dtype() {
@@ -537,7 +529,7 @@ impl TryFrom<&ExcelSheet> for RecordBatch {
 
         // If the iterable is empty, try_from_iter returns an Err
         if iter.peek().is_none() {
-            let schema: Schema = sheet.into();
+            let schema = selected_columns_to_schema(&sheet.selected_columns);
             Ok(RecordBatch::new_empty(Arc::new(schema)))
         } else {
             // We use `try_from_iter_with_nullable` because `try_from_iter` relies on `array.null_count() > 0;`

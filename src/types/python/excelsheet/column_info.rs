@@ -1,6 +1,7 @@
 use std::{fmt::Display, str::FromStr};
 
 use arrow::datatypes::Field;
+use calamine::DataType;
 use pyo3::{pyclass, pymethods, PyResult};
 
 use crate::{
@@ -8,7 +9,7 @@ use crate::{
         py_errors::IntoPyResult, ErrorContext, FastExcelError, FastExcelErrorKind, FastExcelResult,
     },
     types::{
-        dtype::{DType, DTypeCoercion, DTypeMap},
+        dtype::{get_dtype_for_column, DType, DTypeCoercion, DTypeMap},
         idx_or_name::IdxOrName,
     },
 };
@@ -231,9 +232,9 @@ impl ColumnInfoBuilder {
         &self.name
     }
 
-    fn dtype_info(
+    fn dtype_info<D: CalamineDataProvider>(
         &self,
-        data: &ExcelSheetData<'_>,
+        data: &D,
         start_row: usize,
         end_row: usize,
         specified_dtypes: Option<&DTypeMap>,
@@ -259,9 +260,9 @@ impl ColumnInfoBuilder {
             })
     }
 
-    pub(super) fn finish(
+    pub(super) fn finish<D: CalamineDataProvider>(
         self,
-        data: &ExcelSheetData<'_>,
+        data: &D,
         start_row: usize,
         end_row: usize,
         specified_dtypes: Option<&DTypeMap>,
@@ -280,8 +281,60 @@ impl ColumnInfoBuilder {
     }
 }
 
-pub(crate) fn build_available_columns_info(
-    data: &ExcelSheetData<'_>,
+pub(crate) trait CalamineDataProvider {
+    fn width(&self) -> usize;
+    fn get_as_string(&self, pos: (usize, usize)) -> Option<String>;
+    fn dtype_for_column(
+        &self,
+        start_row: usize,
+        end_row: usize,
+        col: usize,
+        dtype_coercion: &DTypeCoercion,
+    ) -> FastExcelResult<DType>;
+}
+
+impl CalamineDataProvider for ExcelSheetData<'_> {
+    fn width(&self) -> usize {
+        self.width()
+    }
+
+    fn get_as_string(&self, pos: (usize, usize)) -> Option<String> {
+        self.get_as_string(pos)
+    }
+
+    fn dtype_for_column(
+        &self,
+        start_row: usize,
+        end_row: usize,
+        col: usize,
+        dtype_coercion: &DTypeCoercion,
+    ) -> FastExcelResult<DType> {
+        self.dtype_for_column(start_row, end_row, col, dtype_coercion)
+    }
+}
+
+impl CalamineDataProvider for calamine::Range<calamine::Data> {
+    fn width(&self) -> usize {
+        self.width()
+    }
+
+    fn get_as_string(&self, pos: (usize, usize)) -> Option<String> {
+        self.get(pos).and_then(|data| data.as_string())
+    }
+
+    fn dtype_for_column(
+        &self,
+        start_row: usize,
+        end_row: usize,
+        col: usize,
+        dtype_coercion: &DTypeCoercion,
+    ) -> FastExcelResult<DType> {
+        get_dtype_for_column(self, start_row, end_row, col, dtype_coercion)
+    }
+}
+
+pub(crate) fn build_available_columns_info<D: CalamineDataProvider>(
+    data: &D,
     selected_columns: &SelectedColumns,
     header: &Header,
 ) -> FastExcelResult<Vec<ColumnInfoBuilder>> {
@@ -397,9 +450,9 @@ fn alias_for_name(name: &str, existing_names: &[String]) -> String {
     rec(name, existing_names, 0)
 }
 
-pub(crate) fn build_available_columns(
+pub(crate) fn build_available_columns<D: CalamineDataProvider>(
     available_columns_info: Vec<ColumnInfoBuilder>,
-    data: &ExcelSheetData,
+    data: &D,
     start_row: usize,
     end_row: usize,
     specified_dtypes: Option<&DTypeMap>,
