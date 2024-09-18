@@ -156,7 +156,7 @@ impl ExcelReader {
 
         let final_columns = selected_columns.select_columns(&available_columns)?;
 
-        record_batch_from_data_and_columns(final_columns, data, offset, limit)
+        record_batch_from_data_and_columns(&final_columns, data, offset, limit)
     }
 
     #[allow(clippy::too_many_arguments)]

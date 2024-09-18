@@ -163,26 +163,6 @@ impl TryFrom<&ExcelTable> for RecordBatch {
     }
 }
 
-fn record_batch_from_name_array_iterator<'a, I: Iterator<Item = (&'a str, Arc<dyn Array>)>>(
-    iter: I,
-    selected_columns: &[ColumnInfo],
-) -> FastExcelResult<RecordBatch> {
-    let mut iter = iter.peekable();
-    // If the iterable is empty, try_from_iter returns an Err
-    if iter.peek().is_none() {
-        let schema = selected_columns_to_schema(selected_columns);
-        Ok(RecordBatch::new_empty(Arc::new(schema)))
-    } else {
-        // We use `try_from_iter_with_nullable` because `try_from_iter` relies on `array.null_count() > 0;`
-        // to determine if the array is nullable. This is not the case for `NullArray` which has no nulls.
-        RecordBatch::try_from_iter_with_nullable(iter.map(|(field_name, array)| {
-            let nullable = array.is_nullable();
-            (field_name, array, nullable)
-        }))
-        .map_err(|err| FastExcelErrorKind::ArrowError(err.to_string()).into())
-    }
-}
-
 #[pymethods]
 impl ExcelTable {
     #[getter]

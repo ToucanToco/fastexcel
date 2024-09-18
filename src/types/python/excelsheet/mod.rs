@@ -446,37 +446,11 @@ pub(crate) fn selected_columns_to_schema(columns: &[ColumnInfo]) -> Schema {
     Schema::new(fields)
 }
 
-pub(crate) fn record_batch_from_data_and_columns(
-    columns: Vec<ColumnInfo>,
-    data: &ExcelSheetData,
-    offset: usize,
-    limit: usize,
+fn record_batch_from_name_array_iterator<'a, I: Iterator<Item = (&'a str, Arc<dyn Array>)>>(
+    iter: I,
+    schema: Schema,
 ) -> FastExcelResult<RecordBatch> {
-    let fields = columns.iter().map(Into::<Field>::into).collect::<Vec<_>>();
-
-    let schema = Schema::new(fields);
-
-    let mut iter = columns
-        .into_iter()
-        .map(|column_info| {
-            let col_idx = column_info.index();
-            let dtype = *column_info.dtype();
-            (
-                column_info.name,
-                match dtype {
-                    DType::Null => Arc::new(NullArray::new(limit - offset)),
-                    DType::Int => create_int_array(data, col_idx, offset, limit),
-                    DType::Float => create_float_array(data, col_idx, offset, limit),
-                    DType::String => create_string_array(data, col_idx, offset, limit),
-                    DType::Bool => create_boolean_array(data, col_idx, offset, limit),
-                    DType::DateTime => create_datetime_array(data, col_idx, offset, limit),
-                    DType::Date => create_date_array(data, col_idx, offset, limit),
-                    DType::Duration => create_duration_array(data, col_idx, offset, limit),
-                },
-            )
-        })
-        .peekable();
-
+    let mut iter = iter.peekable();
     // If the iterable is empty, try_from_iter returns an Err
     if iter.peek().is_none() {
         Ok(RecordBatch::new_empty(Arc::new(schema)))
@@ -492,6 +466,37 @@ pub(crate) fn record_batch_from_data_and_columns(
     }
 }
 
+pub(crate) fn record_batch_from_data_and_columns(
+    columns: &[ColumnInfo],
+    data: &ExcelSheetData,
+    offset: usize,
+    limit: usize,
+) -> FastExcelResult<RecordBatch> {
+    let fields = columns.iter().map(Into::<Field>::into).collect::<Vec<_>>();
+
+    let schema = Schema::new(fields);
+
+    let iter = columns.into_iter().map(|column_info| {
+        let col_idx = column_info.index();
+        let dtype = *column_info.dtype();
+        (
+            column_info.name.as_str(),
+            match dtype {
+                DType::Null => Arc::new(NullArray::new(limit - offset)),
+                DType::Int => create_int_array(data, col_idx, offset, limit),
+                DType::Float => create_float_array(data, col_idx, offset, limit),
+                DType::String => create_string_array(data, col_idx, offset, limit),
+                DType::Bool => create_boolean_array(data, col_idx, offset, limit),
+                DType::DateTime => create_datetime_array(data, col_idx, offset, limit),
+                DType::Date => create_date_array(data, col_idx, offset, limit),
+                DType::Duration => create_duration_array(data, col_idx, offset, limit),
+            },
+        )
+    });
+
+    record_batch_from_name_array_iterator(iter, schema)
+}
+
 impl TryFrom<&ExcelSheet> for RecordBatch {
     type Error = FastExcelError;
 
@@ -499,13 +504,8 @@ impl TryFrom<&ExcelSheet> for RecordBatch {
         let offset = sheet.offset();
         let limit = sheet.limit();
 
-        record_batch_from_data_and_columns(
-            sheet.selected_columns.clone(),
-            sheet.data(),
-            offset,
-            limit,
-        )
-        .with_context(|| format!("could not convert sheet {} to RecordBatch", sheet.name()))
+        record_batch_from_data_and_columns(&sheet.selected_columns, sheet.data(), offset, limit)
+            .with_context(|| format!("could not convert sheet {} to RecordBatch", sheet.name()))
     }
 }
 
