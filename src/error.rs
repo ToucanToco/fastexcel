@@ -1,8 +1,6 @@
-use std::{error::Error, fmt::Display};
-
-use calamine::XlsxError;
-
 use crate::types::idx_or_name::IdxOrName;
+use calamine::XlsxError;
+use std::{error::Error, fmt::Display};
 
 #[derive(Debug)]
 pub(crate) enum FastExcelErrorKind {
