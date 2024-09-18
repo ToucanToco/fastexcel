@@ -1,5 +1,18 @@
 use crate::types::python::excelsheet::table::{extract_table_names, extract_table_range};
 use crate::utils::schema::get_schema_sample_rows;
+use std::{
+    fs::File,
+    io::{BufReader, Cursor},
+};
+
+use arrow::{pyarrow::ToPyArrow, record_batch::RecordBatch};
+use pyo3::{prelude::PyObject, pyclass, pymethods, Bound, IntoPy, PyAny, PyResult, Python};
+
+use calamine::{
+    open_workbook_auto, open_workbook_auto_from_rs, Data, DataRef, Range, Reader,
+    Sheet as CalamineSheet, Sheets, Table,
+};
+
 use crate::{
     error::{
         py_errors::IntoPyResult, ErrorContext, FastExcelError, FastExcelErrorKind, FastExcelResult,
@@ -9,16 +22,8 @@ use crate::{
         idx_or_name::IdxOrName,
     },
 };
-use arrow::{pyarrow::ToPyArrow, record_batch::RecordBatch};
-use calamine::{
-    open_workbook_auto, open_workbook_auto_from_rs, Data, DataRef, Range, Reader, Sheets, Table,
-};
+
 use pyo3::types::PyString;
-use pyo3::{prelude::PyObject, pyclass, pymethods, Bound, IntoPy, PyAny, PyResult, Python};
-use std::{
-    fs::File,
-    io::{BufReader, Cursor},
-};
 
 use super::excelsheet::record_batch_from_data_and_columns;
 use super::excelsheet::{
@@ -43,10 +48,10 @@ impl ExcelSheets {
     }
 
     #[allow(dead_code)]
-    fn sheet_names(&self) -> Vec<String> {
+    fn sheet_metadata(&self) -> &[CalamineSheet] {
         match self {
-            Self::File(sheets) => sheets.sheet_names(),
-            Self::Bytes(sheets) => sheets.sheet_names(),
+            ExcelSheets::File(sheets) => sheets.sheets_metadata(),
+            ExcelSheets::Bytes(sheets) => sheets.sheets_metadata(),
         }
     }
 
@@ -91,8 +96,7 @@ impl ExcelSheets {
 #[pyclass(name = "_ExcelReader")]
 pub(crate) struct ExcelReader {
     sheets: ExcelSheets,
-    #[pyo3(get)]
-    sheet_names: Vec<String>,
+    sheet_metadata: Vec<CalamineSheet>,
     source: String,
 }
 
@@ -109,10 +113,10 @@ impl ExcelReader {
         let sheets = open_workbook_auto(path)
             .map_err(|err| FastExcelErrorKind::CalamineError(err).into())
             .with_context(|| format!("Could not open workbook at {path}"))?;
-        let sheet_names = sheets.sheet_names().to_owned();
+        let sheet_metadata = sheets.sheets_metadata().to_owned();
         Ok(Self {
             sheets: ExcelSheets::File(sheets),
-            sheet_names,
+            sheet_metadata,
             source: path.to_owned(),
         })
     }
@@ -157,7 +161,7 @@ impl ExcelReader {
     #[allow(clippy::too_many_arguments)]
     fn build_sheet(
         &mut self,
-        name: String,
+        sheet_meta: CalamineSheet,
         header_row: Option<usize>,
         column_names: Option<Vec<String>>,
         skip_rows: usize,
@@ -172,7 +176,10 @@ impl ExcelReader {
         let header = Header::new(header_row, column_names);
         let selected_columns = Self::build_selected_columns(use_columns).into_pyresult()?;
         if eager && self.sheets.supports_by_ref() {
-            let range = self.sheets.worksheet_range_ref(&name).into_pyresult()?;
+            let range = self
+                .sheets
+                .worksheet_range_ref(&sheet_meta.name)
+                .into_pyresult()?;
             let pagination = Pagination::new(skip_rows, n_rows, &range).into_pyresult()?;
             Self::load_sheet_eager(
                 &range.into(),
@@ -186,10 +193,13 @@ impl ExcelReader {
             .into_pyresult()
             .and_then(|rb| rb.to_pyarrow(py))
         } else {
-            let range = self.sheets.worksheet_range(&name).into_pyresult()?;
+            let range = self
+                .sheets
+                .worksheet_range(&sheet_meta.name)
+                .into_pyresult()?;
             let pagination = Pagination::new(skip_rows, n_rows, &range).into_pyresult()?;
             let sheet = ExcelSheet::try_new(
-                name,
+                sheet_meta,
                 range.into(),
                 header,
                 pagination,
@@ -237,8 +247,14 @@ impl ExcelReader {
         // TODO: Use From<Table<T>> for Range<T> once https://github.com/tafia/calamine/pull/464 is merged
         let range = table.data();
         let pagination = Pagination::new(skip_rows, n_rows, range).into_pyresult()?;
-        let sheet = ExcelSheet::try_new(
+        let sheet_meta = CalamineSheet {
             name,
+            typ: calamine::SheetType::WorkSheet,
+            visible: calamine::SheetVisible::Visible,
+        };
+
+        let sheet = ExcelSheet::try_new(
+            sheet_meta,
             // TODO: Remove clone when aforementioned .from() is used
             ExcelSheetData::from(range.clone()),
             header,
@@ -266,10 +282,10 @@ impl TryFrom<&[u8]> for ExcelReader {
         let sheets = open_workbook_auto_from_rs(cursor)
             .map_err(|err| FastExcelErrorKind::CalamineError(err).into())
             .with_context(|| "Could not open workbook from bytes")?;
-        let sheet_names = sheets.sheet_names().to_owned();
+        let sheet_metadata = sheets.sheets_metadata().to_owned();
         Ok(Self {
             sheets: ExcelSheets::Bytes(sheets),
-            sheet_names,
+            sheet_metadata,
             source: "bytes".to_owned(),
         })
     }
@@ -313,41 +329,35 @@ impl ExcelReader {
         eager: bool,
         py: Python<'_>,
     ) -> PyResult<PyObject> {
-        let name = idx_or_name
+        let sheet = idx_or_name
             .try_into()
             .and_then(|idx_or_name| match idx_or_name {
                 IdxOrName::Name(name) => {
-                    if self.sheet_names.contains(&name) {
-                        Ok(name)
+                    if let Some(sheet) = self.sheet_metadata.iter().find(|s| s.name == name) {
+                        Ok(sheet)
                     } else {
-                        Err(FastExcelErrorKind::SheetNotFound(IdxOrName::Name(name.clone())).into())
-                            .with_context(|| {
-                                let available_sheets = self
-                                    .sheet_names
-                                    .iter()
-                                    .map(|s| format!("\"{s}\""))
-                                    .collect::<Vec<_>>()
-                                    .join(", ");
-                                format!("Sheet \"{name}\" not found in file. Available sheets: {available_sheets}.")
-                            })
+                        Err(FastExcelErrorKind::SheetNotFound(IdxOrName::Name(name.clone())).into()).with_context(||  {
+                            let available_sheets = self.sheet_metadata.iter().map(|s| format!("\"{}\"", s.name)).collect::<Vec<_>>().join(", ");
+                            format!(
+                                "Sheet \"{name}\" not found in file. Available sheets: {available_sheets}."
+                            )
+                        })
                     }
                 }
                 IdxOrName::Idx(idx) => self
-                    .sheet_names
-                    .get(idx)
+                    .sheet_metadata                    .get(idx)
                     .ok_or_else(|| FastExcelErrorKind::SheetNotFound(IdxOrName::Idx(idx)).into())
-                    .with_context(|| {
-                        format!(
+                    .with_context(|| {                         format!(
                             "Sheet index {idx} is out of range. File has {} sheets.",
-                            self.sheet_names.len()
+                            self.sheet_metadata.len()
                         )
                     })
-                    .map(ToOwned::to_owned),
+                    ,
             })
-            .into_pyresult()?;
+            .into_pyresult()?.to_owned();
 
         self.build_sheet(
-            name,
+            sheet,
             header_row,
             column_names,
             skip_rows,
@@ -402,5 +412,13 @@ impl ExcelReader {
             eager,
             py,
         )
+    }
+
+    #[getter]
+    pub fn sheet_names(&self) -> Vec<&str> {
+        self.sheet_metadata
+            .iter()
+            .map(|s| s.name.as_str())
+            .collect()
     }
 }

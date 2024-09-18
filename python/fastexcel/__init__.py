@@ -38,6 +38,7 @@ DType = Literal["null", "int", "float", "string", "boolean", "datetime", "date",
 DTypeMap: TypeAlias = "dict[str | int, DType]"
 ColumnNameFrom: TypeAlias = Literal["provided", "looked_up", "generated"]
 DTypeFrom: TypeAlias = Literal["provided_by_index", "provided_by_name", "guessed"]
+SheetVisible: TypeAlias = Literal["visible", "hidden", "veryhidden"]
 
 
 class ExcelSheet:
@@ -80,6 +81,11 @@ class ExcelSheet:
     def specified_dtypes(self) -> DTypeMap | None:
         """The dtypes specified for the sheet"""
         return self._sheet.specified_dtypes
+
+    @property
+    def visible(self) -> SheetVisible:
+        """The visibility of the sheet"""
+        return self._sheet.visible
 
     def to_arrow(self) -> pa.RecordBatch:
         """Converts the sheet to a pyarrow `RecordBatch`"""

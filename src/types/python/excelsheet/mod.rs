@@ -2,7 +2,7 @@ pub(crate) mod column_info;
 pub(crate) mod sheet_data;
 pub(crate) mod table;
 
-use calamine::{CellType, Range};
+use calamine::{CellType, Range, Sheet as CalamineSheet, SheetVisible as CalamineSheetVisible};
 use sheet_data::ExcelSheetData;
 use std::{cmp, collections::HashSet, fmt::Debug, str::FromStr, sync::Arc};
 
@@ -335,10 +335,28 @@ impl TryFrom<Option<&Bound<'_, PyAny>>> for SelectedColumns {
     }
 }
 
+#[derive(Clone, Debug)]
+struct SheetVisible(CalamineSheetVisible);
+
+impl ToPyObject for &SheetVisible {
+    fn to_object(&self, py: Python<'_>) -> PyObject {
+        match self.0 {
+            CalamineSheetVisible::Visible => "visible".to_object(py),
+            CalamineSheetVisible::Hidden => "hidden".to_object(py),
+            CalamineSheetVisible::VeryHidden => "veryhidden".to_object(py),
+        }
+    }
+}
+
+impl From<CalamineSheetVisible> for SheetVisible {
+    fn from(value: CalamineSheetVisible) -> Self {
+        Self(value)
+    }
+}
+
 #[pyclass(name = "_ExcelSheet")]
 pub(crate) struct ExcelSheet {
-    #[pyo3(get)]
-    pub(crate) name: String,
+    sheet_meta: CalamineSheet,
     header: Header,
     pagination: Pagination,
     data: ExcelSheetData<'static>,
@@ -359,7 +377,7 @@ impl ExcelSheet {
 
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn try_new(
-        name: String,
+        sheet_meta: CalamineSheet,
         data: ExcelSheetData<'static>,
         header: Header,
         pagination: Pagination,
@@ -371,7 +389,7 @@ impl ExcelSheet {
         let available_columns_info =
             build_available_columns_info(&data, &selected_columns, &header)?;
         let mut sheet = ExcelSheet {
-            name,
+            sheet_meta,
             header,
             pagination,
             data,
@@ -529,7 +547,7 @@ impl TryFrom<&ExcelSheet> for RecordBatch {
                 (field_name, array, nullable)
             }))
             .map_err(|err| FastExcelErrorKind::ArrowError(err.to_string()).into())
-            .with_context(|| format!("could not convert sheet {} to RecordBatch", sheet.name))
+            .with_context(|| format!("could not convert sheet {} to RecordBatch", sheet.name()))
         }
     }
 }
@@ -583,9 +601,25 @@ impl ExcelSheet {
         self.dtypes.as_ref().map(|dtypes| dtypes.to_object(py))
     }
 
+    #[getter]
+    pub fn name(&self) -> &str {
+        &self.sheet_meta.name
+    }
+
+    #[getter]
+    pub fn visible<'p>(&'p self, py: Python<'p>) -> PyObject {
+        let visible: SheetVisible = self.sheet_meta.visible.into();
+        (&visible).to_object(py)
+    }
+
     pub fn to_arrow(&self, py: Python<'_>) -> PyResult<PyObject> {
         RecordBatch::try_from(self)
-            .with_context(|| format!("could not create RecordBatch from sheet \"{}\"", &self.name))
+            .with_context(|| {
+                format!(
+                    "could not create RecordBatch from sheet \"{}\"",
+                    self.name()
+                )
+            })
             .and_then(|rb| {
                 rb.to_pyarrow(py)
                     .map_err(|err| FastExcelErrorKind::ArrowError(err.to_string()).into())
@@ -593,14 +627,14 @@ impl ExcelSheet {
             .with_context(|| {
                 format!(
                     "could not convert RecordBatch to pyarrow for sheet \"{}\"",
-                    self.name
+                    self.name()
                 )
             })
             .into_pyresult()
     }
 
     pub fn __repr__(&self) -> String {
-        format!("ExcelSheet<{}>", self.name)
+        format!("ExcelSheet<{}>", self.name())
     }
 }
 
