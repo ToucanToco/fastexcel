@@ -8,6 +8,12 @@ use calamine::{Data, Range, Table};
 use pyo3::{pyclass, pymethods, PyObject, PyResult, Python, ToPyObject};
 
 use crate::{
+    data::{
+        create_boolean_array_from_range, create_date_array_from_range,
+        create_datetime_array_from_range, create_duration_array_from_range,
+        create_float_array_from_range, create_int_array_from_range, create_string_array_from_range,
+        record_batch_from_name_array_iterator, selected_columns_to_schema,
+    },
     error::{
         py_errors::IntoPyResult, ErrorContext, FastExcelError, FastExcelErrorKind, FastExcelResult,
     },
@@ -20,14 +26,8 @@ use crate::{
 
 use super::excelsheet::{
     column_info::{build_available_columns_info, ColumnInfo},
-    sheet_data::{
-        create_boolean_array_from_range, create_date_array_from_range,
-        create_datetime_array_from_range, create_duration_array_from_range,
-        create_float_array_from_range, create_int_array_from_range, create_string_array_from_range,
-    },
     Header, Pagination, SelectedColumns,
 };
-use super::excelsheet::{record_batch_from_name_array_iterator, selected_columns_to_schema};
 
 #[pyclass(name = "_ExcelTable")]
 pub(crate) struct ExcelTable {

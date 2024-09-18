@@ -1,11 +1,17 @@
 use std::sync::Arc;
 
-use arrow::array::Array;
+use arrow::{
+    array::{Array, NullArray, RecordBatch},
+    datatypes::{Field, Schema},
+};
 use calamine::{Data as CalData, DataRef as CalDataRef, DataType, Range};
 
 use crate::{
-    error::FastExcelResult,
-    types::dtype::{get_dtype_for_column, DType, DTypeCoercion},
+    error::{ErrorContext, FastExcelErrorKind, FastExcelResult},
+    types::{
+        dtype::{get_dtype_for_column, DType, DTypeCoercion},
+        python::excelsheet::column_info::ColumnInfo,
+    },
 };
 
 pub(crate) enum ExcelSheetData<'r> {
@@ -220,3 +226,59 @@ pub(crate) use array_impls::create_duration_array as create_duration_array_from_
 pub(crate) use array_impls::create_float_array as create_float_array_from_range;
 pub(crate) use array_impls::create_int_array as create_int_array_from_range;
 pub(crate) use array_impls::create_string_array as create_string_array_from_range;
+
+pub(crate) fn selected_columns_to_schema(columns: &[ColumnInfo]) -> Schema {
+    let fields: Vec<_> = columns.iter().map(Into::<Field>::into).collect();
+    Schema::new(fields)
+}
+
+pub(crate) fn record_batch_from_name_array_iterator<
+    'a,
+    I: Iterator<Item = (&'a str, Arc<dyn Array>)>,
+>(
+    iter: I,
+    schema: Schema,
+) -> FastExcelResult<RecordBatch> {
+    let mut iter = iter.peekable();
+    // If the iterable is empty, try_from_iter returns an Err
+    if iter.peek().is_none() {
+        Ok(RecordBatch::new_empty(Arc::new(schema)))
+    } else {
+        // We use `try_from_iter_with_nullable` because `try_from_iter` relies on `array.null_count() > 0;`
+        // to determine if the array is nullable. This is not the case for `NullArray` which has no nulls.
+        RecordBatch::try_from_iter_with_nullable(iter.map(|(field_name, array)| {
+            let nullable = array.is_nullable();
+            (field_name, array, nullable)
+        }))
+        .map_err(|err| FastExcelErrorKind::ArrowError(err.to_string()).into())
+        .with_context(|| "could not create RecordBatch from iterable")
+    }
+}
+
+pub(crate) fn record_batch_from_data_and_columns(
+    columns: &[ColumnInfo],
+    data: &ExcelSheetData,
+    offset: usize,
+    limit: usize,
+) -> FastExcelResult<RecordBatch> {
+    let schema = selected_columns_to_schema(columns);
+    let iter = columns.iter().map(|column_info| {
+        let col_idx = column_info.index();
+        let dtype = *column_info.dtype();
+        (
+            column_info.name.as_str(),
+            match dtype {
+                DType::Null => Arc::new(NullArray::new(limit - offset)),
+                DType::Int => create_int_array(data, col_idx, offset, limit),
+                DType::Float => create_float_array(data, col_idx, offset, limit),
+                DType::String => create_string_array(data, col_idx, offset, limit),
+                DType::Bool => create_boolean_array(data, col_idx, offset, limit),
+                DType::DateTime => create_datetime_array(data, col_idx, offset, limit),
+                DType::Date => create_date_array(data, col_idx, offset, limit),
+                DType::Duration => create_duration_array(data, col_idx, offset, limit),
+            },
+        )
+    });
+
+    record_batch_from_name_array_iterator(iter, schema)
+}

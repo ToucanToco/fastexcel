@@ -1,5 +1,3 @@
-use crate::types::python::excelsheet::table::{extract_table_names, extract_table_range};
-use crate::utils::schema::get_schema_sample_rows;
 use std::{
     fs::File,
     io::{BufReader, Cursor},
@@ -14,23 +12,24 @@ use calamine::{
 };
 
 use crate::{
+    data::{record_batch_from_data_and_columns, ExcelSheetData},
     error::{
         py_errors::IntoPyResult, ErrorContext, FastExcelError, FastExcelErrorKind, FastExcelResult,
     },
     types::{
         dtype::{DTypeCoercion, DTypeMap},
         idx_or_name::IdxOrName,
+        python::excelsheet::table::{extract_table_names, extract_table_range},
     },
+    utils::schema::get_schema_sample_rows,
 };
 
 use pyo3::types::PyString;
 
-use super::excelsheet::record_batch_from_data_and_columns;
 use super::excelsheet::{
     column_info::{build_available_columns, build_available_columns_info},
-    sheet_data::ExcelSheetData,
+    ExcelSheet, Header, Pagination, SelectedColumns,
 };
-use super::excelsheet::{ExcelSheet, Header, Pagination, SelectedColumns};
 use super::table::ExcelTable;
 
 enum ExcelSheets {

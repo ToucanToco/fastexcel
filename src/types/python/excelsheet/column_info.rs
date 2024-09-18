@@ -5,6 +5,7 @@ use calamine::DataType;
 use pyo3::{pyclass, pymethods, PyResult};
 
 use crate::{
+    data::ExcelSheetData,
     error::{
         py_errors::IntoPyResult, ErrorContext, FastExcelError, FastExcelErrorKind, FastExcelResult,
     },
@@ -14,7 +15,7 @@ use crate::{
     },
 };
 
-use super::{sheet_data::ExcelSheetData, Header, SelectedColumns};
+use super::{Header, SelectedColumns};
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum ColumnNameFrom {
