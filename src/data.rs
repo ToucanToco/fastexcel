@@ -227,11 +227,13 @@ pub(crate) use array_impls::create_float_array as create_float_array_from_range;
 pub(crate) use array_impls::create_int_array as create_int_array_from_range;
 pub(crate) use array_impls::create_string_array as create_string_array_from_range;
 
+/// Converts a list of ColumnInfo to an arrow Schema
 pub(crate) fn selected_columns_to_schema(columns: &[ColumnInfo]) -> Schema {
     let fields: Vec<_> = columns.iter().map(Into::<Field>::into).collect();
     Schema::new(fields)
 }
 
+/// Creates an arrow RecordBatch from an Iterator over (column_name, column data tuples) and an arrow schema
 pub(crate) fn record_batch_from_name_array_iterator<
     'a,
     I: Iterator<Item = (&'a str, Arc<dyn Array>)>,
@@ -255,6 +257,11 @@ pub(crate) fn record_batch_from_name_array_iterator<
     }
 }
 
+/// Creates an arrow `RecordBatch` from `ExcelSheetData`. Expects the following parameters:
+/// * `columns`: a slice of `ColumnInfo`, representing the columns that should be extracted from the range
+/// * `data`: the sheets data, as an `ExcelSheetData`
+/// * `offset`: the row index at which to start
+/// * `limit`: the row index at which to stop (excluded)
 pub(crate) fn record_batch_from_data_and_columns(
     columns: &[ColumnInfo],
     data: &ExcelSheetData,
