@@ -97,5 +97,7 @@ def test_load_table(path: str) -> None:
     pd_assert_frame_equal(users_tbl.to_pandas(), expected_pd)
 
     table_eager = excel_reader.load_table("users", eager=True)
-    pl_assert_frame_equal(pl.from_arrow(table_eager), expected_pl)  # type:ignore[arg-type]
+    pl_df = pl.from_arrow(table_eager)
+    assert isinstance(pl_df, pl.DataFrame)
+    pl_assert_frame_equal(pl_df, expected_pl)
     pd_assert_frame_equal(table_eager.to_pandas(), expected_pd)
