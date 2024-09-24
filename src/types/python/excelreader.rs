@@ -1,5 +1,3 @@
-use crate::types::python::excelsheet::table::{extract_table_names, extract_table_range};
-use crate::utils::schema::get_schema_sample_rows;
 use std::{
     fs::File,
     io::{BufReader, Cursor},
@@ -14,23 +12,25 @@ use calamine::{
 };
 
 use crate::{
+    data::{record_batch_from_data_and_columns, ExcelSheetData},
     error::{
         py_errors::IntoPyResult, ErrorContext, FastExcelError, FastExcelErrorKind, FastExcelResult,
     },
     types::{
         dtype::{DTypeCoercion, DTypeMap},
         idx_or_name::IdxOrName,
+        python::excelsheet::table::{extract_table_names, extract_table_range},
     },
+    utils::schema::get_schema_sample_rows,
 };
 
 use pyo3::types::PyString;
 
-use super::excelsheet::record_batch_from_data_and_columns;
 use super::excelsheet::{
     column_info::{build_available_columns, build_available_columns_info},
-    sheet_data::ExcelSheetData,
+    ExcelSheet, Header, Pagination, SelectedColumns,
 };
-use super::excelsheet::{ExcelSheet, Header, Pagination, SelectedColumns};
+use super::table::ExcelTable;
 
 enum ExcelSheets {
     File(Sheets<BufReader<File>>),
@@ -155,7 +155,7 @@ impl ExcelReader {
 
         let final_columns = selected_columns.select_columns(&available_columns)?;
 
-        record_batch_from_data_and_columns(final_columns, data, offset, limit)
+        record_batch_from_data_and_columns(&final_columns, data, offset, limit)
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -244,21 +244,10 @@ impl ExcelReader {
             }
         };
 
-        // TODO: Use From<Table<T>> for Range<T> once https://github.com/tafia/calamine/pull/464 is merged
-        let range = table.data();
-        let pagination = Pagination::new(skip_rows, n_rows, range).into_pyresult()?;
+        let pagination = Pagination::new(skip_rows, n_rows, table.data()).into_pyresult()?;
 
-        // FIXME: We're creating sheet metadata here, but it should not be required by the future Table object
-        let sheet_meta = CalamineSheet {
-            name,
-            typ: calamine::SheetType::WorkSheet,
-            visible: calamine::SheetVisible::Visible,
-        };
-
-        let sheet = ExcelSheet::try_new(
-            sheet_meta,
-            // TODO: Remove clone when aforementioned .from() is used
-            ExcelSheetData::from(range.clone()),
+        let excel_table = ExcelTable::try_new(
+            table,
             header,
             pagination,
             schema_sample_rows,
@@ -269,9 +258,9 @@ impl ExcelReader {
         .into_pyresult()?;
 
         if eager {
-            sheet.to_arrow(py)
+            excel_table.to_arrow(py)
         } else {
-            Ok(sheet.into_py(py))
+            Ok(excel_table.into_py(py))
         }
     }
 }

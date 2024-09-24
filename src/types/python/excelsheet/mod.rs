@@ -1,17 +1,10 @@
 pub(crate) mod column_info;
-pub(crate) mod sheet_data;
 pub(crate) mod table;
 
 use calamine::{CellType, Range, Sheet as CalamineSheet, SheetVisible as CalamineSheetVisible};
-use sheet_data::ExcelSheetData;
-use std::{cmp, collections::HashSet, fmt::Debug, str::FromStr, sync::Arc};
+use std::{cmp, collections::HashSet, fmt::Debug, str::FromStr};
 
-use arrow::{
-    array::{Array, NullArray},
-    datatypes::{Field, Schema},
-    pyarrow::ToPyArrow,
-    record_batch::RecordBatch,
-};
+use arrow::{pyarrow::ToPyArrow, record_batch::RecordBatch};
 
 use pyo3::{
     prelude::{pyclass, pymethods, PyAnyMethods, Python},
@@ -20,21 +13,15 @@ use pyo3::{
 };
 
 use crate::{
+    data::{record_batch_from_data_and_columns, ExcelSheetData},
     error::{
         py_errors::IntoPyResult, ErrorContext, FastExcelError, FastExcelErrorKind, FastExcelResult,
     },
-    types::{
-        dtype::{DType, DTypeMap},
-        idx_or_name::IdxOrName,
-    },
+    types::{dtype::DTypeMap, idx_or_name::IdxOrName},
 };
 use crate::{types::dtype::DTypeCoercion, utils::schema::get_schema_sample_rows};
 
 use self::column_info::{build_available_columns, build_available_columns_info, ColumnInfo};
-use self::sheet_data::{
-    create_boolean_array, create_date_array, create_datetime_array, create_duration_array,
-    create_float_array, create_int_array, create_string_array,
-};
 
 #[derive(Debug)]
 pub(crate) enum Header {
@@ -416,11 +403,11 @@ impl ExcelSheet {
             &sheet.dtype_coercion,
         )?;
 
+        // Figure out dtype for every column
         let selected_columns = selected_columns.select_columns(&available_columns)?;
         sheet.available_columns = available_columns;
         sheet.selected_columns = selected_columns;
 
-        // Figure out dtype for every column
         Ok(sheet)
     }
 
@@ -441,57 +428,6 @@ impl ExcelSheet {
     }
 }
 
-impl From<&ExcelSheet> for Schema {
-    fn from(sheet: &ExcelSheet) -> Self {
-        let fields: Vec<_> = sheet
-            .selected_columns
-            .iter()
-            .map(Into::<Field>::into)
-            .collect();
-        Schema::new(fields)
-    }
-}
-
-pub(crate) fn record_batch_from_data_and_columns(
-    columns: Vec<ColumnInfo>,
-    data: &ExcelSheetData,
-    offset: usize,
-    limit: usize,
-) -> FastExcelResult<RecordBatch> {
-    let fields = columns.iter().map(Into::<Field>::into).collect::<Vec<_>>();
-
-    let schema = Schema::new(fields);
-
-    let mut iter = columns
-        .into_iter()
-        .map(|column_info| {
-            let col_idx = column_info.index();
-            let dtype = *column_info.dtype();
-            (
-                column_info.name,
-                match dtype {
-                    DType::Null => Arc::new(NullArray::new(limit - offset)),
-                    DType::Int => create_int_array(data, col_idx, offset, limit),
-                    DType::Float => create_float_array(data, col_idx, offset, limit),
-                    DType::String => create_string_array(data, col_idx, offset, limit),
-                    DType::Bool => create_boolean_array(data, col_idx, offset, limit),
-                    DType::DateTime => create_datetime_array(data, col_idx, offset, limit),
-                    DType::Date => create_date_array(data, col_idx, offset, limit),
-                    DType::Duration => create_duration_array(data, col_idx, offset, limit),
-                },
-            )
-        })
-        .peekable();
-    // If the iterable is empty, try_from_iter returns an Err
-    if iter.peek().is_none() {
-        Ok(RecordBatch::new_empty(Arc::new(schema)))
-    } else {
-        RecordBatch::try_from_iter(iter)
-            .map_err(|err| FastExcelErrorKind::ArrowError(err.to_string()).into())
-            .with_context(|| "could not create RecordBatch from iterable")
-    }
-}
-
 impl TryFrom<&ExcelSheet> for RecordBatch {
     type Error = FastExcelError;
 
@@ -499,56 +435,8 @@ impl TryFrom<&ExcelSheet> for RecordBatch {
         let offset = sheet.offset();
         let limit = sheet.limit();
 
-        let mut iter = sheet
-            .selected_columns
-            .iter()
-            .map(|column_info| {
-                // At this point, we know for sure that the column is in the schema so we can
-                // safely unwrap
-                (
-                    column_info.name(),
-                    match column_info.dtype() {
-                        DType::Bool => {
-                            create_boolean_array(sheet.data(), column_info.index(), offset, limit)
-                        }
-                        DType::Int => {
-                            create_int_array(sheet.data(), column_info.index(), offset, limit)
-                        }
-                        DType::Float => {
-                            create_float_array(sheet.data(), column_info.index(), offset, limit)
-                        }
-                        DType::String => {
-                            create_string_array(sheet.data(), column_info.index(), offset, limit)
-                        }
-                        DType::DateTime => {
-                            create_datetime_array(sheet.data(), column_info.index(), offset, limit)
-                        }
-                        DType::Date => {
-                            create_date_array(sheet.data(), column_info.index(), offset, limit)
-                        }
-                        DType::Duration => {
-                            create_duration_array(sheet.data(), column_info.index(), offset, limit)
-                        }
-                        DType::Null => Arc::new(NullArray::new(limit - offset)),
-                    },
-                )
-            })
-            .peekable();
-
-        // If the iterable is empty, try_from_iter returns an Err
-        if iter.peek().is_none() {
-            let schema: Schema = sheet.into();
-            Ok(RecordBatch::new_empty(Arc::new(schema)))
-        } else {
-            // We use `try_from_iter_with_nullable` because `try_from_iter` relies on `array.null_count() > 0;`
-            // to determine if the array is nullable. This is not the case for `NullArray` which has no nulls.
-            RecordBatch::try_from_iter_with_nullable(iter.map(|(field_name, array)| {
-                let nullable = array.is_nullable();
-                (field_name, array, nullable)
-            }))
-            .map_err(|err| FastExcelErrorKind::ArrowError(err.to_string()).into())
+        record_batch_from_data_and_columns(&sheet.selected_columns, sheet.data(), offset, limit)
             .with_context(|| format!("could not convert sheet {} to RecordBatch", sheet.name()))
-        }
     }
 }
 

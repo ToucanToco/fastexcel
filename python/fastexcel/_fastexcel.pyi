@@ -63,6 +63,37 @@ class _ExcelSheet:
     def to_arrow(self) -> pa.RecordBatch:
         """Converts the sheet to a pyarrow `RecordBatch`"""
 
+class _ExcelTable:
+    @property
+    def name(self) -> str:
+        """The name of the table"""
+    @property
+    def sheet_name(self) -> str:
+        """The name of the sheet this table belongs to"""
+    @property
+    def width(self) -> int:
+        """The table's width"""
+    @property
+    def height(self) -> int:
+        """The table's height"""
+    @property
+    def total_height(self) -> int:
+        """The table's total height"""
+    @property
+    def offset(self) -> int:
+        """The table's offset before data starts"""
+    @property
+    def selected_columns(self) -> list[ColumnInfo]:
+        """The table's selected columns"""
+    @property
+    def available_columns(self) -> list[ColumnInfo]:
+        """The columns available for the given table"""
+    @property
+    def specified_dtypes(self) -> DTypeMap | None:
+        """The dtypes specified for the table"""
+    def to_arrow(self) -> pa.RecordBatch:
+        """Converts the table to a pyarrow `RecordBatch`"""
+
 class _ExcelReader:
     """A class representing an open Excel file and allowing to read its sheets"""
 
@@ -96,6 +127,7 @@ class _ExcelReader:
         dtypes: DTypeMap | None = None,
         eager: Literal[True] = ...,
     ) -> pa.RecordBatch: ...
+    @typing.overload
     def load_table(
         self,
         name: str,
@@ -108,6 +140,22 @@ class _ExcelReader:
         dtype_coercion: Literal["coerce", "strict"] = "coerce",
         use_columns: list[str] | list[int] | str | Callable[[ColumnInfo], bool] | None = None,
         dtypes: DTypeMap | None = None,
+        eager: Literal[False] = ...,
+    ) -> _ExcelTable: ...
+    @typing.overload
+    def load_table(
+        self,
+        name: str,
+        *,
+        header_row: int | None = None,
+        column_names: list[str] | None = None,
+        skip_rows: int = 0,
+        n_rows: int | None = None,
+        schema_sample_rows: int | None = 1_000,
+        dtype_coercion: Literal["coerce", "strict"] = "coerce",
+        use_columns: list[str] | list[int] | str | Callable[[ColumnInfo], bool] | None = None,
+        dtypes: DTypeMap | None = None,
+        eager: Literal[True] = ...,
     ) -> pa.RecordBatch: ...
     @property
     def sheet_names(self) -> list[str]: ...
