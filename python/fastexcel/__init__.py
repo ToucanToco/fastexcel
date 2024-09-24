@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sys
+import typing
 from typing import TYPE_CHECKING, Callable, Literal
 
 if sys.version_info < (3, 10):
@@ -31,6 +32,7 @@ from ._fastexcel import (
     __version__,
     _ExcelReader,
     _ExcelSheet,
+    _ExcelTable,
 )
 from ._fastexcel import read_excel as _read_excel
 
@@ -39,6 +41,14 @@ DTypeMap: TypeAlias = "dict[str | int, DType]"
 ColumnNameFrom: TypeAlias = Literal["provided", "looked_up", "generated"]
 DTypeFrom: TypeAlias = Literal["provided_by_index", "provided_by_name", "guessed"]
 SheetVisible: TypeAlias = Literal["visible", "hidden", "veryhidden"]
+
+
+def _recordbatch_to_polars(rb: pa.RecordBatch) -> pl.DataFrame:
+    import polars as pl
+
+    df = pl.from_arrow(data=rb)
+    assert isinstance(df, pl.DataFrame)
+    return df
 
 
 class ExcelSheet:
@@ -104,14 +114,81 @@ class ExcelSheet:
 
         Requires the `polars` extra to be installed.
         """
-        import polars as pl
-
-        df = pl.from_arrow(data=self.to_arrow())
-        assert isinstance(df, pl.DataFrame)
-        return df
+        return _recordbatch_to_polars(self.to_arrow())
 
     def __repr__(self) -> str:
         return self._sheet.__repr__()
+
+
+class ExcelTable:
+    """A class representing a single table in an Excel file"""
+
+    def __init__(self, table: _ExcelTable) -> None:
+        self._table = table
+
+    @property
+    def name(self) -> str:
+        """The name of the table"""
+        return self._table.name
+
+    @property
+    def sheet_name(self) -> str:
+        """The name of the sheet this table belongs to"""
+        return self._table.sheet_name
+
+    @property
+    def width(self) -> int:
+        """The table's width"""
+        return self._table.width
+
+    @property
+    def height(self) -> int:
+        """The table's height"""
+        return self._table.height
+
+    @property
+    def total_height(self) -> int:
+        """The table's total height"""
+        return self._table.total_height
+
+    @property
+    def offset(self) -> int:
+        """The table's offset before data starts"""
+        return self._table.offset
+
+    @property
+    def selected_columns(self) -> list[ColumnInfo]:
+        """The table's selected columns"""
+        return self._table.selected_columns
+
+    @property
+    def available_columns(self) -> list[ColumnInfo]:
+        """The columns available for the given table"""
+        return self._table.available_columns
+
+    @property
+    def specified_dtypes(self) -> DTypeMap | None:
+        """The dtypes specified for the table"""
+        return self._table.specified_dtypes
+
+    def to_arrow(self) -> pa.RecordBatch:
+        """Converts the table to a pyarrow `RecordBatch`"""
+        return self._table.to_arrow()
+
+    def to_pandas(self) -> "pd.DataFrame":
+        """Converts the table to a Pandas `DataFrame`.
+
+        Requires the `pandas` extra to be installed.
+        """
+        # We know for sure that the table will yield exactly one RecordBatch
+        return self.to_arrow().to_pandas()
+
+    def to_polars(self) -> "pl.DataFrame":
+        """Converts the table to a Polars `DataFrame`.
+
+        Requires the `polars` extra to be installed.
+        """
+        return _recordbatch_to_polars(self.to_arrow())
 
 
 class ExcelReader:
@@ -196,6 +273,7 @@ class ExcelReader:
         """
         return self._reader.table_names(sheet_idx_or_name)
 
+    @typing.overload
     def load_table(
         self,
         name: str,
@@ -208,7 +286,37 @@ class ExcelReader:
         dtype_coercion: Literal["coerce", "strict"] = "coerce",
         use_columns: list[str] | list[int] | str | Callable[[ColumnInfo], bool] | None = None,
         dtypes: DTypeMap | None = None,
-    ) -> ExcelSheet:
+        eager: Literal[False] = ...,
+    ) -> ExcelTable: ...
+    @typing.overload
+    def load_table(
+        self,
+        name: str,
+        *,
+        header_row: int | None = None,
+        column_names: list[str] | None = None,
+        skip_rows: int = 0,
+        n_rows: int | None = None,
+        schema_sample_rows: int | None = 1_000,
+        dtype_coercion: Literal["coerce", "strict"] = "coerce",
+        use_columns: list[str] | list[int] | str | Callable[[ColumnInfo], bool] | None = None,
+        dtypes: DTypeMap | None = None,
+        eager: Literal[True] = ...,
+    ) -> pa.RecordBatch: ...
+    def load_table(
+        self,
+        name: str,
+        *,
+        header_row: int | None = None,
+        column_names: list[str] | None = None,
+        skip_rows: int = 0,
+        n_rows: int | None = None,
+        schema_sample_rows: int | None = 1_000,
+        dtype_coercion: Literal["coerce", "strict"] = "coerce",
+        use_columns: list[str] | list[int] | str | Callable[[ColumnInfo], bool] | None = None,
+        dtypes: DTypeMap | None = None,
+        eager: bool = False,
+    ) -> ExcelTable | pa.RecordBatch:
         """Loads a table by name.
 
         :param name: The name of the table to load.
@@ -242,19 +350,21 @@ class ExcelReader:
                               indicating whether the column should be used
         :param dtypes: An optional dict of dtypes. Keys can be column indices or names
         """
-        return ExcelSheet(
-            self._reader.load_table(
-                name=name,
-                header_row=header_row,
-                column_names=column_names,
-                skip_rows=skip_rows,
-                n_rows=n_rows,
-                schema_sample_rows=schema_sample_rows,
-                dtype_coercion=dtype_coercion,
-                use_columns=use_columns,
-                dtypes=dtypes,
-            )
+        output = self._reader.load_table(  # type:ignore[call-overload,misc]
+            name=name,
+            header_row=header_row,
+            column_names=column_names,
+            skip_rows=skip_rows,
+            n_rows=n_rows,
+            schema_sample_rows=schema_sample_rows,
+            dtype_coercion=dtype_coercion,
+            use_columns=use_columns,
+            dtypes=dtypes,
+            eager=eager,
         )
+        if eager:
+            return output
+        return ExcelTable(output)
 
     def load_sheet_eager(
         self,
