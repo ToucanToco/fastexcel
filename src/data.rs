@@ -80,6 +80,7 @@ mod array_impls {
     };
     use calamine::{CellType, DataType, Range};
     use chrono::NaiveDate;
+    use rust_decimal::prelude::*;
 
     pub(crate) fn create_boolean_array<DT: CellType + DataType>(
         data: &Range<DT>,
@@ -142,6 +143,9 @@ mod array_impls {
                     cell.get_datetime_iso().map(str::to_string)
                 } else if cell.is_bool() {
                     cell.get_bool().map(|v| v.to_string())
+                } else if cell.is_float() {
+                    Decimal::from_f64(cell.get_float().expect("cell should be a valid float"))
+                        .map(|d| d.to_string())
                 } else {
                     cell.as_string()
                 }
