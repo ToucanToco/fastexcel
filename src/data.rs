@@ -80,7 +80,8 @@ mod array_impls {
     };
     use calamine::{CellType, DataType, Range};
     use chrono::NaiveDate;
-    use rust_decimal::prelude::*;
+
+    use crate::types::dtype::excel_float_to_string;
 
     pub(crate) fn create_boolean_array<DT: CellType + DataType>(
         data: &Range<DT>,
@@ -144,11 +145,7 @@ mod array_impls {
                 } else if cell.is_bool() {
                     cell.get_bool().map(|v| v.to_string())
                 } else if cell.is_float() {
-                    // Excel can store a float like 29.02 as "29.020000000000003" in the XML.
-                    // To print it as "29.02", we use `rust_decimal` crate that implements
-                    // a smart `Display` logic for its `Decimal` type.
-                    Decimal::from_f64(cell.get_float().expect("cell should be a valid float"))
-                        .map(|d| d.to_string())
+                    cell.get_float().map(excel_float_to_string)
                 } else {
                     cell.as_string()
                 }

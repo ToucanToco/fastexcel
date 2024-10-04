@@ -280,6 +280,31 @@ pub(crate) fn get_dtype_for_column<DT: CellType + Debug + DataType>(
     }
 }
 
+/// Convert a float to a nice string to mimic Excel behaviour.
+///
+/// Excel can store a float like 29.02 set by the user as "29.020000000000003" in the XML.
+/// But in fact, the user will see "29.02" in the cell.
+/// Excel indeed displays decimal numbers with 8 digits in a standard cell width
+/// and 10 digits in a wide cell. Like this:
+///
+/// Format = 0.000000000 |  Unformatted, wide cell  | Unformatted, standard width
+/// ---------------------|--------------------------|----------------------------
+///     1.123456789      |        1.123456789       |           1.123457
+///    12.123456789      |        12.12345679       |           12.12346
+///         ...          |            ...           |              ...
+///   123456.123456789   |        123456.1235       |           123456.1
+///
+/// Excel also trims trailing zeros and the decimal point if there are no fractional part.
+///
+/// We have no notion of wide cell or standard cell here so we keep at most 9 digits after the
+/// decimal point and trim trailing zeros.
+pub(crate) fn excel_float_to_string(x: f64) -> String {
+    format!("{x:.9}")
+        .trim_end_matches('0')
+        .trim_end_matches('.')
+        .to_string()
+}
+
 #[cfg(test)]
 mod tests {
     use calamine::{Cell, Data as CalData};
@@ -393,5 +418,13 @@ mod tests {
             result.unwrap_err().kind,
             FastExcelErrorKind::UnsupportedColumnTypeCombination(_)
         ));
+    }
+
+    #[rstest]
+    #[case(29.020000000000003, "29.02")]
+    #[case(10000_f64, "10000")]
+    #[case(23.0, "23")]
+    fn test_excel_float_to_string(#[case] x: f64, #[case] expected: &str) {
+        assert_eq!(excel_float_to_string(x), expected.to_string());
     }
 }
