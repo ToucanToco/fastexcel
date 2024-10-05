@@ -536,3 +536,46 @@ def test_null_values_in_cells() -> None:
 def test_null_column_is_nullable() -> None:
     sheet = fastexcel.read_excel(path_for_fixture("null-column.xlsx")).load_sheet(0)
     assert sheet.to_arrow().schema.field("nullonly").nullable is True
+
+
+def test_symbols_errors() -> None:
+    reader = fastexcel.read_excel(path_for_fixture("symbols-errors.xlsx"))
+
+    # Reading the sheet with only the first row as the schema forces columns
+    # to be numbers and discards errors like #DIV/0! and #VALUE!
+    pl_assert_frame_equal(
+        reader.load_sheet(0, schema_sample_rows=1).to_polars(),
+        pl.DataFrame(
+            {
+                "a": [1.1, 2.2, None],
+                "b": [2.0, 0.0, 1.0],
+                "a/b": [0.55, None, None],
+            }
+        ),
+    )
+
+    # Reading the sheet with all the rows as the schema forces columns
+    # to be strings and keeps the errors like #DIV/0! and #VALUE!
+    pl_assert_frame_equal(
+        reader.load_sheet(0, schema_sample_rows=3).to_polars(),
+        pl.DataFrame(
+            {
+                "a": ["1.1", "2.2", "abc"],
+                "b": [2.0, 0.0, 1.0],
+                "a/b": ["0.55", "#DIV/0!", "#VALUE!"],
+            }
+        ),
+    )
+
+    # Reading the sheet with only the first row as the schema forces columns
+    # But casting it to strings will keep the errors like #DIV/0! and #VALUE!
+    pl_assert_frame_equal(
+        reader.load_sheet(0, schema_sample_rows=1, dtypes={"a/b": "string"}).to_polars(),
+        pl.DataFrame(
+            {
+                "a": [1.1, 2.2, None],
+                "b": [2.0, 0.0, 1.0],
+                "a/b": ["0.55", "#DIV/0!", "#VALUE!"],
+            }
+        ),
+    )
