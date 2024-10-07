@@ -117,13 +117,13 @@
                     <a class="class" href="#ColumnInfo">ColumnInfo</a>
                             <ul class="memberlist">
                         <li>
-                                <a class="variable" href="#ColumnInfo.column_name_from">column_name_from</a>
-                        </li>
-                        <li>
                                 <a class="variable" href="#ColumnInfo.index">index</a>
                         </li>
                         <li>
                                 <a class="variable" href="#ColumnInfo.dtype_from">dtype_from</a>
+                        </li>
+                        <li>
+                                <a class="variable" href="#ColumnInfo.column_name_from">column_name_from</a>
                         </li>
                         <li>
                                 <a class="variable" href="#ColumnInfo.dtype">dtype</a>
@@ -1920,28 +1920,6 @@ indicating whether the column should be used</li>
 </div>
 
 
-                            <div id="ColumnInfo.column_name_from" class="classattr">
-                                <div class="attr variable">
-            <span class="name">column_name_from</span>
-
-        
-    </div>
-    <a class="headerlink" href="#ColumnInfo.column_name_from"></a>
-    
-            <div class="docstring"><p><code><a href="#ColumnNameFrom">fastexcel.ColumnNameFrom</a></code>. How the name of the column was determined.</p>
-
-<p>One of three possible values:</p>
-
-<ul>
-<li><code>"provided"</code>: The column name was provided via the <code>use_columns</code> parameter</li>
-<li><code>"looked_up"</code>: The column name was looked up from the data found in the sheet</li>
-<li><code>"generated"</code>: The column name was generated from the column index, either because
-<code>header_row</code> was <code>None</code>, or because it could not be looked up</li>
-</ul>
-</div>
-
-
-                            </div>
                             <div id="ColumnInfo.index" class="classattr">
                                 <div class="attr variable">
             <span class="name">index</span>
@@ -1971,6 +1949,28 @@ indicating whether the column should be used</li>
 <li><code>"provided_by_index"</code>: The dtype was specified via the column index</li>
 <li><code>"provided_by_name"</code>: The dtype was specified via the column name</li>
 <li><code>"guessed"</code>: The dtype was determined from the content of the column</li>
+</ul>
+</div>
+
+
+                            </div>
+                            <div id="ColumnInfo.column_name_from" class="classattr">
+                                <div class="attr variable">
+            <span class="name">column_name_from</span>
+
+        
+    </div>
+    <a class="headerlink" href="#ColumnInfo.column_name_from"></a>
+    
+            <div class="docstring"><p><code><a href="#ColumnNameFrom">fastexcel.ColumnNameFrom</a></code>. How the name of the column was determined.</p>
+
+<p>One of three possible values:</p>
+
+<ul>
+<li><code>"provided"</code>: The column name was provided via the <code>use_columns</code> parameter</li>
+<li><code>"looked_up"</code>: The column name was looked up from the data found in the sheet</li>
+<li><code>"generated"</code>: The column name was generated from the column index, either because
+<code>header_row</code> was <code>None</code>, or because it could not be looked up</li>
 </ul>
 </div>
 
