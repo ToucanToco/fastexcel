@@ -536,3 +536,19 @@ def test_null_values_in_cells() -> None:
 def test_null_column_is_nullable() -> None:
     sheet = fastexcel.read_excel(path_for_fixture("null-column.xlsx")).load_sheet(0)
     assert sheet.to_arrow().schema.field("nullonly").nullable is True
+
+
+def test_sheet_with_decimal_numbers() -> None:
+    sheet = fastexcel.read_excel(path_for_fixture("decimal-numbers.xlsx")).load_sheet(0)
+    pl_assert_frame_equal(
+        sheet.to_polars(),
+        pl.DataFrame({"Decimals": [28.14, 29.02]}),
+    )
+
+    sheet2 = fastexcel.read_excel(path_for_fixture("decimal-numbers.xlsx")).load_sheet(
+        0, dtypes={0: "string"}
+    )
+    pl_assert_frame_equal(
+        sheet2.to_polars(),
+        pl.DataFrame({"Decimals": ["28.14", "29.02"]}),
+    )
