@@ -294,10 +294,10 @@ pub(crate) fn get_dtype_for_column<DT: CellType + Debug + DataType>(
 ///         ...          |            ...           |              ...
 ///   123456.123456789   |        123456.1235       |           123456.1
 ///
-/// Excel also trims trailing zeros and the decimal point if there are no fractional part.
+/// Excel also trims trailing zeros and the decimal point if there is no fractional part.
 ///
-/// We have no notion of wide cell or standard cell here so we keep at most 9 digits after the
-/// decimal point and trim trailing zeros.
+/// We do not distinguish between wide cells and standard cells here, so we retain at most
+/// nine digits after the decimal point and trim any trailing zeros.
 pub(crate) fn excel_float_to_string(x: f64) -> String {
     format!("{x:.9}")
         .trim_end_matches('0')
