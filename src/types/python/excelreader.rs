@@ -7,7 +7,7 @@ use arrow::{pyarrow::ToPyArrow, record_batch::RecordBatch};
 use pyo3::{prelude::PyObject, pyclass, pymethods, Bound, IntoPy, PyAny, PyResult, Python};
 
 use calamine::{
-    open_workbook_auto, open_workbook_auto_from_rs, Data, DataRef, Range, Reader,
+    open_workbook_auto, open_workbook_auto_from_rs, Data, DataRef, Range, Reader, ReaderRef,
     Sheet as CalamineSheet, Sheets, Table,
 };
 
