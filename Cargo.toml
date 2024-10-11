@@ -24,16 +24,11 @@ name = "fastexcel"
 crate-type = ["cdylib"]
 
 [dependencies]
+arrow = { version = "53.1.0", default-features = false, features = ["pyarrow"] }
 calamine = { version = "0.26.1", features = ["dates"] }
 chrono = { version = "0.4.38", default-features = false }
 # NOTE: "extension-module" is actually required, see comments on features below
-pyo3 = { version = "0.21.2", features = ["abi3-py38"] }
-
-[dependencies.arrow]
-version = "52.2.0"
-# There's a lot of stuff we don't want here, such as serde support
-default-features = false
-features = ["pyarrow"]
+pyo3 = { version = "0.22.3", features = ["abi3-py38", "experimental-inspect"] }
 
 [dev-dependencies]
 pretty_assertions = "1.4.1"
