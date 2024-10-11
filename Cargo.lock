@@ -269,9 +269,9 @@ checksum = "a2bd12c1caf447e69cd4528f47f94d203fd2582878ecb9e9465484c4148a8223"
 
 [[package]]
 name = "calamine"
-version = "0.26.0"
+version = "0.26.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1b262d93265ddca1ab8dcc57fadd5fe365ed52e717ac7a24a9eabf990cf9566a"
+checksum = "138646b9af2c5d7f1804ea4bf93afc597737d2bd4f7341d67c48b03316976eb1"
 dependencies = [
  "byteorder",
  "chrono",
