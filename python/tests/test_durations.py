@@ -65,7 +65,7 @@ def test_sheet_with_different_time_types() -> None:
 
 def test_sheet_with_offset_header_row_and_durations() -> None:
     excel_reader = fastexcel.read_excel(path_for_fixture("single-sheet-skip-rows-durations.xlsx"))
-    sheet = excel_reader.load_sheet(0, header_row=9)
+    sheet = excel_reader.load_sheet(0, header_row=10)
 
     pd_df = sheet.to_pandas()
     pl_df = sheet.to_polars()

@@ -7,8 +7,8 @@ use arrow::{pyarrow::ToPyArrow, record_batch::RecordBatch};
 use pyo3::{prelude::PyObject, pyclass, pymethods, Bound, IntoPy, PyAny, PyResult, Python};
 
 use calamine::{
-    open_workbook_auto, open_workbook_auto_from_rs, Data, DataRef, Range, Reader, ReaderRef,
-    Sheet as CalamineSheet, Sheets, Table,
+    open_workbook_auto, open_workbook_auto_from_rs, Data, DataRef, HeaderRow, Range, Reader,
+    ReaderRef, Sheet as CalamineSheet, Sheets, Table,
 };
 
 use crate::{
@@ -71,6 +71,19 @@ impl ExcelSheets {
             self,
             Self::File(Sheets::Xlsx(_)) | Self::Bytes(Sheets::Xlsx(_))
         )
+    }
+
+    fn with_header_row(&mut self, header_row: HeaderRow) -> &mut Self {
+        match self {
+            Self::File(sheets) => {
+                sheets.with_header_row(header_row);
+                self
+            }
+            Self::Bytes(ref mut sheets) => {
+                sheets.with_header_row(header_row);
+                self
+            }
+        }
     }
 
     fn worksheet_range_ref(&mut self, name: &str) -> FastExcelResult<Range<DataRef>> {
@@ -164,7 +177,7 @@ impl ExcelReader {
         sheet_meta: CalamineSheet,
         header_row: Option<usize>,
         column_names: Option<Vec<String>>,
-        skip_rows: usize,
+        skip_rows: Option<usize>,
         n_rows: Option<usize>,
         schema_sample_rows: Option<usize>,
         dtype_coercion: DTypeCoercion,
@@ -173,14 +186,28 @@ impl ExcelReader {
         eager: bool,
         py: Python<'_>,
     ) -> PyResult<PyObject> {
-        let header = Header::new(header_row, column_names);
+        // calamine `header_row` is the first row of the range to be read.
+        // For us `header_row` can be `None` (meaning there is no header and we should start reading
+        // the data at the beginning)
+        let calamine_header_row = match (header_row, skip_rows) {
+            (None, None) | (Some(0), None) => HeaderRow::FirstNonEmptyRow,
+            (None, Some(_)) => HeaderRow::Row(0),
+            (Some(row), _) => HeaderRow::Row(row as u32),
+        };
+        // And our header row is simply the first row of the data if defined.
+        let data_header_row = header_row.and(Some(0));
+
+        let header = Header::new(data_header_row, column_names);
         let selected_columns = Self::build_selected_columns(use_columns).into_pyresult()?;
+
         if eager && self.sheets.supports_by_ref() {
             let range = self
                 .sheets
+                .with_header_row(calamine_header_row)
                 .worksheet_range_ref(&sheet_meta.name)
                 .into_pyresult()?;
-            let pagination = Pagination::new(skip_rows, n_rows, &range).into_pyresult()?;
+            let pagination =
+                Pagination::new(skip_rows.unwrap_or(0), n_rows, &range).into_pyresult()?;
             Self::load_sheet_eager(
                 &range.into(),
                 pagination,
@@ -195,9 +222,11 @@ impl ExcelReader {
         } else {
             let range = self
                 .sheets
+                .with_header_row(calamine_header_row)
                 .worksheet_range(&sheet_meta.name)
                 .into_pyresult()?;
-            let pagination = Pagination::new(skip_rows, n_rows, &range).into_pyresult()?;
+            let pagination =
+                Pagination::new(skip_rows.unwrap_or(0), n_rows, &range).into_pyresult()?;
             let sheet = ExcelSheet::try_new(
                 sheet_meta,
                 range.into(),
@@ -297,7 +326,7 @@ impl ExcelReader {
         *,
         header_row = 0,
         column_names = None,
-        skip_rows = 0,
+        skip_rows = None,
         n_rows = None,
         schema_sample_rows = 1_000,
         dtype_coercion = DTypeCoercion::Coerce,
@@ -311,7 +340,7 @@ impl ExcelReader {
         idx_or_name: &Bound<'_, PyAny>,
         header_row: Option<usize>,
         column_names: Option<Vec<String>>,
-        skip_rows: usize,
+        skip_rows: Option<usize>,
         n_rows: Option<usize>,
         schema_sample_rows: Option<usize>,
         dtype_coercion: DTypeCoercion,
@@ -336,14 +365,14 @@ impl ExcelReader {
                     }
                 }
                 IdxOrName::Idx(idx) => self
-                    .sheet_metadata                    .get(idx)
+                    .sheet_metadata
+                    .get(idx)
                     .ok_or_else(|| FastExcelErrorKind::SheetNotFound(IdxOrName::Idx(idx)).into())
-                    .with_context(|| {                         format!(
-                            "Sheet index {idx} is out of range. File has {} sheets.",
-                            self.sheet_metadata.len()
-                        )
-                    })
-                    ,
+                    .with_context(|| format!(
+                        "Sheet index {idx} is out of range. File has {} sheets.",
+                        self.sheet_metadata.len()
+                    )
+                ),
             })
             .into_pyresult()?.to_owned();
 
