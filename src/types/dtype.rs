@@ -85,6 +85,39 @@ impl FromPyObject<'_> for DType {
 
 pub(crate) type DTypeMap = HashMap<IdxOrName, DType>;
 
+pub(crate) enum DTypes {
+    All(DType),
+    Map(DTypeMap),
+}
+
+impl FromStr for DTypes {
+    type Err = FastExcelError;
+
+    fn from_str(dtypes: &str) -> FastExcelResult<Self> {
+        Ok(DTypes::All(DType::from_str(dtypes)?))
+    }
+}
+
+impl FromPyObject<'_> for DTypes {
+    fn extract_bound(py_dtypes: &Bound<'_, PyAny>) -> PyResult<Self> {
+        if let Ok(py_dtypes_str) = py_dtypes.extract::<String>() {
+            py_dtypes_str.parse()
+        } else {
+            Ok(DTypes::Map(py_dtypes.extract::<DTypeMap>()?))
+        }
+        .into_pyresult()
+    }
+}
+
+impl ToPyObject for DTypes {
+    fn to_object(&self, py: Python<'_>) -> PyObject {
+        match self {
+            DTypes::All(dtype) => dtype.to_object(py),
+            DTypes::Map(dtype_map) => dtype_map.to_object(py),
+        }
+    }
+}
+
 impl From<&DType> for ArrowDataType {
     fn from(dtype: &DType) -> Self {
         match dtype {

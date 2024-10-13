@@ -213,7 +213,7 @@ class ExcelReader:
         schema_sample_rows: int | None = 1_000,
         dtype_coercion: Literal["coerce", "strict"] = "coerce",
         use_columns: list[str] | list[int] | str | Callable[[ColumnInfo], bool] | None = None,
-        dtypes: DTypeMap | None = None,
+        dtypes: DType | DTypeMap | None = None,
     ) -> ExcelSheet:
         """Loads a sheet lazily by index or name.
 
@@ -249,7 +249,8 @@ class ExcelReader:
                               `A,B,C,D,E` and `A,C,E,F`)
                             - A callable, a function that takes a column and returns a boolean
                               indicating whether the column should be used
-        :param dtypes: An optional dict of dtypes. Keys can be column indices or names
+        :param dtypes: An optional dtype (for all columns)
+                       or dict of dtypes with keys as column indices or names.
         """
         return ExcelSheet(
             self._reader.load_sheet(
@@ -288,7 +289,7 @@ class ExcelReader:
         schema_sample_rows: int | None = 1_000,
         dtype_coercion: Literal["coerce", "strict"] = "coerce",
         use_columns: list[str] | list[int] | str | Callable[[ColumnInfo], bool] | None = None,
-        dtypes: DTypeMap | None = None,
+        dtypes: DType | DTypeMap | None = None,
         eager: Literal[False] = ...,
     ) -> ExcelTable: ...
     @typing.overload
@@ -303,7 +304,7 @@ class ExcelReader:
         schema_sample_rows: int | None = 1_000,
         dtype_coercion: Literal["coerce", "strict"] = "coerce",
         use_columns: list[str] | list[int] | str | Callable[[ColumnInfo], bool] | None = None,
-        dtypes: DTypeMap | None = None,
+        dtypes: DType | DTypeMap | None = None,
         eager: Literal[True] = ...,
     ) -> pa.RecordBatch: ...
     def load_table(
@@ -317,7 +318,7 @@ class ExcelReader:
         schema_sample_rows: int | None = 1_000,
         dtype_coercion: Literal["coerce", "strict"] = "coerce",
         use_columns: list[str] | list[int] | str | Callable[[ColumnInfo], bool] | None = None,
-        dtypes: DTypeMap | None = None,
+        dtypes: DType | DTypeMap | None = None,
         eager: bool = False,
     ) -> ExcelTable | pa.RecordBatch:
         """Loads a table by name.
@@ -351,7 +352,8 @@ class ExcelReader:
                               `A,B,C,D,E` and `A,C,E,F`)
                             - A callable, a function that takes a column and returns a boolean
                               indicating whether the column should be used
-        :param dtypes: An optional dict of dtypes. Keys can be column indices or names
+        :param dtypes: An optional dtype (for all columns)
+                       or dict of dtypes with keys as column indices or names.
         """
         output = self._reader.load_table(  # type:ignore[call-overload,misc]
             name=name,
@@ -380,7 +382,7 @@ class ExcelReader:
         schema_sample_rows: int | None = 1_000,
         dtype_coercion: Literal["coerce", "strict"] = "coerce",
         use_columns: list[str] | list[int] | str | None = None,
-        dtypes: DTypeMap | None = None,
+        dtypes: DType | DTypeMap | None = None,
     ) -> pa.RecordBatch:
         """Loads a sheet eagerly by index or name.
 
@@ -413,7 +415,7 @@ class ExcelReader:
         schema_sample_rows: int | None = 1_000,
         dtype_coercion: Literal["coerce", "strict"] = "coerce",
         use_columns: list[str] | list[int] | str | Callable[[ColumnInfo], bool] | None = None,
-        dtypes: DTypeMap | None = None,
+        dtypes: DType | DTypeMap | None = None,
     ) -> ExcelSheet:
         """Loads a sheet by name.
 
@@ -442,7 +444,7 @@ class ExcelReader:
         schema_sample_rows: int | None = 1_000,
         dtype_coercion: Literal["coerce", "strict"] = "coerce",
         use_columns: list[str] | list[int] | str | Callable[[ColumnInfo], bool] | None = None,
-        dtypes: DTypeMap | None = None,
+        dtypes: DType | DTypeMap | None = None,
     ) -> ExcelSheet:
         """Loads a sheet by index.
 

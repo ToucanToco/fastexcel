@@ -257,3 +257,9 @@ def test_dtype_coercion_behavior__strict_sampling_limit(eager: bool) -> None:
     assert pl_df["Mixed dates"].to_list() == [datetime(2023, 7, 21)] * 6 + [None] * 3
     assert pl_df["Asset ID"].dtype == pl.Float64
     assert pl_df["Asset ID"].to_list() == [84444.0] * 7 + [None] * 2
+
+
+def test_one_dtype_for_all() -> None:
+    excel_reader = fastexcel.read_excel(path_for_fixture("fixture-multi-dtypes-columns.xlsx"))
+    sheet = excel_reader.load_sheet(0, dtypes="string")
+    assert sheet.to_polars().dtypes == [pl.String] * 7
