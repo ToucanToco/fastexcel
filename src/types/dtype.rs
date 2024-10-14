@@ -8,8 +8,7 @@ use std::{
 use arrow::datatypes::{DataType as ArrowDataType, TimeUnit};
 use calamine::{CellErrorType, CellType, DataType, Range};
 use pyo3::{
-    prelude::PyAnyMethods, types::PyString, Bound, FromPyObject, PyAny, PyObject, PyResult, Python,
-    ToPyObject,
+    prelude::PyAnyMethods, Bound, FromPyObject, PyAny, PyObject, PyResult, Python, ToPyObject,
 };
 
 use crate::error::{py_errors::IntoPyResult, FastExcelError, FastExcelErrorKind, FastExcelResult};
@@ -72,8 +71,8 @@ impl ToPyObject for DType {
 
 impl FromPyObject<'_> for DType {
     fn extract_bound(py_dtype: &Bound<'_, PyAny>) -> PyResult<Self> {
-        if let Ok(dtype_pystr) = py_dtype.extract::<&PyString>() {
-            dtype_pystr.to_str()?.parse()
+        if let Ok(dtype_pystr) = py_dtype.extract::<String>() {
+            dtype_pystr.parse()
         } else {
             Err(FastExcelErrorKind::InvalidParameters(format!(
                 "{py_dtype:?} cannot be converted to str"
@@ -124,8 +123,8 @@ impl FromStr for DTypeCoercion {
 
 impl FromPyObject<'_> for DTypeCoercion {
     fn extract_bound(py_dtype_coercion: &Bound<'_, PyAny>) -> PyResult<Self> {
-        if let Ok(dtype_coercion_pystr) = py_dtype_coercion.extract::<&PyString>() {
-            dtype_coercion_pystr.to_str()?.parse()
+        if let Ok(dtype_coercion_pystr) = py_dtype_coercion.extract::<String>() {
+            dtype_coercion_pystr.parse()
         } else {
             Err(FastExcelErrorKind::InvalidParameters(format!(
                 "{py_dtype_coercion:?} cannot be converted to str"

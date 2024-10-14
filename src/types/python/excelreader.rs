@@ -317,6 +317,7 @@ impl ExcelReader {
         format!("ExcelReader<{}>", &self.source)
     }
 
+    #[pyo3(signature = (sheet_name = None))]
     pub fn table_names(&mut self, sheet_name: Option<&str>) -> PyResult<Vec<String>> {
         self.sheets.table_names(sheet_name).into_pyresult()
     }
