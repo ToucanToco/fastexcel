@@ -8,7 +8,7 @@ use arrow::{pyarrow::ToPyArrow, record_batch::RecordBatch};
 
 use pyo3::{
     prelude::{pyclass, pymethods, PyAnyMethods, Python},
-    types::{PyList, PyString},
+    types::PyList,
     Bound, PyAny, PyObject, PyResult, ToPyObject,
 };
 
@@ -294,15 +294,8 @@ impl TryFrom<Option<&Bound<'_, PyAny>>> for SelectedColumns {
             Some(py_any) => {
                 // Not trying to downcast to PyNone here as we assume that this would result in
                 // py_any_opt being None
-                if let Ok(py_str) = py_any.extract::<&PyString>() {
-                    py_str
-                        .to_str()
-                        .map_err(|err| {
-                            FastExcelErrorKind::InvalidParameters(format!(
-                                "provided string is not valid unicode: {err}"
-                            ))
-                        })?
-                        .parse()
+                if let Ok(py_str) = py_any.extract::<String>() {
+                    py_str.parse()
                 } else if let Ok(py_list) = py_any.downcast::<PyList>() {
                     py_list.try_into()
                 } else if let Ok(py_function) = py_any.extract::<PyObject>() {
@@ -530,7 +523,7 @@ impl ExcelSheet {
 mod tests {
     use super::*;
     use pretty_assertions::assert_eq;
-    use pyo3::prelude::PyListMethods;
+    use pyo3::{prelude::PyListMethods, types::PyString};
     use rstest::rstest;
 
     #[test]

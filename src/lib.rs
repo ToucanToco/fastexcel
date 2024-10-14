@@ -4,7 +4,7 @@ mod types;
 mod utils;
 
 use error::{py_errors, ErrorContext};
-use pyo3::{prelude::*, types::PyString};
+use pyo3::prelude::*;
 use types::python::{
     excelsheet::column_info::ColumnInfo, table::ExcelTable, ExcelReader, ExcelSheet,
 };
@@ -14,9 +14,8 @@ use types::python::{
 fn read_excel(source: &Bound<'_, PyAny>) -> PyResult<ExcelReader> {
     use py_errors::IntoPyResult;
 
-    if let Ok(path) = source.extract::<&PyString>() {
-        let path = path.to_str()?;
-        ExcelReader::try_from_path(path)
+    if let Ok(path) = source.extract::<String>() {
+        ExcelReader::try_from_path(&path)
             .with_context(|| format!("could not load excel file at {path}"))
             .into_pyresult()
     } else if let Ok(bytes) = source.extract::<&[u8]>() {
