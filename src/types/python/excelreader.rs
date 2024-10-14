@@ -17,7 +17,7 @@ use crate::{
         py_errors::IntoPyResult, ErrorContext, FastExcelError, FastExcelErrorKind, FastExcelResult,
     },
     types::{
-        dtype::{DTypeCoercion, DTypeMap},
+        dtype::{DTypeCoercion, DTypes},
         idx_or_name::IdxOrName,
         python::excelsheet::table::{extract_table_names, extract_table_range},
     },
@@ -140,7 +140,7 @@ impl ExcelReader {
         header: Header,
         sample_rows: Option<usize>,
         selected_columns: &SelectedColumns,
-        dtypes: Option<&DTypeMap>,
+        dtypes: Option<&DTypes>,
         dtype_coercion: &DTypeCoercion,
     ) -> FastExcelResult<RecordBatch> {
         let offset = header.offset() + pagination.offset();
@@ -182,7 +182,7 @@ impl ExcelReader {
         schema_sample_rows: Option<usize>,
         dtype_coercion: DTypeCoercion,
         use_columns: Option<&Bound<'_, PyAny>>,
-        dtypes: Option<DTypeMap>,
+        dtypes: Option<DTypes>,
         eager: bool,
         py: Python<'_>,
     ) -> PyResult<PyObject> {
@@ -258,7 +258,7 @@ impl ExcelReader {
         schema_sample_rows: Option<usize>,
         dtype_coercion: DTypeCoercion,
         use_columns: Option<&Bound<'_, PyAny>>,
-        dtypes: Option<DTypeMap>,
+        dtypes: Option<DTypes>,
         eager: bool,
         py: Python<'_>,
     ) -> PyResult<PyObject> {
@@ -346,7 +346,7 @@ impl ExcelReader {
         schema_sample_rows: Option<usize>,
         dtype_coercion: DTypeCoercion,
         use_columns: Option<&Bound<'_, PyAny>>,
-        dtypes: Option<DTypeMap>,
+        dtypes: Option<DTypes>,
         eager: bool,
         py: Python<'_>,
     ) -> PyResult<PyObject> {
@@ -416,7 +416,7 @@ impl ExcelReader {
         schema_sample_rows: Option<usize>,
         dtype_coercion: DTypeCoercion,
         use_columns: Option<&Bound<'_, PyAny>>,
-        dtypes: Option<DTypeMap>,
+        dtypes: Option<DTypes>,
         eager: bool,
         py: Python<'_>,
     ) -> PyResult<PyObject> {

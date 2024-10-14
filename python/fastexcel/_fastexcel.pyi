@@ -8,7 +8,7 @@ import pyarrow as pa
 DType = Literal["null", "int", "float", "string", "boolean", "datetime", "date", "duration"]
 DTypeMap = dict[str | int, DType]
 ColumnNameFrom = Literal["provided", "looked_up", "generated"]
-DTypeFrom = Literal["provided_by_index", "provided_by_name", "guessed"]
+DTypeFrom = Literal["provided_for_all", "provided_by_index", "provided_by_name", "guessed"]
 SheetVisible = Literal["visible", "hidden", "veryhidden"]
 
 class ColumnInfo:
@@ -109,7 +109,7 @@ class _ExcelReader:
         schema_sample_rows: int | None = 1_000,
         dtype_coercion: Literal["coerce", "strict"] = "coerce",
         use_columns: list[str] | list[int] | str | Callable[[ColumnInfo], bool] | None = None,
-        dtypes: DTypeMap | None = None,
+        dtypes: DType | DTypeMap | None = None,
         eager: Literal[False] = ...,
     ) -> _ExcelSheet: ...
     @typing.overload
@@ -124,7 +124,7 @@ class _ExcelReader:
         schema_sample_rows: int | None = 1_000,
         dtype_coercion: Literal["coerce", "strict"] = "coerce",
         use_columns: list[str] | list[int] | str | None = None,
-        dtypes: DTypeMap | None = None,
+        dtypes: DType | DTypeMap | None = None,
         eager: Literal[True] = ...,
     ) -> pa.RecordBatch: ...
     @typing.overload
@@ -139,7 +139,7 @@ class _ExcelReader:
         schema_sample_rows: int | None = 1_000,
         dtype_coercion: Literal["coerce", "strict"] = "coerce",
         use_columns: list[str] | list[int] | str | Callable[[ColumnInfo], bool] | None = None,
-        dtypes: DTypeMap | None = None,
+        dtypes: DType | DTypeMap | None = None,
         eager: Literal[False] = ...,
     ) -> _ExcelTable: ...
     @typing.overload
@@ -154,7 +154,7 @@ class _ExcelReader:
         schema_sample_rows: int | None = 1_000,
         dtype_coercion: Literal["coerce", "strict"] = "coerce",
         use_columns: list[str] | list[int] | str | Callable[[ColumnInfo], bool] | None = None,
-        dtypes: DTypeMap | None = None,
+        dtypes: DType | DTypeMap | None = None,
         eager: Literal[True] = ...,
     ) -> pa.RecordBatch: ...
     @property

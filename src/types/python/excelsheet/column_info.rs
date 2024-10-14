@@ -10,7 +10,7 @@ use crate::{
         py_errors::IntoPyResult, ErrorContext, FastExcelError, FastExcelErrorKind, FastExcelResult,
     },
     types::{
-        dtype::{get_dtype_for_column, DType, DTypeCoercion, DTypeMap},
+        dtype::{get_dtype_for_column, DType, DTypeCoercion, DTypes},
         idx_or_name::IdxOrName,
     },
 };
@@ -52,6 +52,7 @@ impl Display for ColumnNameFrom {
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum DTypeFrom {
+    ProvidedForAll,
     ProvidedByIndex,
     ProvidedByName,
     Guessed,
@@ -60,6 +61,7 @@ pub(crate) enum DTypeFrom {
 impl Display for DTypeFrom {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(match self {
+            DTypeFrom::ProvidedForAll => "provided_for_all",
             DTypeFrom::ProvidedByIndex => "provided_by_index",
             DTypeFrom::ProvidedByName => "provided_by_name",
             DTypeFrom::Guessed => "guessed",
@@ -72,6 +74,7 @@ impl FromStr for DTypeFrom {
 
     fn from_str(s: &str) -> FastExcelResult<Self> {
         match s {
+            "provided_for_all" => Ok(Self::ProvidedForAll),
             "provided_by_index" => Ok(Self::ProvidedByIndex),
             "provided_by_name" => Ok(Self::ProvidedByName),
             "guessed" => Ok(Self::Guessed),
@@ -238,19 +241,24 @@ impl ColumnInfoBuilder {
         data: &D,
         start_row: usize,
         end_row: usize,
-        specified_dtypes: Option<&DTypeMap>,
+        specified_dtypes: Option<&DTypes>,
         dtype_coercion: &DTypeCoercion,
     ) -> FastExcelResult<(DType, DTypeFrom)> {
         specified_dtypes
             .and_then(|dtypes| {
-                // if we have dtypes, look the dtype up by index, and fall back on a lookup by name
-                // (done in this order because copying an usize is cheaper than cloning a string)
-                if let Some(dtype) = dtypes.get(&self.index.into()) {
-                    Some((*dtype, DTypeFrom::ProvidedByIndex))
-                } else {
-                    dtypes
-                        .get(&self.name.clone().into())
-                        .map(|dtype| (*dtype, DTypeFrom::ProvidedByName))
+                match dtypes {
+                    DTypes::All(dtype) => Some((*dtype, DTypeFrom::ProvidedForAll)),
+                    DTypes::Map(dtypes) => {
+                        // if we have dtypes, look the dtype up by index, and fall back on a lookup by name
+                        // (done in this order because copying an usize is cheaper than cloning a string)
+                        if let Some(dtype) = dtypes.get(&self.index.into()) {
+                            Some((*dtype, DTypeFrom::ProvidedByIndex))
+                        } else {
+                            dtypes
+                                .get(&self.name.clone().into())
+                                .map(|dtype| (*dtype, DTypeFrom::ProvidedByName))
+                        }
+                    }
                 }
             })
             .map(FastExcelResult::Ok)
@@ -266,7 +274,7 @@ impl ColumnInfoBuilder {
         data: &D,
         start_row: usize,
         end_row: usize,
-        specified_dtypes: Option<&DTypeMap>,
+        specified_dtypes: Option<&DTypes>,
         dtype_coercion: &DTypeCoercion,
     ) -> FastExcelResult<ColumnInfo> {
         let (dtype, dtype_from) = self
@@ -456,7 +464,7 @@ pub(crate) fn build_available_columns<D: CalamineDataProvider>(
     data: &D,
     start_row: usize,
     end_row: usize,
-    specified_dtypes: Option<&DTypeMap>,
+    specified_dtypes: Option<&DTypes>,
     dtype_coercion: &DTypeCoercion,
 ) -> FastExcelResult<Vec<ColumnInfo>> {
     let mut aliased_available_columns = Vec::with_capacity(available_columns_info.len());
