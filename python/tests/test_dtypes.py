@@ -262,4 +262,55 @@ def test_dtype_coercion_behavior__strict_sampling_limit(eager: bool) -> None:
 def test_one_dtype_for_all() -> None:
     excel_reader = fastexcel.read_excel(path_for_fixture("fixture-multi-dtypes-columns.xlsx"))
     sheet = excel_reader.load_sheet(0, dtypes="string")
+    assert sheet.available_columns == [
+        fastexcel.ColumnInfo(
+            name="Employee ID",
+            index=0,
+            dtype="string",
+            dtype_from="provided_for_all",
+            column_name_from="looked_up",
+        ),
+        fastexcel.ColumnInfo(
+            name="Employee Name",
+            index=1,
+            dtype="string",
+            dtype_from="provided_for_all",
+            column_name_from="looked_up",
+        ),
+        fastexcel.ColumnInfo(
+            name="Date",
+            index=2,
+            dtype="string",
+            dtype_from="provided_for_all",
+            column_name_from="looked_up",
+        ),
+        fastexcel.ColumnInfo(
+            name="Details",
+            index=3,
+            dtype="string",
+            dtype_from="provided_for_all",
+            column_name_from="looked_up",
+        ),
+        fastexcel.ColumnInfo(
+            name="Asset ID",
+            index=4,
+            dtype="string",
+            dtype_from="provided_for_all",
+            column_name_from="looked_up",
+        ),
+        fastexcel.ColumnInfo(
+            name="Mixed dates",
+            index=5,
+            dtype="string",
+            dtype_from="provided_for_all",
+            column_name_from="looked_up",
+        ),
+        fastexcel.ColumnInfo(
+            name="Mixed bools",
+            index=6,
+            dtype="string",
+            dtype_from="provided_for_all",
+            column_name_from="looked_up",
+        ),
+    ]
     assert sheet.to_polars().dtypes == [pl.String] * 7

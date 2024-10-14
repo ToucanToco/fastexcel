@@ -74,6 +74,7 @@ impl FromStr for DTypeFrom {
 
     fn from_str(s: &str) -> FastExcelResult<Self> {
         match s {
+            "provided_for_all" => Ok(Self::ProvidedForAll),
             "provided_by_index" => Ok(Self::ProvidedByIndex),
             "provided_by_name" => Ok(Self::ProvidedByName),
             "guessed" => Ok(Self::Guessed),

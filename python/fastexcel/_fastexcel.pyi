@@ -8,7 +8,7 @@ import pyarrow as pa
 DType = Literal["null", "int", "float", "string", "boolean", "datetime", "date", "duration"]
 DTypeMap = dict[str | int, DType]
 ColumnNameFrom = Literal["provided", "looked_up", "generated"]
-DTypeFrom = Literal["provided_by_index", "provided_by_name", "guessed"]
+DTypeFrom = Literal["provided_for_all", "provided_by_index", "provided_by_name", "guessed"]
 SheetVisible = Literal["visible", "hidden", "veryhidden"]
 
 class ColumnInfo:
