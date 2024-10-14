@@ -8,6 +8,7 @@ __pycache__
 .DS_Store
 
 .python-version
+pyrightconfig.json
 .venv
 docs
 .vscode
