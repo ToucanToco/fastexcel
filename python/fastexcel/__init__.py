@@ -208,7 +208,7 @@ class ExcelReader:
         *,
         header_row: int | None = 0,
         column_names: list[str] | None = None,
-        skip_rows: int = 0,
+        skip_rows: int | None = None,
         n_rows: int | None = None,
         schema_sample_rows: int | None = 1_000,
         dtype_coercion: Literal["coerce", "strict"] = "coerce",
@@ -227,8 +227,11 @@ class ExcelReader:
                        If `None`, all rows are loaded
         :param skip_rows: Specifies how many rows should be skipped after the `header_row`.
                           Any rows before the `header_row` are automatically skipped.
-                          If `header_row` is `None`, it skips the number of rows from the
-                          start of the sheet.
+                          If `header_row` is `None`:
+                            - if `skip_rows` is `None` (default): it skips all empty rows
+                            at the beginning of the sheet.
+                            - if `skip_rows` is a number, it skips the specified number
+                            of rows from the start of the sheet.
         :param schema_sample_rows: Specifies how many rows should be used to determine
                                    the dtype of a column.
                                    If `None`, all rows will be used.
@@ -372,7 +375,7 @@ class ExcelReader:
         *,
         header_row: int | None = 0,
         column_names: list[str] | None = None,
-        skip_rows: int = 0,
+        skip_rows: int | None = None,
         n_rows: int | None = None,
         schema_sample_rows: int | None = 1_000,
         dtype_coercion: Literal["coerce", "strict"] = "coerce",
@@ -405,7 +408,7 @@ class ExcelReader:
         *,
         header_row: int | None = 0,
         column_names: list[str] | None = None,
-        skip_rows: int = 0,
+        skip_rows: int | None = None,
         n_rows: int | None = None,
         schema_sample_rows: int | None = 1_000,
         dtype_coercion: Literal["coerce", "strict"] = "coerce",
@@ -434,7 +437,7 @@ class ExcelReader:
         *,
         header_row: int | None = 0,
         column_names: list[str] | None = None,
-        skip_rows: int = 0,
+        skip_rows: int | None = None,
         n_rows: int | None = None,
         schema_sample_rows: int | None = 1_000,
         dtype_coercion: Literal["coerce", "strict"] = "coerce",

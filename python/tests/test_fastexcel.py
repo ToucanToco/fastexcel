@@ -238,8 +238,8 @@ def test_sheets_with_custom_headers():
 def test_sheets_with_skipping_headers():
     excel_reader = fastexcel.read_excel(path_for_fixture("fixture-changing-header-location.xlsx"))
     assert excel_reader.sheet_names == ["Sheet1", "Sheet2", "Sheet3"]
-    sheet_by_name = excel_reader.load_sheet("Sheet2", header_row=1, column_names=["Bugs"])
-    sheet_by_idx = excel_reader.load_sheet(1, header_row=1, column_names=["Bugs"])
+    sheet_by_name = excel_reader.load_sheet("Sheet2", header_row=None, column_names=["Bugs"])
+    sheet_by_idx = excel_reader.load_sheet(1, header_row=None, column_names=["Bugs"])
 
     # Metadata
     assert sheet_by_name.name == sheet_by_idx.name == "Sheet2"
@@ -551,4 +551,31 @@ def test_sheet_with_decimal_numbers() -> None:
     pl_assert_frame_equal(
         sheet2.to_polars(),
         pl.DataFrame({"Decimals": ["28.14", "29.02"]}),
+    )
+
+
+@pytest.mark.parametrize(
+    "header_row, skip_rows, expected",
+    [
+        (0, None, {"a": ["b"], "0": [1.0]}),  # default
+        (None, 0, {"__UNNAMED__0": [None, None, "a", "b"], "__UNNAMED__1": [None, None, 0.0, 1.0]}),
+        (None, None, {"__UNNAMED__0": ["a", "b"], "__UNNAMED__1": [0.0, 1.0]}),
+        (0, 0, {"__UNNAMED__0": [None, "a", "b"], "__UNNAMED__1": [None, 0.0, 1.0]}),
+        (0, 1, {"__UNNAMED__0": ["a", "b"], "__UNNAMED__1": [0.0, 1.0]}),
+        (None, 2, {"__UNNAMED__0": ["a", "b"], "__UNNAMED__1": [0.0, 1.0]}),
+        (None, 3, {"__UNNAMED__0": ["b"], "__UNNAMED__1": [1.0]}),
+        (1, 0, {"__UNNAMED__0": ["a", "b"], "__UNNAMED__1": [0.0, 1.0]}),
+        (2, 0, {"a": ["b"], "0": [1.0]}),
+        (2, None, {"a": ["b"], "0": [1.0]}),
+        (2, 1, {"a": [], "0": []}),
+    ],
+)
+def test_header_row_and_skip_rows(
+    header_row: int | None, skip_rows: int, expected: dict[str, Any]
+) -> None:
+    pl_assert_frame_equal(
+        fastexcel.read_excel(path_for_fixture("no-header.xlsx"))
+        .load_sheet(0, header_row=header_row, skip_rows=skip_rows)
+        .to_polars(),
+        pl.DataFrame(expected),
     )
