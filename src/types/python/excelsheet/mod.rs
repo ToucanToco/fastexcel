@@ -17,7 +17,7 @@ use crate::{
     error::{
         py_errors::IntoPyResult, ErrorContext, FastExcelError, FastExcelErrorKind, FastExcelResult,
     },
-    types::{dtype::DTypeMap, idx_or_name::IdxOrName},
+    types::{dtype::DTypes, idx_or_name::IdxOrName},
 };
 use crate::{types::dtype::DTypeCoercion, utils::schema::get_schema_sample_rows};
 
@@ -347,7 +347,7 @@ pub(crate) struct ExcelSheet {
     dtype_coercion: DTypeCoercion,
     selected_columns: Vec<ColumnInfo>,
     available_columns: Vec<ColumnInfo>,
-    dtypes: Option<DTypeMap>,
+    dtypes: Option<DTypes>,
 }
 
 impl ExcelSheet {
@@ -364,7 +364,7 @@ impl ExcelSheet {
         schema_sample_rows: Option<usize>,
         dtype_coercion: DTypeCoercion,
         selected_columns: SelectedColumns,
-        dtypes: Option<DTypeMap>,
+        dtypes: Option<DTypes>,
     ) -> FastExcelResult<Self> {
         let available_columns_info =
             build_available_columns_info(&data, &selected_columns, &header)?;

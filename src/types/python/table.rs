@@ -18,7 +18,7 @@ use crate::{
         py_errors::IntoPyResult, ErrorContext, FastExcelError, FastExcelErrorKind, FastExcelResult,
     },
     types::{
-        dtype::{DType, DTypeCoercion, DTypeMap},
+        dtype::{DType, DTypeCoercion, DTypes},
         python::excelsheet::column_info::build_available_columns,
     },
     utils::schema::get_schema_sample_rows,
@@ -40,7 +40,7 @@ pub(crate) struct ExcelTable {
     table: Table<Data>,
     header: Header,
     pagination: Pagination,
-    dtypes: Option<DTypeMap>,
+    dtypes: Option<DTypes>,
     dtype_coercion: DTypeCoercion,
     height: Option<usize>,
     total_height: Option<usize>,
@@ -55,7 +55,7 @@ impl ExcelTable {
         schema_sample_rows: Option<usize>,
         dtype_coercion: DTypeCoercion,
         selected_columns: SelectedColumns,
-        dtypes: Option<DTypeMap>,
+        dtypes: Option<DTypes>,
     ) -> FastExcelResult<Self> {
         let available_columns_info =
             build_available_columns_info(table.data(), &selected_columns, &header)?;
