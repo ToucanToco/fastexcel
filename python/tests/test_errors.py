@@ -78,3 +78,19 @@ Context:
 )
 def test_docstrings(exc_class: type[Exception], expected_docstring: str) -> None:
     assert exc_class.__doc__ == expected_docstring
+
+
+def test_schema_sample_rows_must_be_nonzero() -> None:
+    excel_reader = fastexcel.read_excel(path_for_fixture("fixture-single-sheet.xlsx"))
+
+    with pytest.raises(
+        fastexcel.InvalidParametersError,
+        match="schema_sample_rows cannot be 0, as it would prevent dtype inferring",
+    ):
+        excel_reader.load_sheet(0, schema_sample_rows=0)
+
+    with pytest.raises(
+        fastexcel.InvalidParametersError,
+        match="schema_sample_rows cannot be 0, as it would prevent dtype inferring",
+    ):
+        excel_reader.load_table("my-table", schema_sample_rows=0)

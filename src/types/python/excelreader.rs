@@ -350,6 +350,14 @@ impl ExcelReader {
         eager: bool,
         py: Python<'_>,
     ) -> PyResult<PyObject> {
+        // Cannot use NonZeroUsize in the parameters, as it is not supported by pyo3
+        if let Some(0) = schema_sample_rows {
+            return Err(FastExcelErrorKind::InvalidParameters(
+                "schema_sample_rows cannot be 0, as it would prevent dtype inferring".to_string(),
+            )
+            .into())
+            .into_pyresult();
+        }
         let sheet = idx_or_name
             .try_into()
             .and_then(|idx_or_name| match idx_or_name {
@@ -420,6 +428,14 @@ impl ExcelReader {
         eager: bool,
         py: Python<'_>,
     ) -> PyResult<PyObject> {
+        // Cannot use NonZeroUsize in the parameters, as it is not supported by pyo3
+        if let Some(0) = schema_sample_rows {
+            return Err(FastExcelErrorKind::InvalidParameters(
+                "schema_sample_rows cannot be 0, as it would prevent dtype inferring".to_string(),
+            )
+            .into())
+            .into_pyresult();
+        }
         self.build_table(
             name.to_string(),
             header_row,
