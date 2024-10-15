@@ -233,7 +233,8 @@ class ExcelReader:
                             - if `skip_rows` is a number, it skips the specified number
                             of rows from the start of the sheet.
         :param schema_sample_rows: Specifies how many rows should be used to determine
-                                   the dtype of a column.
+                                   the dtype of a column. Cannot be 0. A specific dtype can be
+                                   enforced for some or all columns through the `dtypes` parameter.
                                    If `None`, all rows will be used.
         :param dtype_coercion: Specifies how type coercion should behave. `coerce` (the default)
                                will try to coerce different dtypes in a column to the same one,
@@ -336,7 +337,8 @@ class ExcelReader:
                           If `header_row` is `None`, it skips the number of rows from the
                           start of the sheet.
         :param schema_sample_rows: Specifies how many rows should be used to determine
-                                   the dtype of a column.
+                                   the dtype of a column. Cannot be 0. A specific dtype can be
+                                   enforced for some or all columns through the `dtypes` parameter.
                                    If `None`, all rows will be used.
         :param dtype_coercion: Specifies how type coercion should behave. `coerce` (the default)
                                will try to coerce different dtypes in a column to the same one,
