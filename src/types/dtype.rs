@@ -281,8 +281,12 @@ pub(crate) fn get_dtype_for_column<DT: CellType + Debug + DataType>(
     column_types.remove(&DType::Null);
 
     if column_types.is_empty() {
-        // If no type apart from NULL was found, it's a NULL column
-        Ok(DType::Null)
+        // If no type apart from NULL was found, fallback to string except if the column is empty
+        if start_row == end_row {
+            Ok(DType::Null)
+        } else {
+            Ok(DType::String)
+        }
     } else if matches!(dtype_coercion, &DTypeCoercion::Strict) && column_types.len() != 1 {
         // If dtype coercion is strict and we do not have a single dtype, it's an error
         Err(
