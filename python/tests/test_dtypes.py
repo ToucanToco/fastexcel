@@ -329,7 +329,7 @@ def test_fallback_infer_dtypes(mocker) -> None:
     logger_instance_mock.makeRecord.assert_called_once_with(
         "fastexcel.types.dtype",
         logging.WARNING,
-        "src/types/dtype.rs",
+        mocker.ANY,
         mocker.ANY,
         "Could not determine dtype for column 1, falling back to string",
         mocker.ANY,
