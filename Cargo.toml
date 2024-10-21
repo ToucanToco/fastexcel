@@ -28,7 +28,9 @@ crate-type = ["cdylib"]
 arrow = { version = "53.1.0", default-features = false, features = ["pyarrow"] }
 calamine = { version = "0.26.1", features = ["dates"] }
 chrono = { version = "0.4.38", default-features = false }
+log = "0.4.22"
 pyo3 = { version = "0.22.5", features = ["abi3-py38"] }
+pyo3-log = "0.11.0"
 
 [dev-dependencies]
 pretty_assertions = "1.4.1"

@@ -314,3 +314,42 @@ def test_one_dtype_for_all() -> None:
         ),
     ]
     assert sheet.to_polars().dtypes == [pl.String] * 7
+
+
+def test_fallback_infer_dtypes(mocker) -> None:
+    """it should fallback to string if it can't infer the dtype"""
+    import logging
+
+    logger_instance_mock = mocker.patch("logging.getLogger", autospec=True).return_value
+
+    excel_reader = fastexcel.read_excel(path_for_fixture("infer-dtypes-fallback.xlsx"))
+    sheet = excel_reader.load_sheet(0)
+
+    # Ensure a warning message was logged to explain the fallback to string
+    logger_instance_mock.makeRecord.assert_called_once_with(
+        "fastexcel.types.dtype",
+        logging.WARNING,
+        mocker.ANY,
+        mocker.ANY,
+        "Could not determine dtype for column 1, falling back to string",
+        mocker.ANY,
+        mocker.ANY,
+    )
+
+    assert sheet.available_columns == [
+        fastexcel.ColumnInfo(
+            name="id",
+            index=0,
+            dtype="float",
+            dtype_from="guessed",
+            column_name_from="looked_up",
+        ),
+        fastexcel.ColumnInfo(
+            name="label",
+            index=1,
+            dtype="string",
+            dtype_from="guessed",
+            column_name_from="looked_up",
+        ),
+    ]
+    assert sheet.to_polars().dtypes == [pl.Float64, pl.String]
