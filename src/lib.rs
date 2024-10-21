@@ -43,6 +43,8 @@ fn get_version() -> String {
 
 #[pymodule]
 fn _fastexcel(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    pyo3_log::init();
+
     let py = m.py();
     m.add_function(wrap_pyfunction!(read_excel, m)?)?;
     m.add_class::<ColumnInfo>()?;

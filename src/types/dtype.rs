@@ -7,6 +7,7 @@ use std::{
 
 use arrow::datatypes::{DataType as ArrowDataType, TimeUnit};
 use calamine::{CellErrorType, CellType, DataType, Range};
+use log::warn;
 use pyo3::{
     prelude::PyAnyMethods, Bound, FromPyObject, PyAny, PyObject, PyResult, Python, ToPyObject,
 };
@@ -285,6 +286,7 @@ pub(crate) fn get_dtype_for_column<DT: CellType + Debug + DataType>(
         if start_row == end_row {
             Ok(DType::Null)
         } else {
+            warn!("Could not determine dtype for column {col}, falling back to string");
             Ok(DType::String)
         }
     } else if matches!(dtype_coercion, &DTypeCoercion::Strict) && column_types.len() != 1 {
