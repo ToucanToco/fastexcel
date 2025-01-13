@@ -229,7 +229,7 @@ fn get_cell_dtype<DT: CellType + Debug + DataType>(
         match cell.get_error() {
             // considering cells with #N/A! or #REF! as null
             Some(
-                CellErrorType::NA | CellErrorType::Value | CellErrorType::Null | CellErrorType::Ref,
+                CellErrorType::NA | CellErrorType::Value | CellErrorType::Null | CellErrorType::Ref | CellErrorType::Num,
             ) => Ok(DType::Null),
             Some(err) => Err(FastExcelErrorKind::CalamineCellError(err.to_owned()).into()),
             None => Err(FastExcelErrorKind::Internal(format!(
