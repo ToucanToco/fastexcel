@@ -537,7 +537,7 @@ def test_invalid_value_num() -> None:
     excel_reader = fastexcel.read_excel(path_for_fixture("fixture-invalid-cell-value-num.xlsx"))
     sheet = excel_reader.load_sheet(0)
 
-    expected = {"Column": [8, None]}
+    expected = {"Column": [8.0, None]}
     pd_assert_frame_equal(sheet.to_pandas(), pd.DataFrame(expected))
     pl_assert_frame_equal(sheet.to_polars(), pl.DataFrame(expected))
 
