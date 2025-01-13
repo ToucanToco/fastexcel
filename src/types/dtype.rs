@@ -182,7 +182,7 @@ fn get_cell_dtype<DT: CellType + Debug + DataType>(
 ) -> FastExcelResult<DType> {
     let cell = data
         .get((row, col))
-        .ok_or_else(|| FastExcelErrorKind::CannotRetrieveCellData(row, col))?;
+        .ok_or(FastExcelErrorKind::CannotRetrieveCellData(row, col))?;
 
     if cell.is_int() {
         Ok(DType::Int)
