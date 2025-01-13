@@ -8,7 +8,7 @@ on:
     types: [opened, synchronize, reopened]
 
 env:
-  MIN_PYTHON_VERSION: "3.8"
+  MIN_PYTHON_VERSION: "3.9"
 
 
 defaults:
@@ -79,7 +79,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12", "3.13"]
+        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
         os: ["ubuntu-latest", "macos-14", "windows-latest"]
     steps:
     - uses: actions/checkout@v4
@@ -116,7 +116,7 @@ jobs:
       matrix:
         # Only testing the build on the smallest supported Python version
         # since we're building abi3 wheels
-        python-version: ["3.8"]
+        python-version: ["3.9"]
         os: ["ubuntu-latest", "macos-14", "windows-latest"]
         architecture: [x86-64, aarch64]
         exclude:
