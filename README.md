@@ -10,7 +10,7 @@ Docs available [here](https://fastexcel.toucantoco.dev/).
 
 ### Prerequisites
 
-Python>=3.8 and a recent Rust toolchain must be installed on your machine. `cargo` must be available in your `PATH`.
+Python>=3.9 and a recent Rust toolchain must be installed on your machine. `cargo` must be available in your `PATH`.
 
 ### First setup
 
