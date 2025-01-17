@@ -5,7 +5,7 @@ use arrow::{
     pyarrow::ToPyArrow,
 };
 use calamine::{Data, Range, Table};
-use pyo3::{pyclass, pymethods, PyObject, PyResult, Python, ToPyObject};
+use pyo3::{pyclass, pymethods, PyObject, PyResult, Python};
 
 use crate::{
     data::{
@@ -206,8 +206,8 @@ impl ExcelTable {
     }
 
     #[getter]
-    pub fn specified_dtypes<'p>(&'p self, py: Python<'p>) -> Option<PyObject> {
-        self.dtypes.as_ref().map(|dtypes| dtypes.to_object(py))
+    pub fn specified_dtypes(&self, _py: Python<'_>) -> Option<&DTypes> {
+        self.dtypes.as_ref()
     }
 
     #[getter]

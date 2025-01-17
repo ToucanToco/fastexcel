@@ -55,38 +55,32 @@ fn _fastexcel(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     // errors
     [
-        (
-            "FastExcelError",
-            py.get_type_bound::<py_errors::FastExcelError>(),
-        ),
+        ("FastExcelError", py.get_type::<py_errors::FastExcelError>()),
         (
             "UnsupportedColumnTypeCombinationError",
-            py.get_type_bound::<py_errors::UnsupportedColumnTypeCombinationError>(),
+            py.get_type::<py_errors::UnsupportedColumnTypeCombinationError>(),
         ),
         (
             "CannotRetrieveCellDataError",
-            py.get_type_bound::<py_errors::CannotRetrieveCellDataError>(),
+            py.get_type::<py_errors::CannotRetrieveCellDataError>(),
         ),
         (
             "CalamineCellError",
-            py.get_type_bound::<py_errors::CalamineCellError>(),
+            py.get_type::<py_errors::CalamineCellError>(),
         ),
-        (
-            "CalamineError",
-            py.get_type_bound::<py_errors::CalamineError>(),
-        ),
+        ("CalamineError", py.get_type::<py_errors::CalamineError>()),
         (
             "SheetNotFoundError",
-            py.get_type_bound::<py_errors::SheetNotFoundError>(),
+            py.get_type::<py_errors::SheetNotFoundError>(),
         ),
         (
             "ColumnNotFoundError",
-            py.get_type_bound::<py_errors::ColumnNotFoundError>(),
+            py.get_type::<py_errors::ColumnNotFoundError>(),
         ),
-        ("ArrowError", py.get_type_bound::<py_errors::ArrowError>()),
+        ("ArrowError", py.get_type::<py_errors::ArrowError>()),
         (
             "InvalidParametersError",
-            py.get_type_bound::<py_errors::InvalidParametersError>(),
+            py.get_type::<py_errors::InvalidParametersError>(),
         ),
     ]
     .into_iter()
