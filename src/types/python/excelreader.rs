@@ -4,7 +4,7 @@ use std::{
 };
 
 use arrow::{pyarrow::ToPyArrow, record_batch::RecordBatch};
-use pyo3::{prelude::PyObject, pyclass, pymethods, Bound, IntoPy, PyAny, PyResult, Python};
+use pyo3::{pyclass, pymethods, Bound, IntoPyObjectExt, PyAny, PyResult, Python};
 
 use calamine::{
     open_workbook_auto, open_workbook_auto_from_rs, Data, DataRef, HeaderRow, Range, Reader,
@@ -172,7 +172,7 @@ impl ExcelReader {
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn build_sheet(
+    fn build_sheet<'py>(
         &mut self,
         sheet_meta: CalamineSheet,
         header_row: Option<usize>,
@@ -181,11 +181,11 @@ impl ExcelReader {
         n_rows: Option<usize>,
         schema_sample_rows: Option<usize>,
         dtype_coercion: DTypeCoercion,
-        use_columns: Option<&Bound<'_, PyAny>>,
+        use_columns: Option<&Bound<'py, PyAny>>,
         dtypes: Option<DTypes>,
         eager: bool,
-        py: Python<'_>,
-    ) -> PyResult<PyObject> {
+        py: Python<'py>,
+    ) -> PyResult<Bound<'py, PyAny>> {
         // calamine `header_row` is the first row of the range to be read.
         // For us `header_row` can be `None` (meaning there is no header and we should start reading
         // the data at the beginning)
@@ -219,6 +219,7 @@ impl ExcelReader {
             )
             .into_pyresult()
             .and_then(|rb| rb.to_pyarrow(py))
+            .map(|py_object| py_object.into_bound(py))
         } else {
             let range = self
                 .sheets
@@ -242,13 +243,13 @@ impl ExcelReader {
             if eager {
                 sheet.to_arrow(py)
             } else {
-                Ok(sheet.into_py(py))
+                sheet.into_bound_py_any(py)
             }
         }
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn build_table(
+    fn build_table<'py>(
         &mut self,
         name: String,
         header_row: Option<usize>,
@@ -260,8 +261,8 @@ impl ExcelReader {
         use_columns: Option<&Bound<'_, PyAny>>,
         dtypes: Option<DTypes>,
         eager: bool,
-        py: Python<'_>,
-    ) -> PyResult<PyObject> {
+        py: Python<'py>,
+    ) -> PyResult<Bound<'py, PyAny>> {
         let selected_columns = Self::build_selected_columns(use_columns).into_pyresult()?;
 
         let table = self.sheets.get_table(&name).into_pyresult()?;
@@ -287,9 +288,9 @@ impl ExcelReader {
         .into_pyresult()?;
 
         if eager {
-            excel_table.to_arrow(py)
+            excel_table.to_arrow(py).map(|py_obj| py_obj.into_bound(py))
         } else {
-            Ok(excel_table.into_py(py))
+            excel_table.into_bound_py_any(py)
         }
     }
 }
@@ -336,20 +337,20 @@ impl ExcelReader {
         eager = false,
     ))]
     #[allow(clippy::too_many_arguments)]
-    pub fn load_sheet(
+    pub fn load_sheet<'py>(
         &mut self,
-        idx_or_name: &Bound<'_, PyAny>,
+        idx_or_name: &Bound<'py, PyAny>,
         header_row: Option<usize>,
         column_names: Option<Vec<String>>,
         skip_rows: Option<usize>,
         n_rows: Option<usize>,
         schema_sample_rows: Option<usize>,
         dtype_coercion: DTypeCoercion,
-        use_columns: Option<&Bound<'_, PyAny>>,
+        use_columns: Option<&Bound<'py, PyAny>>,
         dtypes: Option<DTypes>,
         eager: bool,
-        py: Python<'_>,
-    ) -> PyResult<PyObject> {
+        py: Python<'py>,
+    ) -> PyResult<Bound<'py, PyAny>> {
         // Cannot use NonZeroUsize in the parameters, as it is not supported by pyo3
         if let Some(0) = schema_sample_rows {
             return Err(FastExcelErrorKind::InvalidParameters(
@@ -414,20 +415,20 @@ impl ExcelReader {
         eager = false,
     ))]
     #[allow(clippy::too_many_arguments)]
-    pub fn load_table(
+    pub fn load_table<'py>(
         &mut self,
-        name: &Bound<'_, PyString>,
+        name: &Bound<'py, PyString>,
         header_row: Option<usize>,
         column_names: Option<Vec<String>>,
         skip_rows: usize,
         n_rows: Option<usize>,
         schema_sample_rows: Option<usize>,
         dtype_coercion: DTypeCoercion,
-        use_columns: Option<&Bound<'_, PyAny>>,
+        use_columns: Option<&Bound<'py, PyAny>>,
         dtypes: Option<DTypes>,
         eager: bool,
-        py: Python<'_>,
-    ) -> PyResult<PyObject> {
+        py: Python<'py>,
+    ) -> PyResult<Bound<'py, PyAny>> {
         // Cannot use NonZeroUsize in the parameters, as it is not supported by pyo3
         if let Some(0) = schema_sample_rows {
             return Err(FastExcelErrorKind::InvalidParameters(

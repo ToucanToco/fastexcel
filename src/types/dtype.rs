@@ -9,7 +9,8 @@ use arrow::datatypes::{DataType as ArrowDataType, TimeUnit};
 use calamine::{CellErrorType, CellType, DataType, Range};
 use log::warn;
 use pyo3::{
-    prelude::PyAnyMethods, Bound, FromPyObject, PyAny, PyObject, PyResult, Python, ToPyObject,
+    prelude::PyAnyMethods, types::PyString, Bound, FromPyObject, IntoPyObject, IntoPyObjectRef,
+    PyAny, PyResult, Python,
 };
 
 use crate::error::{py_errors::IntoPyResult, FastExcelError, FastExcelErrorKind, FastExcelResult};
@@ -64,9 +65,26 @@ impl Display for DType {
     }
 }
 
-impl ToPyObject for DType {
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        self.to_string().to_object(py)
+impl<'py> IntoPyObject<'py> for DType {
+    type Target = PyString;
+
+    type Output = Bound<'py, Self::Target>;
+
+    type Error = std::convert::Infallible;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        self.to_string().into_pyobject(py)
+    }
+}
+impl<'py> IntoPyObject<'py> for &DType {
+    type Target = PyString;
+
+    type Output = Bound<'py, Self::Target>;
+
+    type Error = std::convert::Infallible;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        self.to_string().into_pyobject(py)
     }
 }
 
@@ -86,6 +104,7 @@ impl FromPyObject<'_> for DType {
 
 pub(crate) type DTypeMap = HashMap<IdxOrName, DType>;
 
+#[derive(IntoPyObject, IntoPyObjectRef)]
 pub(crate) enum DTypes {
     All(DType),
     Map(DTypeMap),
@@ -107,15 +126,6 @@ impl FromPyObject<'_> for DTypes {
             Ok(DTypes::Map(py_dtypes.extract::<DTypeMap>()?))
         }
         .into_pyresult()
-    }
-}
-
-impl ToPyObject for DTypes {
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        match self {
-            DTypes::All(dtype) => dtype.to_object(py),
-            DTypes::Map(dtype_map) => dtype_map.to_object(py),
-        }
     }
 }
 
@@ -229,7 +239,11 @@ fn get_cell_dtype<DT: CellType + Debug + DataType>(
         match cell.get_error() {
             // considering cells with #N/A! or #REF! as null
             Some(
-                CellErrorType::NA | CellErrorType::Value | CellErrorType::Null | CellErrorType::Ref | CellErrorType::Num,
+                CellErrorType::NA
+                | CellErrorType::Value
+                | CellErrorType::Null
+                | CellErrorType::Ref
+                | CellErrorType::Num,
             ) => Ok(DType::Null),
             Some(err) => Err(FastExcelErrorKind::CalamineCellError(err.to_owned()).into()),
             None => Err(FastExcelErrorKind::Internal(format!(

@@ -1,5 +1,6 @@
 use pyo3::{
-    prelude::PyAnyMethods, Bound, FromPyObject, PyAny, PyObject, PyResult, Python, ToPyObject,
+    prelude::PyAnyMethods, Bound, FromPyObject, IntoPyObject, IntoPyObjectExt, PyAny, PyResult,
+    Python,
 };
 
 use crate::error::{py_errors::IntoPyResult, FastExcelError, FastExcelErrorKind, FastExcelResult};
@@ -42,11 +43,32 @@ impl FromPyObject<'_> for IdxOrName {
     }
 }
 
-impl ToPyObject for IdxOrName {
-    fn to_object(&self, py: Python<'_>) -> PyObject {
+impl<'py> IntoPyObject<'py> for IdxOrName {
+    type Target = PyAny;
+
+    type Output = Bound<'py, Self::Target>;
+
+    type Error = pyo3::PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         match self {
-            IdxOrName::Idx(idx) => idx.to_object(py),
-            IdxOrName::Name(name) => name.to_object(py),
+            IdxOrName::Idx(idx) => idx.into_bound_py_any(py),
+            IdxOrName::Name(name) => name.into_bound_py_any(py),
+        }
+    }
+}
+
+impl<'py> IntoPyObject<'py> for &IdxOrName {
+    type Target = PyAny;
+
+    type Output = Bound<'py, Self::Target>;
+
+    type Error = pyo3::PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        match self {
+            IdxOrName::Idx(idx) => idx.into_bound_py_any(py),
+            IdxOrName::Name(name) => name.into_bound_py_any(py),
         }
     }
 }

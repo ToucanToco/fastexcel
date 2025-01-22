@@ -8,8 +8,8 @@ use arrow::{pyarrow::ToPyArrow, record_batch::RecordBatch};
 
 use pyo3::{
     prelude::{pyclass, pymethods, PyAnyMethods, Python},
-    types::PyList,
-    Bound, PyAny, PyObject, PyResult, ToPyObject,
+    types::{PyList, PyString},
+    Bound, IntoPyObject, IntoPyObjectExt, PyAny, PyObject, PyResult,
 };
 
 use crate::{
@@ -318,13 +318,20 @@ impl TryFrom<Option<&Bound<'_, PyAny>>> for SelectedColumns {
 #[derive(Clone, Debug)]
 struct SheetVisible(CalamineSheetVisible);
 
-impl ToPyObject for &SheetVisible {
-    fn to_object(&self, py: Python<'_>) -> PyObject {
+impl<'py> IntoPyObject<'py> for &SheetVisible {
+    type Target = PyString;
+
+    type Output = Bound<'py, Self::Target>;
+
+    type Error = std::convert::Infallible;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         match self.0 {
-            CalamineSheetVisible::Visible => "visible".to_object(py),
-            CalamineSheetVisible::Hidden => "hidden".to_object(py),
-            CalamineSheetVisible::VeryHidden => "veryhidden".to_object(py),
+            CalamineSheetVisible::Visible => "visible",
+            CalamineSheetVisible::Hidden => "hidden",
+            CalamineSheetVisible::VeryHidden => "veryhidden",
         }
+        .into_pyobject(py)
     }
 }
 
@@ -478,8 +485,8 @@ impl ExcelSheet {
     }
 
     #[getter]
-    pub fn specified_dtypes<'p>(&'p self, py: Python<'p>) -> Option<PyObject> {
-        self.dtypes.as_ref().map(|dtypes| dtypes.to_object(py))
+    pub fn specified_dtypes(&self, _py: Python<'_>) -> Option<&DTypes> {
+        self.dtypes.as_ref()
     }
 
     #[getter]
@@ -488,12 +495,12 @@ impl ExcelSheet {
     }
 
     #[getter]
-    pub fn visible<'p>(&'p self, py: Python<'p>) -> PyObject {
+    pub fn visible<'py>(&'py self, py: Python<'py>) -> PyResult<Bound<'py, PyString>> {
         let visible: SheetVisible = self.sheet_meta.visible.into();
-        (&visible).to_object(py)
+        (&visible).into_pyobject(py).map_err(Into::into)
     }
 
-    pub fn to_arrow(&self, py: Python<'_>) -> PyResult<PyObject> {
+    pub fn to_arrow<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
         RecordBatch::try_from(self)
             .with_context(|| {
                 format!(
@@ -512,6 +519,7 @@ impl ExcelSheet {
                 )
             })
             .into_pyresult()
+            .and_then(|obj| obj.into_bound_py_any(py))
     }
 
     pub fn __repr__(&self) -> String {
@@ -537,7 +545,7 @@ mod tests {
     #[test]
     fn selected_columns_from_list_of_valid_ints() {
         Python::with_gil(|py| {
-            let py_list = PyList::new_bound(py, vec![0, 1, 2]);
+            let py_list = PyList::new(py, vec![0, 1, 2]).expect("could not create PyList");
             assert_eq!(
                 TryInto::<SelectedColumns>::try_into(Some(py_list.as_ref())).unwrap(),
                 SelectedColumns::Selection([0, 1, 2].into_iter().map(IdxOrName::Idx).collect())
@@ -548,7 +556,7 @@ mod tests {
     #[test]
     fn selected_columns_from_list_of_valid_strings() {
         Python::with_gil(|py| {
-            let py_list = PyList::new_bound(py, vec!["foo", "bar"]);
+            let py_list = PyList::new(py, vec!["foo", "bar"]).expect("could not create PyList");
             assert_eq!(
                 TryInto::<SelectedColumns>::try_into(Some(py_list.as_ref())).unwrap(),
                 SelectedColumns::Selection(
@@ -565,7 +573,7 @@ mod tests {
     #[test]
     fn selected_columns_from_list_of_valid_strings_and_ints() {
         Python::with_gil(|py| {
-            let py_list = PyList::new_bound(py, vec!["foo", "bar"]);
+            let py_list = PyList::new(py, vec!["foo", "bar"]).expect("could not create PyList");
             py_list.append(42).unwrap();
             py_list.append(5).unwrap();
             assert_eq!(
@@ -583,7 +591,7 @@ mod tests {
     #[test]
     fn selected_columns_from_invalid_ints() {
         Python::with_gil(|py| {
-            let py_list = PyList::new_bound(py, vec![0, 2, -1]);
+            let py_list = PyList::new(py, vec![0, 2, -1]).expect("could not create PyList");
             let err = TryInto::<SelectedColumns>::try_into(Some(py_list.as_ref())).unwrap_err();
 
             assert!(matches!(err.kind, FastExcelErrorKind::InvalidParameters(_)));
@@ -593,7 +601,7 @@ mod tests {
     #[test]
     fn selected_columns_from_empty_int_list() {
         Python::with_gil(|py| {
-            let py_list = PyList::new_bound(py, Vec::<usize>::new());
+            let py_list = PyList::new(py, Vec::<usize>::new()).expect("could not create PyList");
             let err = TryInto::<SelectedColumns>::try_into(Some(py_list.as_ref())).unwrap_err();
 
             assert!(matches!(err.kind, FastExcelErrorKind::InvalidParameters(_)));
@@ -603,7 +611,7 @@ mod tests {
     #[test]
     fn selected_columns_from_empty_string_list() {
         Python::with_gil(|py| {
-            let py_list = PyList::new_bound(py, Vec::<String>::new());
+            let py_list = PyList::new(py, Vec::<String>::new()).expect("could not create PyList");
             let err = TryInto::<SelectedColumns>::try_into(Some(py_list.as_ref())).unwrap_err();
 
             assert!(matches!(err.kind, FastExcelErrorKind::InvalidParameters(_)));
@@ -625,7 +633,7 @@ mod tests {
             let expected_range = SelectedColumns::Selection(
                 expected_indices.into_iter().map(IdxOrName::Idx).collect(),
             );
-            let input = PyString::new_bound(py, raw);
+            let input = PyString::new(py, raw);
 
             let range = TryInto::<SelectedColumns>::try_into(Some(input.as_ref()))
                 .expect("expected a valid column selection");
@@ -649,7 +657,7 @@ mod tests {
     #[case("a:b:e", "exactly 2 elements, got 3")]
     fn selected_columns_from_invalid_ranges(#[case] raw: &str, #[case] message: &str) {
         Python::with_gil(|py| {
-            let input = PyString::new_bound(py, raw);
+            let input = PyString::new(py, raw);
 
             let err = TryInto::<SelectedColumns>::try_into(Some(input.as_ref()))
                 .expect_err("expected an error");
