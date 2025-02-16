@@ -82,10 +82,9 @@ class ExcelSheet:
         """The sheet's selected columns"""
         return self._sheet.selected_columns
 
-    @property
     def available_columns(self) -> list[ColumnInfo]:
         """The columns available for the given sheet"""
-        return self._sheet.available_columns
+        return self._sheet.available_columns()
 
     @property
     def specified_dtypes(self) -> DTypeMap | None:

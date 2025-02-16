@@ -51,7 +51,6 @@ class _ExcelSheet:
     @property
     def selected_columns(self) -> list[ColumnInfo]:
         """The sheet's selected columns"""
-    @property
     def available_columns(self) -> list[ColumnInfo]:
         """The columns available for the given sheet"""
     @property

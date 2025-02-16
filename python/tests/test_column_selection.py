@@ -39,7 +39,7 @@ def test_single_sheet_all_columns(
 
     sheet_explicit_arg = excel_reader_single_sheet.load_sheet(0, use_columns=None)
     assert sheet.selected_columns == expected_column_info
-    assert sheet.available_columns == expected_column_info
+    assert sheet.available_columns() == expected_column_info
 
     expected = {"Month": [1.0, 2.0], "Year": [2019.0, 2020.0]}
     expected_pd_df = pd.DataFrame(expected)
@@ -68,7 +68,7 @@ def test_single_sheet_subset_by_str(
         for idx, col in enumerate(["Month", "Year"]):
             sheet = excel_reader_single_sheet.load_sheet(sheet_name_or_idx, use_columns=[col])
             assert sheet.selected_columns == [expected_column_info[idx]]
-            assert sheet.available_columns == expected_column_info
+            assert sheet.available_columns() == expected_column_info
 
             pd_df = sheet.to_pandas()
             pd_assert_frame_equal(pd_df, pd.DataFrame({col: expected[col]}))
@@ -88,7 +88,7 @@ def test_single_sheet_subset_by_index(
         for idx, col_name in enumerate(["Month", "Year"]):
             sheet = excel_reader_single_sheet.load_sheet(sheet_name_or_idx, use_columns=[idx])
             assert sheet.selected_columns == [expected_column_info[idx]]
-            assert sheet.available_columns == expected_column_info
+            assert sheet.available_columns() == expected_column_info
 
             pd_df = sheet.to_pandas()
             pd_assert_frame_equal(pd_df, pd.DataFrame({col_name: expected[col_name]}))
@@ -161,7 +161,7 @@ def test_single_sheet_with_unnamed_columns(
         sheet_with_unnamed_columns_expected_column_info[2],
         sheet_with_unnamed_columns_expected_column_info[3],
     ]
-    assert sheet.available_columns == sheet_with_unnamed_columns_expected_column_info
+    assert sheet.available_columns() == sheet_with_unnamed_columns_expected_column_info
 
     pd_assert_frame_equal(sheet.to_pandas(), pd.DataFrame(expected))
     pl_assert_frame_equal(sheet.to_polars(), pl.DataFrame(expected))
@@ -174,7 +174,7 @@ def test_single_sheet_with_unnamed_columns(
         sheet_with_unnamed_columns_expected_column_info[2],
         sheet_with_unnamed_columns_expected_column_info[3],
     ]
-    assert sheet.available_columns == sheet_with_unnamed_columns_expected_column_info
+    assert sheet.available_columns() == sheet_with_unnamed_columns_expected_column_info
 
     pd_assert_frame_equal(sheet.to_pandas(), pd.DataFrame(expected))
     pl_assert_frame_equal(sheet.to_polars(), pl.DataFrame(expected))
@@ -198,7 +198,7 @@ def test_single_sheet_with_unnamed_columns_and_pagination(
     sheet = excel_reader_single_sheet_with_unnamed_columns.load_sheet(
         "With unnamed columns", use_columns=use_columns_str, n_rows=1
     )
-    assert sheet.available_columns == sheet_with_unnamed_columns_expected_column_info
+    assert sheet.available_columns() == sheet_with_unnamed_columns_expected_column_info
 
     pd_assert_frame_equal(sheet.to_pandas(), pd.DataFrame(expected))
     pl_assert_frame_equal(sheet.to_polars(), pl.DataFrame(expected))
@@ -206,7 +206,7 @@ def test_single_sheet_with_unnamed_columns_and_pagination(
     sheet = excel_reader_single_sheet_with_unnamed_columns.load_sheet(
         "With unnamed columns", use_columns=use_columns_idx, n_rows=1
     )
-    assert sheet.available_columns == sheet_with_unnamed_columns_expected_column_info
+    assert sheet.available_columns() == sheet_with_unnamed_columns_expected_column_info
 
     pd_assert_frame_equal(sheet.to_pandas(), pd.DataFrame(expected))
     pl_assert_frame_equal(sheet.to_polars(), pl.DataFrame(expected))
@@ -221,7 +221,7 @@ def test_single_sheet_with_unnamed_columns_and_pagination(
     sheet = excel_reader_single_sheet_with_unnamed_columns.load_sheet(
         "With unnamed columns", use_columns=use_columns_str, skip_rows=1
     )
-    assert sheet.available_columns == sheet_with_unnamed_columns_expected_column_info
+    assert sheet.available_columns() == sheet_with_unnamed_columns_expected_column_info
 
     pd_assert_frame_equal(sheet.to_pandas(), pd.DataFrame(expected))
     pl_assert_frame_equal(sheet.to_polars(), pl.DataFrame(expected))
@@ -229,7 +229,7 @@ def test_single_sheet_with_unnamed_columns_and_pagination(
     sheet = excel_reader_single_sheet_with_unnamed_columns.load_sheet(
         "With unnamed columns", use_columns=use_columns_idx, skip_rows=1
     )
-    assert sheet.available_columns == sheet_with_unnamed_columns_expected_column_info
+    assert sheet.available_columns() == sheet_with_unnamed_columns_expected_column_info
 
     pd_assert_frame_equal(sheet.to_pandas(), pd.DataFrame(expected))
     pl_assert_frame_equal(sheet.to_polars(), pl.DataFrame(expected))
@@ -263,7 +263,7 @@ def test_single_sheet_with_unnamed_columns_and_pagination_and_column_names(
     sheet = excel_reader_single_sheet_with_unnamed_columns.load_sheet(
         "With unnamed columns", use_columns=use_columns_idx, skip_rows=1, column_names=column_names
     )
-    assert [col.name for col in sheet.available_columns] == expected_columns_names
+    assert [col.name for col in sheet.available_columns()] == expected_columns_names
 
     pd_assert_frame_equal(sheet.to_pandas(), pd.DataFrame(expected))
     pl_assert_frame_equal(sheet.to_polars(), pl.DataFrame(expected))
@@ -274,7 +274,7 @@ def test_single_sheet_with_unnamed_columns_and_pagination_and_column_names(
     sheet = excel_reader_single_sheet_with_unnamed_columns.load_sheet(
         "With unnamed columns", use_columns=use_columns_idx, skip_rows=2, column_names=column_names
     )
-    assert [col.name for col in sheet.available_columns] == expected_columns_names
+    assert [col.name for col in sheet.available_columns()] == expected_columns_names
 
     pd_assert_frame_equal(sheet.to_pandas(), pd.DataFrame(expected_first_row_skipped))
     pl_assert_frame_equal(sheet.to_polars(), pl.DataFrame(expected_first_row_skipped))
@@ -298,7 +298,7 @@ def test_single_sheet_with_unnamed_columns_and_str_range(
         sheet_with_unnamed_columns_expected_column_info[:1]
         + sheet_with_unnamed_columns_expected_column_info[2:]
     )
-    assert sheet.available_columns == sheet_with_unnamed_columns_expected_column_info
+    assert sheet.available_columns() == sheet_with_unnamed_columns_expected_column_info
     pd_assert_frame_equal(sheet.to_pandas(), pd.DataFrame(expected))
     pl_assert_frame_equal(sheet.to_polars(), pl.DataFrame(expected))
 
@@ -360,7 +360,7 @@ def test_use_columns_with_column_names() -> None:
         column_names=["bools_renamed", "dates_renamed"],
     )
 
-    assert sheet.available_columns == [
+    assert sheet.available_columns() == [
         fastexcel.ColumnInfo(
             name="__UNNAMED__0",
             column_name_from="generated",
@@ -420,7 +420,7 @@ def test_use_columns_with_callable() -> None:
 
     sheet = excel_reader.load_sheet(2)
     assert (
-        [(c.name, c.dtype) for c in sheet.available_columns]
+        [(c.name, c.dtype) for c in sheet.available_columns()]
         == [(c.name, c.dtype) for c in sheet.selected_columns]
         == [
             ("col1", "float"),

@@ -19,7 +19,7 @@ def test_alias_generation_with_use_columns(use_columns: list[str] | list[int] | 
     )
 
     sheet = excel_reader.load_sheet(0, use_columns=use_columns)
-    assert [col.name for col in sheet.available_columns] == ["col", "col_1", "col_2"]
+    assert [col.name for col in sheet.available_columns()] == ["col", "col_1", "col_2"]
 
     pd_assert_frame_equal(
         sheet.to_pandas(),

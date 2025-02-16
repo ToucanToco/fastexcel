@@ -479,7 +479,6 @@ impl ExcelSheet {
         self.selected_columns.clone()
     }
 
-    #[getter]
     pub fn available_columns<'p>(&'p self, _py: Python<'p>) -> Vec<ColumnInfo> {
         self.available_columns.clone()
     }
