@@ -24,6 +24,7 @@ from ._fastexcel import (
     CalamineError,
     CannotRetrieveCellDataError,
     ColumnInfo,
+    ColumnInfoBuilder,
     ColumnNotFoundError,
     FastExcelError,
     InvalidParametersError,
@@ -160,10 +161,9 @@ class ExcelTable:
         """The table's selected columns"""
         return self._table.selected_columns
 
-    @property
     def available_columns(self) -> list[ColumnInfo]:
         """The columns available for the given table"""
-        return self._table.available_columns
+        return self._table.available_columns()
 
     @property
     def specified_dtypes(self) -> DTypeMap | None:
@@ -211,7 +211,11 @@ class ExcelReader:
         n_rows: int | None = None,
         schema_sample_rows: int | None = 1_000,
         dtype_coercion: Literal["coerce", "strict"] = "coerce",
-        use_columns: list[str] | list[int] | str | Callable[[ColumnInfo], bool] | None = None,
+        use_columns: list[str]
+        | list[int]
+        | str
+        | Callable[[ColumnInfoBuilder], bool]
+        | None = None,
         dtypes: DType | DTypeMap | None = None,
     ) -> ExcelSheet:
         """Loads a sheet lazily by index or name.
@@ -288,7 +292,11 @@ class ExcelReader:
         n_rows: int | None = None,
         schema_sample_rows: int | None = 1_000,
         dtype_coercion: Literal["coerce", "strict"] = "coerce",
-        use_columns: list[str] | list[int] | str | Callable[[ColumnInfo], bool] | None = None,
+        use_columns: list[str]
+        | list[int]
+        | str
+        | Callable[[ColumnInfoBuilder], bool]
+        | None = None,
         dtypes: DType | DTypeMap | None = None,
         eager: Literal[False] = ...,
     ) -> ExcelTable: ...
@@ -303,7 +311,11 @@ class ExcelReader:
         n_rows: int | None = None,
         schema_sample_rows: int | None = 1_000,
         dtype_coercion: Literal["coerce", "strict"] = "coerce",
-        use_columns: list[str] | list[int] | str | Callable[[ColumnInfo], bool] | None = None,
+        use_columns: list[str]
+        | list[int]
+        | str
+        | Callable[[ColumnInfoBuilder], bool]
+        | None = None,
         dtypes: DType | DTypeMap | None = None,
         eager: Literal[True] = ...,
     ) -> pa.RecordBatch: ...
@@ -317,7 +329,11 @@ class ExcelReader:
         n_rows: int | None = None,
         schema_sample_rows: int | None = 1_000,
         dtype_coercion: Literal["coerce", "strict"] = "coerce",
-        use_columns: list[str] | list[int] | str | Callable[[ColumnInfo], bool] | None = None,
+        use_columns: list[str]
+        | list[int]
+        | str
+        | Callable[[ColumnInfoBuilder], bool]
+        | None = None,
         dtypes: DType | DTypeMap | None = None,
         eager: bool = False,
     ) -> ExcelTable | pa.RecordBatch:
@@ -415,7 +431,11 @@ class ExcelReader:
         n_rows: int | None = None,
         schema_sample_rows: int | None = 1_000,
         dtype_coercion: Literal["coerce", "strict"] = "coerce",
-        use_columns: list[str] | list[int] | str | Callable[[ColumnInfo], bool] | None = None,
+        use_columns: list[str]
+        | list[int]
+        | str
+        | Callable[[ColumnInfoBuilder], bool]
+        | None = None,
         dtypes: DType | DTypeMap | None = None,
     ) -> ExcelSheet:
         """Loads a sheet by name.
@@ -444,7 +464,11 @@ class ExcelReader:
         n_rows: int | None = None,
         schema_sample_rows: int | None = 1_000,
         dtype_coercion: Literal["coerce", "strict"] = "coerce",
-        use_columns: list[str] | list[int] | str | Callable[[ColumnInfo], bool] | None = None,
+        use_columns: list[str]
+        | list[int]
+        | str
+        | Callable[[ColumnInfoBuilder], bool]
+        | None = None,
         dtypes: DType | DTypeMap | None = None,
     ) -> ExcelSheet:
         """Loads a sheet by index.

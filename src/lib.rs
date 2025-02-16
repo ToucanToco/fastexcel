@@ -6,7 +6,9 @@ mod utils;
 use error::{py_errors, ErrorContext};
 use pyo3::prelude::*;
 use types::python::{
-    excelsheet::column_info::ColumnInfo, table::ExcelTable, ExcelReader, ExcelSheet,
+    excelsheet::column_info::{ColumnInfo, ColumnInfoBuilder},
+    table::ExcelTable,
+    ExcelReader, ExcelSheet,
 };
 
 /// Reads an excel file and returns an object allowing to access its sheets and a bit of metadata
@@ -48,6 +50,7 @@ fn _fastexcel(m: &Bound<'_, PyModule>) -> PyResult<()> {
     let py = m.py();
     m.add_function(wrap_pyfunction!(read_excel, m)?)?;
     m.add_class::<ColumnInfo>()?;
+    m.add_class::<ColumnInfoBuilder>()?;
     m.add_class::<ExcelSheet>()?;
     m.add_class::<ExcelReader>()?;
     m.add_class::<ExcelTable>()?;

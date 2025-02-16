@@ -17,13 +17,13 @@ use crate::{
     error::{ErrorContext, FastExcelError, FastExcelErrorKind, FastExcelResult},
     types::{
         dtype::{DType, DTypeCoercion, DTypes},
-        python::excelsheet::column_info::build_available_columns,
+        python::excelsheet::column_info::finalize_column_info,
     },
     utils::schema::get_schema_sample_rows,
 };
 
 use super::excelsheet::{
-    column_info::{build_available_columns_info, ColumnInfo},
+    column_info::{build_available_columns_info, AvailableColumns, ColumnInfo},
     Header, Pagination, SelectedColumns,
 };
 
@@ -34,7 +34,7 @@ pub(crate) struct ExcelTable {
     #[pyo3(get)]
     sheet_name: String,
     selected_columns: Vec<ColumnInfo>,
-    available_columns: Vec<ColumnInfo>,
+    available_columns: AvailableColumns,
     table: Table<Data>,
     header: Header,
     pagination: Pagination,
@@ -57,12 +57,13 @@ impl ExcelTable {
     ) -> FastExcelResult<Self> {
         let available_columns_info =
             build_available_columns_info(table.data(), &selected_columns, &header)?;
+        let selected_columns_info = selected_columns.select_columns(available_columns_info)?;
 
         let mut excel_table = ExcelTable {
             name: table.name().to_owned(),
             sheet_name: table.sheet_name().to_owned(),
-            // Empty vecs as they'll be replaced
-            available_columns: Vec::with_capacity(0),
+            available_columns: AvailableColumns::Pending(selected_columns),
+            // Empty vec as it'll be replaced
             selected_columns: Vec::with_capacity(0),
             table,
             header,
@@ -81,8 +82,8 @@ impl ExcelTable {
         );
 
         // Finalizing column info
-        let available_columns = build_available_columns(
-            available_columns_info,
+        let selected_columns = finalize_column_info(
+            selected_columns_info,
             excel_table.data(),
             excel_table.offset(),
             row_limit,
@@ -91,8 +92,6 @@ impl ExcelTable {
         )?;
 
         // Figure out dtype for every column
-        let selected_columns = selected_columns.select_columns(&available_columns)?;
-        excel_table.available_columns = available_columns;
         excel_table.selected_columns = selected_columns;
 
         Ok(excel_table)
@@ -100,6 +99,36 @@ impl ExcelTable {
 
     pub(crate) fn data(&self) -> &Range<Data> {
         self.table.data()
+    }
+
+    fn ensure_available_columns_loaded(&mut self) -> FastExcelResult<()> {
+        let available_columns = match &self.available_columns {
+            AvailableColumns::Pending(selected_columns) => {
+                let available_columns_info = build_available_columns_info(
+                    self.table.data(),
+                    selected_columns,
+                    &self.header,
+                )?;
+                let final_info = finalize_column_info(
+                    available_columns_info,
+                    self.data(),
+                    self.offset(),
+                    self.limit(),
+                    self.dtypes.as_ref(),
+                    &self.dtype_coercion,
+                )?;
+                AvailableColumns::Loaded(final_info)
+            }
+            AvailableColumns::Loaded(_) => return Ok(()),
+        };
+
+        self.available_columns = available_columns;
+        Ok(())
+    }
+
+    fn load_available_columns(&mut self) -> FastExcelResult<&[ColumnInfo]> {
+        self.ensure_available_columns_loaded()?;
+        self.available_columns.as_loaded()
     }
 }
 
@@ -198,9 +227,11 @@ impl ExcelTable {
         self.selected_columns.clone()
     }
 
-    #[getter]
-    pub fn available_columns(&self) -> Vec<ColumnInfo> {
-        self.available_columns.clone()
+    pub fn available_columns<'p>(
+        &'p mut self,
+        _py: Python<'p>,
+    ) -> FastExcelResult<Vec<ColumnInfo>> {
+        self.load_available_columns().map(|cols| cols.to_vec())
     }
 
     #[getter]

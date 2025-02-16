@@ -450,15 +450,6 @@ def test_use_columns_with_callable() -> None:
         ("__UNNAMED__3", "float"),
     ]
 
-    sheet = excel_reader.load_sheet(
-        2,
-        use_columns=lambda col: col.dtype == "string",
-    )
-    assert [(c.name, c.dtype) for c in sheet.selected_columns] == [
-        ("col3", "string"),
-        ("col5", "string"),
-    ]
-
 
 def test_use_columns_with_bad_callable() -> None:
     excel_reader = fastexcel.read_excel(path_for_fixture("fixture-multi-sheet.xlsx"))

@@ -201,9 +201,16 @@ impl ColumnInfo {
     }
 }
 
-#[derive(Debug)]
+/// This class provides information about a single column in a sheet, without associated type
+/// information
+#[derive(Debug, Clone, PartialEq)]
+#[pyclass(name = "ColumnInfoBuilder")]
 pub(crate) struct ColumnInfoBuilder {
+    /// `str`. The name of the column
+    #[pyo3(get)]
     name: String,
+    /// `int`. The index of the column
+    #[pyo3(get)]
     index: usize,
     column_name_from: ColumnNameFrom,
 }
@@ -234,6 +241,10 @@ impl ColumnInfoBuilder {
 
     pub(super) fn name(&self) -> &str {
         &self.name
+    }
+
+    pub(super) fn index(&self) -> usize {
+        self.index
     }
 
     fn dtype_info<D: CalamineDataProvider>(
@@ -342,7 +353,7 @@ impl CalamineDataProvider for calamine::Range<calamine::Data> {
     }
 }
 
-pub(crate) fn build_available_columns_info<D: CalamineDataProvider>(
+fn column_info_from_header<D: CalamineDataProvider>(
     data: &D,
     selected_columns: &SelectedColumns,
     header: &Header,
@@ -439,6 +450,31 @@ pub(crate) fn build_available_columns_info<D: CalamineDataProvider>(
     }
 }
 
+/// Loads available columns and sets aliases in case of name conflicts
+pub(crate) fn build_available_columns_info<D: CalamineDataProvider>(
+    data: &D,
+    selected_columns: &SelectedColumns,
+    header: &Header,
+) -> FastExcelResult<Vec<ColumnInfoBuilder>> {
+    column_info_from_header(data, selected_columns, header).map(set_aliases_for_columns_info)
+}
+
+fn set_aliases_for_columns_info(columns_info: Vec<ColumnInfoBuilder>) -> Vec<ColumnInfoBuilder> {
+    let mut aliased_column_names = Vec::with_capacity(columns_info.len());
+    columns_info
+        .into_iter()
+        .map(|mut column_info_builder| {
+            // Setting the right alias for every column
+            let alias = alias_for_name(column_info_builder.name(), &aliased_column_names);
+            if alias != column_info_builder.name() {
+                column_info_builder = column_info_builder.with_name(alias.clone());
+            }
+            aliased_column_names.push(alias);
+            column_info_builder
+        })
+        .collect()
+}
+
 fn alias_for_name(name: &str, existing_names: &[String]) -> String {
     #[inline]
     fn rec(name: &str, existing_names: &[String], depth: usize) -> String {
@@ -459,7 +495,8 @@ fn alias_for_name(name: &str, existing_names: &[String]) -> String {
     rec(name, existing_names, 0)
 }
 
-pub(crate) fn build_available_columns<D: CalamineDataProvider>(
+/// Turns `ColumnInfoBuilder` into `ColumnInfo`. This will determine the right dtype when needed
+pub(crate) fn finalize_column_info<D: CalamineDataProvider>(
     available_columns_info: Vec<ColumnInfoBuilder>,
     data: &D,
     start_row: usize,
@@ -467,19 +504,31 @@ pub(crate) fn build_available_columns<D: CalamineDataProvider>(
     specified_dtypes: Option<&DTypes>,
     dtype_coercion: &DTypeCoercion,
 ) -> FastExcelResult<Vec<ColumnInfo>> {
-    let mut aliased_available_columns = Vec::with_capacity(available_columns_info.len());
-
     available_columns_info
         .into_iter()
-        .map(|mut column_info_builder| {
-            // Setting the right alias for every column
-            let alias = alias_for_name(column_info_builder.name(), &aliased_available_columns);
-            if alias != column_info_builder.name() {
-                column_info_builder = column_info_builder.with_name(alias.clone());
-            }
-            aliased_available_columns.push(alias);
-            // Setting the dtype info
+        .map(|column_info_builder| {
             column_info_builder.finish(data, start_row, end_row, specified_dtypes, dtype_coercion)
         })
         .collect()
+}
+
+#[derive(Debug)]
+pub(crate) enum AvailableColumns {
+    Pending(SelectedColumns),
+    Loaded(Vec<ColumnInfo>),
+}
+
+impl AvailableColumns {
+    pub(crate) fn as_loaded(&self) -> FastExcelResult<&[ColumnInfo]> {
+        match self {
+            AvailableColumns::Loaded(column_infos) => Ok(column_infos),
+            AvailableColumns::Pending(selected_columns) => {
+                Err(FastExcelErrorKind::Internal(format!(
+                    "Expected available columns to be loaded, got {selected_columns:?}. \
+                    This is a bug, please report it to the fastexcel repository"
+                ))
+                .into())
+            }
+        }
+    }
 }

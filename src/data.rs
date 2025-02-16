@@ -14,6 +14,7 @@ use crate::{
     },
 };
 
+#[derive(Debug)]
 pub(crate) enum ExcelSheetData<'r> {
     Owned(Range<CalData>),
     Ref(Range<CalDataRef<'r>>),
