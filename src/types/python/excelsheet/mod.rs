@@ -323,15 +323,17 @@ impl<'py> IntoPyObject<'py> for &SheetVisible {
 
     type Output = Bound<'py, Self::Target>;
 
-    type Error = std::convert::Infallible;
+    type Error = FastExcelError;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        match self.0 {
-            CalamineSheetVisible::Visible => "visible",
-            CalamineSheetVisible::Hidden => "hidden",
-            CalamineSheetVisible::VeryHidden => "veryhidden",
-        }
-        .into_pyobject(py)
+        Ok(PyString::new(
+            py,
+            match self.0 {
+                CalamineSheetVisible::Visible => "visible",
+                CalamineSheetVisible::Hidden => "hidden",
+                CalamineSheetVisible::VeryHidden => "veryhidden",
+            },
+        ))
     }
 }
 
@@ -494,7 +496,7 @@ impl ExcelSheet {
     }
 
     #[getter]
-    pub fn visible<'py>(&'py self, py: Python<'py>) -> PyResult<Bound<'py, PyString>> {
+    pub fn visible<'py>(&'py self, py: Python<'py>) -> FastExcelResult<Bound<'py, PyString>> {
         let visible: SheetVisible = self.sheet_meta.visible.into();
         (&visible).into_pyobject(py).map_err(Into::into)
     }

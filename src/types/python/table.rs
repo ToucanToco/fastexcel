@@ -5,7 +5,7 @@ use arrow::{
     pyarrow::ToPyArrow,
 };
 use calamine::{Data, Range, Table};
-use pyo3::{pyclass, pymethods, PyObject, PyResult, Python};
+use pyo3::{pyclass, pymethods, PyObject, Python};
 
 use crate::{
     data::{
@@ -14,9 +14,7 @@ use crate::{
         create_float_array_from_range, create_int_array_from_range, create_string_array_from_range,
         record_batch_from_name_array_iterator, selected_columns_to_schema,
     },
-    error::{
-        py_errors::IntoPyResult, ErrorContext, FastExcelError, FastExcelErrorKind, FastExcelResult,
-    },
+    error::{ErrorContext, FastExcelError, FastExcelErrorKind, FastExcelResult},
     types::{
         dtype::{DType, DTypeCoercion, DTypes},
         python::excelsheet::column_info::build_available_columns,
@@ -237,7 +235,7 @@ impl ExcelTable {
         })
     }
 
-    pub fn to_arrow(&self, py: Python<'_>) -> PyResult<PyObject> {
+    pub fn to_arrow(&self, py: Python<'_>) -> FastExcelResult<PyObject> {
         RecordBatch::try_from(self)
             .with_context(|| {
                 format!(
@@ -255,7 +253,6 @@ impl ExcelTable {
                     table = self.name, sheet = self.sheet_name
                 )
             })
-            .into_pyresult()
     }
 
     pub fn __repr__(&self) -> String {

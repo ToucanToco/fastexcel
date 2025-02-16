@@ -124,7 +124,8 @@ impl<T> ErrorContext for FastExcelResult<T> {
 /// Contains Python versions of our custom errors
 pub(crate) mod py_errors {
     use super::FastExcelErrorKind;
-    use pyo3::{create_exception, exceptions::PyException, PyResult};
+    use crate::error;
+    use pyo3::{create_exception, exceptions::PyException, PyErr, PyResult};
 
     // Base fastexcel error
     create_exception!(
@@ -197,6 +198,29 @@ pub(crate) mod py_errors {
         "Internal fastexcel error"
     );
 
+    impl From<error::FastExcelError> for PyErr {
+        fn from(err: error::FastExcelError) -> Self {
+            let message = err.to_string();
+            match err.kind {
+                FastExcelErrorKind::UnsupportedColumnTypeCombination(_) => {
+                    UnsupportedColumnTypeCombinationError::new_err(message)
+                }
+                FastExcelErrorKind::CannotRetrieveCellData(_, _) => {
+                    CannotRetrieveCellDataError::new_err(message)
+                }
+                FastExcelErrorKind::CalamineCellError(_) => CalamineCellError::new_err(message),
+                FastExcelErrorKind::CalamineError(_) => CalamineError::new_err(message),
+                FastExcelErrorKind::SheetNotFound(_) => SheetNotFoundError::new_err(message),
+                FastExcelErrorKind::ColumnNotFound(_) => ColumnNotFoundError::new_err(message),
+                FastExcelErrorKind::ArrowError(_) => ArrowError::new_err(message),
+                FastExcelErrorKind::InvalidParameters(_) => {
+                    InvalidParametersError::new_err(message)
+                }
+                FastExcelErrorKind::Internal(_) => ArrowError::new_err(message),
+            }
+        }
+    }
+
     pub(crate) trait IntoPyResult {
         type Inner;
 
@@ -207,35 +231,7 @@ pub(crate) mod py_errors {
         type Inner = T;
 
         fn into_pyresult(self) -> PyResult<Self::Inner> {
-            match self {
-                Ok(ok) => Ok(ok),
-                Err(err) => {
-                    let message = err.to_string();
-                    Err(match err.kind {
-                        FastExcelErrorKind::UnsupportedColumnTypeCombination(_) => {
-                            UnsupportedColumnTypeCombinationError::new_err(message)
-                        }
-                        FastExcelErrorKind::CannotRetrieveCellData(_, _) => {
-                            CannotRetrieveCellDataError::new_err(message)
-                        }
-                        FastExcelErrorKind::CalamineCellError(_) => {
-                            CalamineCellError::new_err(message)
-                        }
-                        FastExcelErrorKind::CalamineError(_) => CalamineError::new_err(message),
-                        FastExcelErrorKind::SheetNotFound(_) => {
-                            SheetNotFoundError::new_err(message)
-                        }
-                        FastExcelErrorKind::ColumnNotFound(_) => {
-                            ColumnNotFoundError::new_err(message)
-                        }
-                        FastExcelErrorKind::ArrowError(_) => ArrowError::new_err(message),
-                        FastExcelErrorKind::InvalidParameters(_) => {
-                            InvalidParametersError::new_err(message)
-                        }
-                        FastExcelErrorKind::Internal(_) => ArrowError::new_err(message),
-                    })
-                }
-            }
+            self.map_err(Into::into)
         }
     }
 }

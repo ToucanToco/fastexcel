@@ -288,7 +288,7 @@ impl ExcelReader {
         .into_pyresult()?;
 
         if eager {
-            excel_table.to_arrow(py).map(|py_obj| py_obj.into_bound(py))
+            Ok(excel_table.to_arrow(py)?.into_bound(py))
         } else {
             excel_table.into_bound_py_any(py)
         }
