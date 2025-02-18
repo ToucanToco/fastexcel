@@ -24,7 +24,7 @@ from ._fastexcel import (
     CalamineError,
     CannotRetrieveCellDataError,
     ColumnInfo,
-    ColumnInfoBuilder,
+    ColumnInfoNoDtype,
     ColumnNotFoundError,
     FastExcelError,
     InvalidParametersError,
@@ -214,7 +214,7 @@ class ExcelReader:
         use_columns: list[str]
         | list[int]
         | str
-        | Callable[[ColumnInfoBuilder], bool]
+        | Callable[[ColumnInfoNoDtype], bool]
         | None = None,
         dtypes: DType | DTypeMap | None = None,
     ) -> ExcelSheet:
@@ -295,7 +295,7 @@ class ExcelReader:
         use_columns: list[str]
         | list[int]
         | str
-        | Callable[[ColumnInfoBuilder], bool]
+        | Callable[[ColumnInfoNoDtype], bool]
         | None = None,
         dtypes: DType | DTypeMap | None = None,
         eager: Literal[False] = ...,
@@ -314,7 +314,7 @@ class ExcelReader:
         use_columns: list[str]
         | list[int]
         | str
-        | Callable[[ColumnInfoBuilder], bool]
+        | Callable[[ColumnInfoNoDtype], bool]
         | None = None,
         dtypes: DType | DTypeMap | None = None,
         eager: Literal[True] = ...,
@@ -332,7 +332,7 @@ class ExcelReader:
         use_columns: list[str]
         | list[int]
         | str
-        | Callable[[ColumnInfoBuilder], bool]
+        | Callable[[ColumnInfoNoDtype], bool]
         | None = None,
         dtypes: DType | DTypeMap | None = None,
         eager: bool = False,
@@ -434,7 +434,7 @@ class ExcelReader:
         use_columns: list[str]
         | list[int]
         | str
-        | Callable[[ColumnInfoBuilder], bool]
+        | Callable[[ColumnInfoNoDtype], bool]
         | None = None,
         dtypes: DType | DTypeMap | None = None,
     ) -> ExcelSheet:
@@ -467,7 +467,7 @@ class ExcelReader:
         use_columns: list[str]
         | list[int]
         | str
-        | Callable[[ColumnInfoBuilder], bool]
+        | Callable[[ColumnInfoNoDtype], bool]
         | None = None,
         dtypes: DType | DTypeMap | None = None,
     ) -> ExcelSheet:

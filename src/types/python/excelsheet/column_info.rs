@@ -204,8 +204,8 @@ impl ColumnInfo {
 /// This class provides information about a single column in a sheet, without associated type
 /// information
 #[derive(Debug, Clone, PartialEq)]
-#[pyclass(name = "ColumnInfoBuilder")]
-pub(crate) struct ColumnInfoBuilder {
+#[pyclass(name = "ColumnInfoNoDtype")]
+pub(crate) struct ColumnInfoNoDtype {
     /// `str`. The name of the column
     #[pyo3(get)]
     name: String,
@@ -216,7 +216,7 @@ pub(crate) struct ColumnInfoBuilder {
 }
 
 // Allows us to easily compare ourselves to a column index or name
-impl PartialEq<IdxOrName> for ColumnInfoBuilder {
+impl PartialEq<IdxOrName> for ColumnInfoNoDtype {
     fn eq(&self, other: &IdxOrName) -> bool {
         match other {
             IdxOrName::Idx(index) => index == &self.index,
@@ -225,7 +225,7 @@ impl PartialEq<IdxOrName> for ColumnInfoBuilder {
     }
 }
 
-impl ColumnInfoBuilder {
+impl ColumnInfoNoDtype {
     pub(super) fn new(name: String, index: usize, column_name_from: ColumnNameFrom) -> Self {
         Self {
             name,
@@ -357,12 +357,12 @@ fn column_info_from_header<D: CalamineDataProvider>(
     data: &D,
     selected_columns: &SelectedColumns,
     header: &Header,
-) -> FastExcelResult<Vec<ColumnInfoBuilder>> {
+) -> FastExcelResult<Vec<ColumnInfoNoDtype>> {
     let width = data.width();
     match header {
         Header::None => Ok((0..width)
             .map(|col_idx| {
-                ColumnInfoBuilder::new(
+                ColumnInfoNoDtype::new(
                     format!("__UNNAMED__{col_idx}"),
                     col_idx,
                     ColumnNameFrom::Generated,
@@ -373,10 +373,10 @@ fn column_info_from_header<D: CalamineDataProvider>(
             .map(|col_idx| {
                 data.get_as_string((*row_idx, col_idx))
                     .map(|col_name| {
-                        ColumnInfoBuilder::new(col_name, col_idx, ColumnNameFrom::LookedUp)
+                        ColumnInfoNoDtype::new(col_name, col_idx, ColumnNameFrom::LookedUp)
                     })
                     .unwrap_or_else(|| {
-                        ColumnInfoBuilder::new(
+                        ColumnInfoNoDtype::new(
                             format!("__UNNAMED__{col_idx}"),
                             col_idx,
                             ColumnNameFrom::Generated,
@@ -416,12 +416,12 @@ fn column_info_from_header<D: CalamineDataProvider>(
                         };
 
                         match provided_name_opt {
-                            Some(provided_name) => ColumnInfoBuilder::new(
+                            Some(provided_name) => ColumnInfoNoDtype::new(
                                 provided_name,
                                 col_idx,
                                 ColumnNameFrom::Provided,
                             ),
-                            None => ColumnInfoBuilder::new(
+                            None => ColumnInfoNoDtype::new(
                                 format!("__UNNAMED__{col_idx}"),
                                 col_idx,
                                 ColumnNameFrom::Generated,
@@ -435,10 +435,10 @@ fn column_info_from_header<D: CalamineDataProvider>(
                     .iter()
                     .enumerate()
                     .map(|(col_idx, name)| {
-                        ColumnInfoBuilder::new(name.to_owned(), col_idx, ColumnNameFrom::Provided)
+                        ColumnInfoNoDtype::new(name.to_owned(), col_idx, ColumnNameFrom::Provided)
                     })
                     .chain((nameless_start_idx..width).map(|col_idx| {
-                        ColumnInfoBuilder::new(
+                        ColumnInfoNoDtype::new(
                             format!("__UNNAMED__{col_idx}"),
                             col_idx,
                             ColumnNameFrom::Generated,
@@ -455,11 +455,11 @@ pub(crate) fn build_available_columns_info<D: CalamineDataProvider>(
     data: &D,
     selected_columns: &SelectedColumns,
     header: &Header,
-) -> FastExcelResult<Vec<ColumnInfoBuilder>> {
+) -> FastExcelResult<Vec<ColumnInfoNoDtype>> {
     column_info_from_header(data, selected_columns, header).map(set_aliases_for_columns_info)
 }
 
-fn set_aliases_for_columns_info(columns_info: Vec<ColumnInfoBuilder>) -> Vec<ColumnInfoBuilder> {
+fn set_aliases_for_columns_info(columns_info: Vec<ColumnInfoNoDtype>) -> Vec<ColumnInfoNoDtype> {
     let mut aliased_column_names = Vec::with_capacity(columns_info.len());
     columns_info
         .into_iter()
@@ -495,9 +495,9 @@ fn alias_for_name(name: &str, existing_names: &[String]) -> String {
     rec(name, existing_names, 0)
 }
 
-/// Turns `ColumnInfoBuilder` into `ColumnInfo`. This will determine the right dtype when needed
+/// Turns `ColumnInfoNoDtype` into `ColumnInfo`. This will determine the right dtype when needed
 pub(crate) fn finalize_column_info<D: CalamineDataProvider>(
-    available_columns_info: Vec<ColumnInfoBuilder>,
+    available_columns_info: Vec<ColumnInfoNoDtype>,
     data: &D,
     start_row: usize,
     end_row: usize,

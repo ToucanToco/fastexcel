@@ -2,7 +2,7 @@ pub(crate) mod column_info;
 pub(crate) mod table;
 
 use calamine::{CellType, Range, Sheet as CalamineSheet, SheetVisible as CalamineSheetVisible};
-use column_info::{AvailableColumns, ColumnInfoBuilder};
+use column_info::{AvailableColumns, ColumnInfoNoDtype};
 use std::{cmp, collections::HashSet, fmt::Debug, str::FromStr};
 
 use arrow::{pyarrow::ToPyArrow, record_batch::RecordBatch};
@@ -138,8 +138,8 @@ impl PartialEq for SelectedColumns {
 impl SelectedColumns {
     pub(super) fn select_columns(
         &self,
-        available_columns: Vec<ColumnInfoBuilder>,
-    ) -> FastExcelResult<Vec<ColumnInfoBuilder>> {
+        available_columns: Vec<ColumnInfoNoDtype>,
+    ) -> FastExcelResult<Vec<ColumnInfoNoDtype>> {
         match self {
             SelectedColumns::All => Ok(available_columns),
             SelectedColumns::Selection(selection) => {
@@ -164,7 +164,7 @@ impl SelectedColumns {
                 // We need to sort `available_columns` based on the order of the provided selection.
                 // First, we associated every element in the Vec with its position in the selection,
                 // and we filter out unselected columns
-                let mut cols: Vec<(usize, ColumnInfoBuilder)> = available_columns
+                let mut cols: Vec<(usize, ColumnInfoNoDtype)> = available_columns
                     .into_iter()
                     .enumerate()
                     .filter_map(|(idx, elem)| {

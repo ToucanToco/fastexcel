@@ -11,7 +11,7 @@ ColumnNameFrom = Literal["provided", "looked_up", "generated"]
 DTypeFrom = Literal["provided_for_all", "provided_by_index", "provided_by_name", "guessed"]
 SheetVisible = Literal["visible", "hidden", "veryhidden"]
 
-class ColumnInfoBuilder:
+class ColumnInfoNoDtype:
     def __init__(self, *, name: str, index: int, column_name_from: ColumnNameFrom) -> None: ...
     @property
     def name(self) -> str: ...
@@ -118,7 +118,7 @@ class _ExcelReader:
         use_columns: list[str]
         | list[int]
         | str
-        | Callable[[ColumnInfoBuilder], bool]
+        | Callable[[ColumnInfoNoDtype], bool]
         | None = None,
         dtypes: DType | DTypeMap | None = None,
         eager: Literal[False] = ...,
@@ -137,7 +137,7 @@ class _ExcelReader:
         use_columns: list[str]
         | list[int]
         | str
-        | Callable[[ColumnInfoBuilder], bool]
+        | Callable[[ColumnInfoNoDtype], bool]
         | None = None,
         dtypes: DType | DTypeMap | None = None,
         eager: Literal[True] = ...,
@@ -156,7 +156,7 @@ class _ExcelReader:
         use_columns: list[str]
         | list[int]
         | str
-        | Callable[[ColumnInfoBuilder], bool]
+        | Callable[[ColumnInfoNoDtype], bool]
         | None = None,
         dtypes: DType | DTypeMap | None = None,
         eager: Literal[False] = ...,
@@ -175,7 +175,7 @@ class _ExcelReader:
         use_columns: list[str]
         | list[int]
         | str
-        | Callable[[ColumnInfoBuilder], bool]
+        | Callable[[ColumnInfoNoDtype], bool]
         | None = None,
         dtypes: DType | DTypeMap | None = None,
         eager: Literal[True] = ...,
