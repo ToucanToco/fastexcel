@@ -25,7 +25,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 # There's a lot of stuff we don't want here, such as serde support
-arrow = { version = "^54.1.0", default-features = false, features = [
+arrow = { version = "^54.2.0", default-features = false, features = [
     "pyarrow",
 ] }
 calamine = { version = "^0.26.1", features = ["dates"] }
