@@ -10,6 +10,7 @@ import polars as pl
 import pytest
 from pandas.testing import assert_frame_equal as pd_assert_frame_equal
 from polars.testing import assert_frame_equal as pl_assert_frame_equal
+from pytest_mock import MockerFixture
 
 from utils import path_for_fixture
 
@@ -262,7 +263,7 @@ def test_dtype_coercion_behavior__strict_sampling_limit(eager: bool) -> None:
 def test_one_dtype_for_all() -> None:
     excel_reader = fastexcel.read_excel(path_for_fixture("fixture-multi-dtypes-columns.xlsx"))
     sheet = excel_reader.load_sheet(0, dtypes="string")
-    assert sheet.available_columns == [
+    assert sheet.available_columns() == [
         fastexcel.ColumnInfo(
             name="Employee ID",
             index=0,
@@ -316,7 +317,7 @@ def test_one_dtype_for_all() -> None:
     assert sheet.to_polars().dtypes == [pl.String] * 7
 
 
-def test_fallback_infer_dtypes(mocker) -> None:
+def test_fallback_infer_dtypes(mocker: MockerFixture) -> None:
     """it should fallback to string if it can't infer the dtype"""
     import logging
 
@@ -336,7 +337,7 @@ def test_fallback_infer_dtypes(mocker) -> None:
         mocker.ANY,
     )
 
-    assert sheet.available_columns == [
+    assert sheet.available_columns() == [
         fastexcel.ColumnInfo(
             name="id",
             index=0,

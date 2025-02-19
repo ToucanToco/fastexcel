@@ -27,7 +27,7 @@ use crate::{
 use pyo3::types::PyString;
 
 use super::excelsheet::{
-    column_info::{build_available_columns, build_available_columns_info},
+    column_info::{build_available_columns_info, finalize_column_info},
     ExcelSheet, Header, Pagination, SelectedColumns,
 };
 use super::table::ExcelTable;
@@ -156,9 +156,10 @@ impl ExcelReader {
 
         let sample_rows_limit = get_schema_sample_rows(sample_rows, offset, limit);
         let available_columns_info = build_available_columns_info(data, selected_columns, &header)?;
+        let final_columns_info = selected_columns.select_columns(available_columns_info)?;
 
-        let available_columns = build_available_columns(
-            available_columns_info,
+        let available_columns = finalize_column_info(
+            final_columns_info,
             data,
             offset,
             sample_rows_limit,
@@ -166,9 +167,7 @@ impl ExcelReader {
             dtype_coercion,
         )?;
 
-        let final_columns = selected_columns.select_columns(&available_columns)?;
-
-        record_batch_from_data_and_columns(&final_columns, data, offset, limit)
+        record_batch_from_data_and_columns(&available_columns, data, offset, limit)
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -288,7 +287,7 @@ impl ExcelReader {
         .into_pyresult()?;
 
         if eager {
-            excel_table.to_arrow(py).map(|py_obj| py_obj.into_bound(py))
+            Ok(excel_table.to_arrow(py)?.into_bound(py))
         } else {
             excel_table.into_bound_py_any(py)
         }
