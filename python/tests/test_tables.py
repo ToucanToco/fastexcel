@@ -38,7 +38,7 @@ def test_load_table(path: str) -> None:
     assert users_tbl.name == "users"
     assert users_tbl.sheet_name == "sheet1"
     assert users_tbl.specified_dtypes is None
-    assert users_tbl.available_columns == [
+    assert users_tbl.available_columns() == [
         fastexcel.ColumnInfo(
             name="User Id",
             index=0,

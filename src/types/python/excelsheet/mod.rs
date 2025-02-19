@@ -2,6 +2,7 @@ pub(crate) mod column_info;
 pub(crate) mod table;
 
 use calamine::{CellType, Range, Sheet as CalamineSheet, SheetVisible as CalamineSheetVisible};
+use column_info::{AvailableColumns, ColumnInfoNoDtype};
 use std::{cmp, collections::HashSet, fmt::Debug, str::FromStr};
 
 use arrow::{pyarrow::ToPyArrow, record_batch::RecordBatch};
@@ -21,7 +22,7 @@ use crate::{
 };
 use crate::{types::dtype::DTypeCoercion, utils::schema::get_schema_sample_rows};
 
-use self::column_info::{build_available_columns, build_available_columns_info, ColumnInfo};
+use self::column_info::{build_available_columns_info, finalize_column_info, ColumnInfo};
 
 #[derive(Debug)]
 pub(crate) enum Header {
@@ -137,46 +138,68 @@ impl PartialEq for SelectedColumns {
 impl SelectedColumns {
     pub(super) fn select_columns(
         &self,
-        available_columns: &[ColumnInfo],
-    ) -> FastExcelResult<Vec<ColumnInfo>> {
+        available_columns: Vec<ColumnInfoNoDtype>,
+    ) -> FastExcelResult<Vec<ColumnInfoNoDtype>> {
         match self {
-            SelectedColumns::All => Ok(available_columns.to_vec()),
-            SelectedColumns::Selection(selection) => selection
-                .iter()
-                .map(|selected_column| {
-                    match selected_column {
-                        IdxOrName::Idx(index) => available_columns
-                            .iter()
-                            .find(|col_info| &col_info.index() == index),
-                        IdxOrName::Name(name) => available_columns
-                            .iter()
-                            .find(|col_info| col_info.name() == name.as_str()),
-                    }
-                    .ok_or_else(|| {
-                        FastExcelErrorKind::ColumnNotFound(selected_column.clone()).into()
-                    })
-                    .cloned()
-                    .with_context(|| format!("available columns are: {available_columns:?}"))
-                })
-                .collect(),
-            SelectedColumns::DynamicSelection(use_col_func) => Python::with_gil(|py| {
-                Ok(available_columns
+            SelectedColumns::All => Ok(available_columns),
+            SelectedColumns::Selection(selection) => {
+                let selected_indices: Vec<usize> = selection
                     .iter()
+                    .map(|selected_column| {
+                        match selected_column {
+                            IdxOrName::Idx(index) => available_columns
+                                .iter()
+                                .position(|col_info| &col_info.index() == index),
+                            IdxOrName::Name(name) => available_columns
+                                .iter()
+                                .position(|col_info| col_info.name() == name.as_str()),
+                        }
+                        .ok_or_else(|| {
+                            FastExcelErrorKind::ColumnNotFound(selected_column.clone()).into()
+                        })
+                        .with_context(|| format!("available columns are: {available_columns:?}"))
+                    })
+                    .collect::<FastExcelResult<_>>()?;
+
+                // We need to sort `available_columns` based on the order of the provided selection.
+                // First, we associated every element in the Vec with its position in the selection,
+                // and we filter out unselected columns
+                let mut cols: Vec<(usize, ColumnInfoNoDtype)> = available_columns
+                    .into_iter()
+                    .enumerate()
+                    .filter_map(|(idx, elem)| {
+                        selected_indices
+                            .iter()
+                            .position(|selected_idx| *selected_idx == idx)
+                            .map(|position| (position, elem))
+                    })
+                    .collect();
+                // Then, we sort the columns based on their position in the selection
+                cols.sort_by_key(|(pos, _elem)| *pos);
+
+                // And finally, we drop the positions
+                Ok(cols.into_iter().map(|(_pos, elem)| elem).collect())
+            }
+            SelectedColumns::DynamicSelection(use_col_func) => Python::with_gil(|py| {
+                available_columns
+                    .into_iter()
                     .filter_map(
                         |col_info| match use_col_func.call1(py, (col_info.clone(),)) {
                             Err(err) => Some(Err(FastExcelErrorKind::InvalidParameters(format!(
                                 "`use_columns` callable could not be called ({err})"
-                            )))),
+                            ))
+                            .into())),
                             Ok(should_use_col) => match should_use_col.extract::<bool>(py) {
                                 Err(_) => Some(Err(FastExcelErrorKind::InvalidParameters(
                                     "`use_columns` callable should return a boolean".to_string(),
-                                ))),
-                                Ok(true) => Some(Ok(col_info.clone())),
+                                )
+                                .into())),
+                                Ok(true) => Some(Ok(col_info)),
                                 Ok(false) => None,
                             },
                         },
                     )
-                    .collect::<Result<Vec<_>, _>>()?)
+                    .collect()
             }),
         }
     }
@@ -323,15 +346,17 @@ impl<'py> IntoPyObject<'py> for &SheetVisible {
 
     type Output = Bound<'py, Self::Target>;
 
-    type Error = std::convert::Infallible;
+    type Error = FastExcelError;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        match self.0 {
-            CalamineSheetVisible::Visible => "visible",
-            CalamineSheetVisible::Hidden => "hidden",
-            CalamineSheetVisible::VeryHidden => "veryhidden",
-        }
-        .into_pyobject(py)
+        Ok(PyString::new(
+            py,
+            match self.0 {
+                CalamineSheetVisible::Visible => "visible",
+                CalamineSheetVisible::Hidden => "hidden",
+                CalamineSheetVisible::VeryHidden => "veryhidden",
+            },
+        ))
     }
 }
 
@@ -353,7 +378,7 @@ pub(crate) struct ExcelSheet {
     schema_sample_rows: Option<usize>,
     dtype_coercion: DTypeCoercion,
     selected_columns: Vec<ColumnInfo>,
-    available_columns: Vec<ColumnInfo>,
+    available_columns: AvailableColumns,
     dtypes: Option<DTypes>,
 }
 
@@ -375,6 +400,8 @@ impl ExcelSheet {
     ) -> FastExcelResult<Self> {
         let available_columns_info =
             build_available_columns_info(&data, &selected_columns, &header)?;
+        let selected_columns_info = selected_columns.select_columns(available_columns_info)?;
+
         let mut sheet = ExcelSheet {
             sheet_meta,
             header,
@@ -386,16 +413,15 @@ impl ExcelSheet {
             height: None,
             total_height: None,
             width: None,
-            // Empty vecs as they'll be replaced
-            available_columns: Vec::with_capacity(0),
+            available_columns: AvailableColumns::Pending(selected_columns),
+            // Empty vec as It'll be replaced
             selected_columns: Vec::with_capacity(0),
         };
 
+        // Finalizing column info (figure out dtypes for every column)
         let row_limit = sheet.schema_sample_rows();
-
-        // Finalizing column info
-        let available_columns = build_available_columns(
-            available_columns_info,
+        let selected_columns = finalize_column_info(
+            selected_columns_info,
             &sheet.data,
             sheet.offset(),
             row_limit,
@@ -403,12 +429,36 @@ impl ExcelSheet {
             &sheet.dtype_coercion,
         )?;
 
-        // Figure out dtype for every column
-        let selected_columns = selected_columns.select_columns(&available_columns)?;
-        sheet.available_columns = available_columns;
         sheet.selected_columns = selected_columns;
 
         Ok(sheet)
+    }
+
+    fn ensure_available_columns_loaded(&mut self) -> FastExcelResult<()> {
+        let available_columns = match &self.available_columns {
+            AvailableColumns::Pending(selected_columns) => {
+                let available_columns_info =
+                    build_available_columns_info(&self.data, selected_columns, &self.header)?;
+                let final_info = finalize_column_info(
+                    available_columns_info,
+                    self.data(),
+                    self.offset(),
+                    self.limit(),
+                    self.dtypes.as_ref(),
+                    &self.dtype_coercion,
+                )?;
+                AvailableColumns::Loaded(final_info)
+            }
+            AvailableColumns::Loaded(_) => return Ok(()),
+        };
+
+        self.available_columns = available_columns;
+        Ok(())
+    }
+
+    fn load_available_columns(&mut self) -> FastExcelResult<&[ColumnInfo]> {
+        self.ensure_available_columns_loaded()?;
+        self.available_columns.as_loaded()
     }
 
     pub(crate) fn limit(&self) -> usize {
@@ -479,9 +529,11 @@ impl ExcelSheet {
         self.selected_columns.clone()
     }
 
-    #[getter]
-    pub fn available_columns<'p>(&'p self, _py: Python<'p>) -> Vec<ColumnInfo> {
-        self.available_columns.clone()
+    pub fn available_columns<'p>(
+        &'p mut self,
+        _py: Python<'p>,
+    ) -> FastExcelResult<Vec<ColumnInfo>> {
+        self.load_available_columns().map(|cols| cols.to_vec())
     }
 
     #[getter]
@@ -495,7 +547,7 @@ impl ExcelSheet {
     }
 
     #[getter]
-    pub fn visible<'py>(&'py self, py: Python<'py>) -> PyResult<Bound<'py, PyString>> {
+    pub fn visible<'py>(&'py self, py: Python<'py>) -> FastExcelResult<Bound<'py, PyString>> {
         let visible: SheetVisible = self.sheet_meta.visible.into();
         (&visible).into_pyobject(py).map_err(Into::into)
     }

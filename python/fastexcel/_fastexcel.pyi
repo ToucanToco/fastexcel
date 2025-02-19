@@ -11,6 +11,15 @@ ColumnNameFrom = Literal["provided", "looked_up", "generated"]
 DTypeFrom = Literal["provided_for_all", "provided_by_index", "provided_by_name", "guessed"]
 SheetVisible = Literal["visible", "hidden", "veryhidden"]
 
+class ColumnInfoNoDtype:
+    def __init__(self, *, name: str, index: int, column_name_from: ColumnNameFrom) -> None: ...
+    @property
+    def name(self) -> str: ...
+    @property
+    def index(self) -> int: ...
+    @property
+    def column_name_from(self) -> ColumnNameFrom: ...
+
 class ColumnInfo:
     def __init__(
         self,
@@ -51,7 +60,6 @@ class _ExcelSheet:
     @property
     def selected_columns(self) -> list[ColumnInfo]:
         """The sheet's selected columns"""
-    @property
     def available_columns(self) -> list[ColumnInfo]:
         """The columns available for the given sheet"""
     @property
@@ -85,7 +93,6 @@ class _ExcelTable:
     @property
     def selected_columns(self) -> list[ColumnInfo]:
         """The table's selected columns"""
-    @property
     def available_columns(self) -> list[ColumnInfo]:
         """The columns available for the given table"""
     @property
@@ -108,7 +115,11 @@ class _ExcelReader:
         n_rows: int | None = None,
         schema_sample_rows: int | None = 1_000,
         dtype_coercion: Literal["coerce", "strict"] = "coerce",
-        use_columns: list[str] | list[int] | str | Callable[[ColumnInfo], bool] | None = None,
+        use_columns: list[str]
+        | list[int]
+        | str
+        | Callable[[ColumnInfoNoDtype], bool]
+        | None = None,
         dtypes: DType | DTypeMap | None = None,
         eager: Literal[False] = ...,
     ) -> _ExcelSheet: ...
@@ -123,7 +134,11 @@ class _ExcelReader:
         n_rows: int | None = None,
         schema_sample_rows: int | None = 1_000,
         dtype_coercion: Literal["coerce", "strict"] = "coerce",
-        use_columns: list[str] | list[int] | str | None = None,
+        use_columns: list[str]
+        | list[int]
+        | str
+        | Callable[[ColumnInfoNoDtype], bool]
+        | None = None,
         dtypes: DType | DTypeMap | None = None,
         eager: Literal[True] = ...,
     ) -> pa.RecordBatch: ...
@@ -138,7 +153,11 @@ class _ExcelReader:
         n_rows: int | None = None,
         schema_sample_rows: int | None = 1_000,
         dtype_coercion: Literal["coerce", "strict"] = "coerce",
-        use_columns: list[str] | list[int] | str | Callable[[ColumnInfo], bool] | None = None,
+        use_columns: list[str]
+        | list[int]
+        | str
+        | Callable[[ColumnInfoNoDtype], bool]
+        | None = None,
         dtypes: DType | DTypeMap | None = None,
         eager: Literal[False] = ...,
     ) -> _ExcelTable: ...
@@ -153,7 +172,11 @@ class _ExcelReader:
         n_rows: int | None = None,
         schema_sample_rows: int | None = 1_000,
         dtype_coercion: Literal["coerce", "strict"] = "coerce",
-        use_columns: list[str] | list[int] | str | Callable[[ColumnInfo], bool] | None = None,
+        use_columns: list[str]
+        | list[int]
+        | str
+        | Callable[[ColumnInfoNoDtype], bool]
+        | None = None,
         dtypes: DType | DTypeMap | None = None,
         eager: Literal[True] = ...,
     ) -> pa.RecordBatch: ...
