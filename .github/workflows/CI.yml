@@ -132,7 +132,7 @@ jobs:
         echo "target=$TARGET" >> $GITHUB_OUTPUT
 
     - name: build (fast)
-      uses: messense/maturin-action@v1
+      uses: PyO3/maturin-action@v1
       with:
         manylinux: auto
         command: build
@@ -150,7 +150,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: build sdist
-        uses: messense/maturin-action@v1
+        uses: PyO3/maturin-action@v1
         with:
           manylinux: auto
           command: sdist
