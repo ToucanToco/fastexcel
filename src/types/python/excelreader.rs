@@ -4,17 +4,17 @@ use std::{
 };
 
 use arrow::{pyarrow::ToPyArrow, record_batch::RecordBatch};
-use pyo3::{pyclass, pymethods, Bound, IntoPyObjectExt, PyAny, PyResult, Python};
+use pyo3::{Bound, IntoPyObjectExt, PyAny, PyResult, Python, pyclass, pymethods};
 
 use calamine::{
-    open_workbook_auto, open_workbook_auto_from_rs, Data, DataRef, HeaderRow, Range, Reader,
-    ReaderRef, Sheet as CalamineSheet, Sheets, Table,
+    Data, DataRef, HeaderRow, Range, Reader, ReaderRef, Sheet as CalamineSheet, Sheets, Table,
+    open_workbook_auto, open_workbook_auto_from_rs,
 };
 
 use crate::{
-    data::{record_batch_from_data_and_columns, ExcelSheetData},
+    data::{ExcelSheetData, record_batch_from_data_and_columns},
     error::{
-        py_errors::IntoPyResult, ErrorContext, FastExcelError, FastExcelErrorKind, FastExcelResult,
+        ErrorContext, FastExcelError, FastExcelErrorKind, FastExcelResult, py_errors::IntoPyResult,
     },
     types::{
         dtype::{DTypeCoercion, DTypes},
@@ -27,8 +27,8 @@ use crate::{
 use pyo3::types::PyString;
 
 use super::excelsheet::{
-    column_info::{build_available_columns_info, finalize_column_info},
     ExcelSheet, Header, Pagination, SelectedColumns,
+    column_info::{build_available_columns_info, finalize_column_info},
 };
 use super::table::ExcelTable;
 
@@ -79,7 +79,7 @@ impl ExcelSheets {
                 sheets.with_header_row(header_row);
                 self
             }
-            Self::Bytes(ref mut sheets) => {
+            Self::Bytes(sheets) => {
                 sheets.with_header_row(header_row);
                 self
             }
