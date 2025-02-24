@@ -18,10 +18,6 @@ jobs:
           python-version: "3.11"
       - name: Set up rust toolchain
         uses: dtolnay/rust-toolchain@stable
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
       - run: |
           git config user.name github-actions
           git config user.email github-actions@github.com

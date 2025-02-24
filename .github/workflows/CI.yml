@@ -27,10 +27,6 @@ jobs:
         python-version: "${{ env.MIN_PYTHON_VERSION }}"
     - name: Set up rust toolchain
       uses: dtolnay/rust-toolchain@stable
-      with:
-        profile: minimal
-        toolchain: stable
-        override: true
     - name: Set up rustfmt
       run: rustup component add rustfmt
 
@@ -56,10 +52,6 @@ jobs:
           python-version: "3.11"
       - name: Set up rust toolchain
         uses: dtolnay/rust-toolchain@stable
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
       - run: |
           git config user.name github-actions
           git config user.email github-actions@github.com
@@ -89,10 +81,6 @@ jobs:
         python-version: ${{ matrix.python-version }}
     - name: Set up rust toolchain
       uses: dtolnay/rust-toolchain@stable
-      with:
-        profile: minimal
-        toolchain: stable
-        override: true
 
     # Maturin requires a venv to be activated, that's why we have to create one here
     - name: Create virtualenv
@@ -124,6 +112,7 @@ jobs:
             architecture: aarch64
     steps:
     - uses: actions/checkout@v4
+    - uses: dtolnay/rust-toolchain@stable
     - name: Set Rust target
       id: target
       if: matrix.os != 'windows-latest'
@@ -149,6 +138,7 @@ jobs:
     runs-on: "ubuntu-latest"
     steps:
       - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
       - name: build sdist
         uses: PyO3/maturin-action@v1
         with:
