@@ -3,12 +3,12 @@ mod error;
 mod types;
 mod utils;
 
-use error::{py_errors, ErrorContext};
+use error::{ErrorContext, py_errors};
 use pyo3::prelude::*;
 use types::python::{
+    ExcelReader, ExcelSheet,
     excelsheet::column_info::{ColumnInfo, ColumnInfoNoDtype},
     table::ExcelTable,
-    ExcelReader, ExcelSheet,
 };
 
 /// Reads an excel file and returns an object allowing to access its sheets and a bit of metadata

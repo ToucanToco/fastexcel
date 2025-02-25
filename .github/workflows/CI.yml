@@ -26,11 +26,7 @@ jobs:
       with:
         python-version: "${{ env.MIN_PYTHON_VERSION }}"
     - name: Set up rust toolchain
-      uses: actions-rs/toolchain@v1
-      with:
-        profile: minimal
-        toolchain: stable
-        override: true
+      uses: dtolnay/rust-toolchain@stable
     - name: Set up rustfmt
       run: rustup component add rustfmt
 
@@ -55,11 +51,7 @@ jobs:
         with:
           python-version: "3.11"
       - name: Set up rust toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
+        uses: dtolnay/rust-toolchain@stable
       - run: |
           git config user.name github-actions
           git config user.email github-actions@github.com
@@ -88,11 +80,7 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
     - name: Set up rust toolchain
-      uses: actions-rs/toolchain@v1
-      with:
-        profile: minimal
-        toolchain: stable
-        override: true
+      uses: dtolnay/rust-toolchain@stable
 
     # Maturin requires a venv to be activated, that's why we have to create one here
     - name: Create virtualenv
@@ -124,6 +112,7 @@ jobs:
             architecture: aarch64
     steps:
     - uses: actions/checkout@v4
+    - uses: dtolnay/rust-toolchain@stable
     - name: Set Rust target
       id: target
       if: matrix.os != 'windows-latest'
@@ -132,7 +121,7 @@ jobs:
         echo "target=$TARGET" >> $GITHUB_OUTPUT
 
     - name: build (fast)
-      uses: messense/maturin-action@v1
+      uses: PyO3/maturin-action@v1
       with:
         manylinux: auto
         command: build
@@ -149,8 +138,9 @@ jobs:
     runs-on: "ubuntu-latest"
     steps:
       - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
       - name: build sdist
-        uses: messense/maturin-action@v1
+        uses: PyO3/maturin-action@v1
         with:
           manylinux: auto
           command: sdist

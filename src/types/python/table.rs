@@ -5,7 +5,7 @@ use arrow::{
     pyarrow::ToPyArrow,
 };
 use calamine::{Data, Range, Table};
-use pyo3::{pyclass, pymethods, PyObject, Python};
+use pyo3::{PyObject, Python, pyclass, pymethods};
 
 use crate::{
     data::{
@@ -23,8 +23,8 @@ use crate::{
 };
 
 use super::excelsheet::{
-    column_info::{build_available_columns_info, AvailableColumns, ColumnInfo},
     Header, Pagination, SelectedColumns,
+    column_info::{AvailableColumns, ColumnInfo, build_available_columns_info},
 };
 
 #[pyclass(name = "_ExcelTable")]

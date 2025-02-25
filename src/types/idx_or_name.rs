@@ -1,9 +1,9 @@
 use pyo3::{
-    prelude::PyAnyMethods, Bound, FromPyObject, IntoPyObject, IntoPyObjectExt, PyAny, PyResult,
-    Python,
+    Bound, FromPyObject, IntoPyObject, IntoPyObjectExt, PyAny, PyResult, Python,
+    prelude::PyAnyMethods,
 };
 
-use crate::error::{py_errors::IntoPyResult, FastExcelError, FastExcelErrorKind, FastExcelResult};
+use crate::error::{FastExcelError, FastExcelErrorKind, FastExcelResult, py_errors::IntoPyResult};
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub(crate) enum IdxOrName {

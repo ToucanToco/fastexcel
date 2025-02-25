@@ -9,7 +9,7 @@ use calamine::{Data as CalData, DataRef as CalDataRef, DataType, Range};
 use crate::{
     error::{ErrorContext, FastExcelErrorKind, FastExcelResult},
     types::{
-        dtype::{get_dtype_for_column, DType, DTypeCoercion},
+        dtype::{DType, DTypeCoercion, get_dtype_for_column},
         python::excelsheet::column_info::ColumnInfo,
     },
 };
