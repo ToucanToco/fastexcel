@@ -125,7 +125,7 @@ impl<T> ErrorContext for FastExcelResult<T> {
 pub(crate) mod py_errors {
     use super::FastExcelErrorKind;
     use crate::error;
-    use pyo3::{create_exception, exceptions::PyException, PyErr, PyResult};
+    use pyo3::{PyErr, PyResult, create_exception, exceptions::PyException};
 
     // Base fastexcel error
     create_exception!(

@@ -8,21 +8,21 @@ use std::{cmp, collections::HashSet, fmt::Debug, str::FromStr};
 use arrow::{pyarrow::ToPyArrow, record_batch::RecordBatch};
 
 use pyo3::{
-    prelude::{pyclass, pymethods, PyAnyMethods, Python},
-    types::{PyList, PyString},
     Bound, IntoPyObject, IntoPyObjectExt, PyAny, PyObject, PyResult,
+    prelude::{PyAnyMethods, Python, pyclass, pymethods},
+    types::{PyList, PyString},
 };
 
 use crate::{
-    data::{record_batch_from_data_and_columns, ExcelSheetData},
+    data::{ExcelSheetData, record_batch_from_data_and_columns},
     error::{
-        py_errors::IntoPyResult, ErrorContext, FastExcelError, FastExcelErrorKind, FastExcelResult,
+        ErrorContext, FastExcelError, FastExcelErrorKind, FastExcelResult, py_errors::IntoPyResult,
     },
     types::{dtype::DTypes, idx_or_name::IdxOrName},
 };
 use crate::{types::dtype::DTypeCoercion, utils::schema::get_schema_sample_rows};
 
-use self::column_info::{build_available_columns_info, finalize_column_info, ColumnInfo};
+use self::column_info::{ColumnInfo, build_available_columns_info, finalize_column_info};
 
 #[derive(Debug)]
 pub(crate) enum Header {
@@ -549,7 +549,7 @@ impl ExcelSheet {
     #[getter]
     pub fn visible<'py>(&'py self, py: Python<'py>) -> FastExcelResult<Bound<'py, PyString>> {
         let visible: SheetVisible = self.sheet_meta.visible.into();
-        (&visible).into_pyobject(py).map_err(Into::into)
+        (&visible).into_pyobject(py)
     }
 
     pub fn to_arrow<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {

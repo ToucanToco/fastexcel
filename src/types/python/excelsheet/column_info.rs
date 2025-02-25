@@ -2,15 +2,15 @@ use std::{fmt::Display, str::FromStr};
 
 use arrow::datatypes::Field;
 use calamine::DataType;
-use pyo3::{pyclass, pymethods, PyResult};
+use pyo3::{PyResult, pyclass, pymethods};
 
 use crate::{
     data::ExcelSheetData,
     error::{
-        py_errors::IntoPyResult, ErrorContext, FastExcelError, FastExcelErrorKind, FastExcelResult,
+        ErrorContext, FastExcelError, FastExcelErrorKind, FastExcelResult, py_errors::IntoPyResult,
     },
     types::{
-        dtype::{get_dtype_for_column, DType, DTypeCoercion, DTypes},
+        dtype::{DType, DTypeCoercion, DTypes, get_dtype_for_column},
         idx_or_name::IdxOrName,
     },
 };
@@ -193,7 +193,14 @@ impl ColumnInfo {
     }
 
     pub fn __repr__(&self) -> String {
-        format!("ColumnInfo(name=\"{name}\", index={index}, dtype=\"{dtype}\", dtype_from=\"{dtype_from}\", column_name_from=\"{column_name_from}\" )", name=self.name, index=self.index, dtype=self.dtype, dtype_from=self.dtype_from, column_name_from=self.column_name_from)
+        format!(
+            "ColumnInfo(name=\"{name}\", index={index}, dtype=\"{dtype}\", dtype_from=\"{dtype_from}\", column_name_from=\"{column_name_from}\" )",
+            name = self.name,
+            index = self.index,
+            dtype = self.dtype,
+            dtype_from = self.dtype_from,
+            column_name_from = self.column_name_from
+        )
     }
 
     pub fn __eq__(&self, other: &Self) -> bool {

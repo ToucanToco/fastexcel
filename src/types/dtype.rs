@@ -9,11 +9,11 @@ use arrow::datatypes::{DataType as ArrowDataType, TimeUnit};
 use calamine::{CellErrorType, CellType, DataType, Range};
 use log::warn;
 use pyo3::{
-    prelude::PyAnyMethods, types::PyString, Bound, FromPyObject, IntoPyObject, IntoPyObjectRef,
-    PyAny, PyResult, Python,
+    Bound, FromPyObject, IntoPyObject, IntoPyObjectRef, PyAny, PyResult, Python,
+    prelude::PyAnyMethods, types::PyString,
 };
 
-use crate::error::{py_errors::IntoPyResult, FastExcelError, FastExcelErrorKind, FastExcelResult};
+use crate::error::{FastExcelError, FastExcelErrorKind, FastExcelResult, py_errors::IntoPyResult};
 
 use super::idx_or_name::IdxOrName;
 
