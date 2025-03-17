@@ -4,5 +4,5 @@ pre-commit>=2.20.0,<5
 pytest>=7.1.3
 pytest-benchmark>=4.0.0,<6
 pytest-mock>=3.1
-ruff>=0.9,<0.10
+ruff>=0.10,<0.11
 xlrd>=2.0.1,<3
