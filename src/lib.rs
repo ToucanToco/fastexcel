@@ -8,6 +8,7 @@ use pyo3::prelude::*;
 use types::python::{
     ExcelReader, ExcelSheet,
     excelsheet::column_info::{ColumnInfo, ColumnInfoNoDtype},
+    excelsheet::{CellError, CellErrors},
     table::ExcelTable,
 };
 
@@ -51,6 +52,8 @@ fn _fastexcel(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(read_excel, m)?)?;
     m.add_class::<ColumnInfo>()?;
     m.add_class::<ColumnInfoNoDtype>()?;
+    m.add_class::<CellError>()?;
+    m.add_class::<CellErrors>()?;
     m.add_class::<ExcelSheet>()?;
     m.add_class::<ExcelReader>()?;
     m.add_class::<ExcelTable>()?;

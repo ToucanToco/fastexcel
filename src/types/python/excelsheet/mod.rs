@@ -14,7 +14,10 @@ use pyo3::{
 };
 
 use crate::{
-    data::{ExcelSheetData, record_batch_from_data_and_columns},
+    data::{
+        ExcelSheetData, record_batch_from_data_and_columns,
+        record_batch_from_data_and_columns_with_errors,
+    },
     error::{
         ErrorContext, FastExcelError, FastExcelErrorKind, FastExcelResult, py_errors::IntoPyResult,
     },
@@ -366,6 +369,30 @@ impl From<CalamineSheetVisible> for SheetVisible {
     }
 }
 
+#[derive(Debug, Clone)]
+#[pyclass]
+pub(crate) struct CellError {
+    /// `(int, int)`. The row and column of the error
+    #[pyo3(get)]
+    pub position: (usize, usize),
+    /// `str`. The error message
+    #[pyo3(get)]
+    pub detail: String,
+}
+
+#[pyclass]
+pub(crate) struct CellErrors {
+    pub errors: Vec<CellError>,
+}
+
+#[pymethods]
+impl CellErrors {
+    #[getter]
+    pub fn errors<'p>(&'p self, _py: Python<'p>) -> Vec<CellError> {
+        self.errors.clone()
+    }
+}
+
 #[pyclass(name = "_ExcelSheet")]
 pub(crate) struct ExcelSheet {
     sheet_meta: CalamineSheet,
@@ -572,6 +599,39 @@ impl ExcelSheet {
             })
             .into_pyresult()
             .and_then(|obj| obj.into_bound_py_any(py))
+    }
+
+    pub fn to_arrow_with_errors<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+        let offset = self.offset();
+        let limit = self.limit();
+
+        let res = record_batch_from_data_and_columns_with_errors(
+            &self.selected_columns,
+            self.data(),
+            offset,
+            limit,
+        )
+        .with_context(|| {
+            format!(
+                "could not create RecordBatch from sheet \"{}\"",
+                self.name()
+            )
+        })?;
+
+        let rb_and_errors = (
+            res.0
+                .to_pyarrow(py)
+                .map_err(|err| FastExcelErrorKind::ArrowError(err.to_string()).into())
+                .with_context(|| {
+                    format!(
+                        "could not convert RecordBatch to pyarrow for sheet \"{}\"",
+                        self.name()
+                    )
+                })?,
+            res.1,
+        )
+            .into_bound_py_any(py)?;
+        Ok(rb_and_errors)
     }
 
     pub fn __repr__(&self) -> String {
