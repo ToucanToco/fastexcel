@@ -10,8 +10,8 @@ use crate::{
     error::{ErrorContext, FastExcelErrorKind, FastExcelResult},
     types::{
         dtype::{DType, DTypeCoercion, get_dtype_for_column},
-        python::excelsheet::CellErrors,
         python::excelsheet::column_info::ColumnInfo,
+        python::excelsheet::{CellError, CellErrors},
     },
 };
 
@@ -84,11 +84,9 @@ mod array_impls {
     use calamine::{CellType, DataType, Range};
     use chrono::NaiveDate;
 
-    use crate::types::{
-        dtype::excel_float_to_string,
-        python::excelsheet::{CellError, CellErrors},
-    };
+    use crate::types::{dtype::excel_float_to_string, python::excelsheet::CellError};
 
+    // TODO: DRY duplicated code between create and create...with_errors functions
     pub(crate) fn create_boolean_array<DT: CellType + DataType>(
         data: &Range<DT>,
         col: usize,
@@ -115,8 +113,8 @@ mod array_impls {
         col: usize,
         offset: usize,
         limit: usize,
-    ) -> (Arc<dyn Array>, CellErrors) {
-        let mut cell_errors = CellErrors { errors: vec![] };
+    ) -> (Arc<dyn Array>, Vec<CellError>) {
+        let mut cell_errors = vec![];
 
         let arr = Arc::new(BooleanArray::from_iter((offset..limit).map(|row| {
             data.get((row, col)).and_then(|cell| {
@@ -129,8 +127,9 @@ mod array_impls {
                 } else if let Some(f) = cell.get_float() {
                     Some(f != 0.0)
                 } else {
-                    cell_errors.errors.push(CellError {
-                        position: (row - offset, col),
+                    cell_errors.push(CellError {
+                        position: (row, col),
+                        row_offset: offset,
                         detail: format!("Expected boolean but got '{:?}", cell),
                     });
                     None
@@ -157,8 +156,8 @@ mod array_impls {
         col: usize,
         offset: usize,
         limit: usize,
-    ) -> (Arc<dyn Array>, CellErrors) {
-        let mut cell_errors = CellErrors { errors: vec![] };
+    ) -> (Arc<dyn Array>, Vec<CellError>) {
+        let mut cell_errors = vec![];
 
         let arr = Arc::new(Int64Array::from_iter((offset..limit).map(|row| {
             data.get((row, col)).and_then(|cell| {
@@ -168,8 +167,9 @@ mod array_impls {
                     match cell.as_i64() {
                         Some(value) => Some(value),
                         None => {
-                            cell_errors.errors.push(CellError {
-                                position: (row - offset, col),
+                            cell_errors.push(CellError {
+                                position: (row, col),
+                                row_offset: offset,
                                 detail: format!("Expected int but got '{:?}'", cell),
                             });
                             None
@@ -197,8 +197,8 @@ mod array_impls {
         col: usize,
         offset: usize,
         limit: usize,
-    ) -> (Arc<dyn Array>, CellErrors) {
-        let mut cell_errors = CellErrors { errors: vec![] };
+    ) -> (Arc<dyn Array>, Vec<CellError>) {
+        let mut cell_errors = vec![];
 
         let arr = Arc::new(Float64Array::from_iter((offset..limit).map(|row| {
             data.get((row, col)).and_then(|cell| {
@@ -208,8 +208,9 @@ mod array_impls {
                     match cell.as_f64() {
                         Some(value) => Some(value),
                         None => {
-                            cell_errors.errors.push(CellError {
-                                position: (row - offset, col),
+                            cell_errors.push(CellError {
+                                position: (row, col),
+                                row_offset: offset,
                                 detail: format!("Expected float but got '{:?}'", cell),
                             });
                             None
@@ -253,8 +254,8 @@ mod array_impls {
         col: usize,
         offset: usize,
         limit: usize,
-    ) -> (Arc<dyn Array>, CellErrors) {
-        let mut cell_errors = CellErrors { errors: vec![] };
+    ) -> (Arc<dyn Array>, Vec<CellError>) {
+        let mut cell_errors = vec![];
 
         let arr = Arc::new(StringArray::from_iter((offset..limit).map(|row| {
             data.get((row, col)).and_then(|cell| {
@@ -276,8 +277,9 @@ mod array_impls {
                     match cell.as_string() {
                         Some(value) => Some(value),
                         None => {
-                            cell_errors.errors.push(CellError {
-                                position: (row - offset, col),
+                            cell_errors.push(CellError {
+                                position: (row, col),
+                                row_offset: offset,
                                 detail: format!("Expected string but got '{:?}'", cell),
                             });
                             None
@@ -313,8 +315,8 @@ mod array_impls {
         col: usize,
         offset: usize,
         limit: usize,
-    ) -> (Arc<dyn Array>, CellErrors) {
-        let mut cell_errors = CellErrors { errors: vec![] };
+    ) -> (Arc<dyn Array>, Vec<CellError>) {
+        let mut cell_errors = vec![];
 
         let epoch = NaiveDate::from_ymd_opt(1970, 1, 1).unwrap();
         let arr = Arc::new(Date32Array::from_iter((offset..limit).map(|row| {
@@ -326,8 +328,9 @@ mod array_impls {
                         match cell.as_date() {
                             Some(value) => Some(value),
                             None => {
-                                cell_errors.errors.push(CellError {
-                                    position: (row - offset, col),
+                                cell_errors.push(CellError {
+                                    position: (row, col),
+                                    row_offset: offset,
                                     detail: format!("Expected date but got '{:?}'", cell),
                                 });
                                 None
@@ -361,8 +364,8 @@ mod array_impls {
         col: usize,
         offset: usize,
         limit: usize,
-    ) -> (Arc<dyn Array>, CellErrors) {
-        let mut cell_errors = CellErrors { errors: vec![] };
+    ) -> (Arc<dyn Array>, Vec<CellError>) {
+        let mut cell_errors = vec![];
         let arr = Arc::new(TimestampMillisecondArray::from_iter((offset..limit).map(
             |row| {
                 data.get((row, col))
@@ -373,8 +376,9 @@ mod array_impls {
                             match cell.as_datetime() {
                                 Some(value) => Some(value),
                                 None => {
-                                    cell_errors.errors.push(CellError {
-                                        position: (row - offset, col),
+                                    cell_errors.push(CellError {
+                                        position: (row, col),
+                                        row_offset: offset,
                                         detail: format!("Expected datetime but got '{:?}'", cell),
                                     });
                                     None
@@ -404,8 +408,8 @@ mod array_impls {
         col: usize,
         offset: usize,
         limit: usize,
-    ) -> (Arc<dyn Array>, CellErrors) {
-        let mut cell_errors = CellErrors { errors: vec![] };
+    ) -> (Arc<dyn Array>, Vec<CellError>) {
+        let mut cell_errors = vec![];
         let arr = Arc::new(DurationMillisecondArray::from_iter((offset..limit).map(
             |row| {
                 data.get((row, col)).and_then(|cell| {
@@ -415,8 +419,9 @@ mod array_impls {
                         match duration_type_to_i64(cell) {
                             Some(value) => Some(value),
                             None => {
-                                cell_errors.errors.push(CellError {
-                                    position: (row - offset, col),
+                                cell_errors.push(CellError {
+                                    position: (row, col),
+                                    row_offset: offset,
                                     detail: format!("Expected duration but got '{:?}'", cell),
                                 });
                                 None
@@ -454,7 +459,7 @@ macro_rules! create_array_function_with_errors {
             col: usize,
             offset: usize,
             limit: usize,
-        ) -> (Arc<dyn Array>, CellErrors) {
+        ) -> (Arc<dyn Array>, Vec<CellError>) {
             match data {
                 ExcelSheetData::Owned(range) => array_impls::$func_name(range, col, offset, limit),
                 ExcelSheetData::Ref(range) => array_impls::$func_name(range, col, offset, limit),
@@ -558,7 +563,7 @@ pub(crate) fn record_batch_from_data_and_columns_with_errors(
 ) -> FastExcelResult<(RecordBatch, CellErrors)> {
     let schema = selected_columns_to_schema(columns);
 
-    let mut cell_errors = CellErrors { errors: vec![] };
+    let mut cell_errors = vec![];
 
     let iter = columns.iter().map(|column_info| {
         let col_idx = column_info.index();
@@ -567,7 +572,7 @@ pub(crate) fn record_batch_from_data_and_columns_with_errors(
         let (array, new_cell_errors) = match dtype {
             DType::Null => (
                 Arc::new(NullArray::new(limit - offset)) as Arc<dyn arrow::array::Array>,
-                CellErrors { errors: vec![] },
+                vec![],
             ),
             DType::Int => create_int_array_with_errors(data, col_idx, offset, limit),
             DType::Float => create_float_array_with_errors(data, col_idx, offset, limit),
@@ -578,12 +583,17 @@ pub(crate) fn record_batch_from_data_and_columns_with_errors(
             DType::Duration => create_duration_array_with_errors(data, col_idx, offset, limit),
         };
 
-        cell_errors.errors.extend(new_cell_errors.errors);
+        cell_errors.extend(new_cell_errors);
 
         (column_info.name.as_str(), array)
     });
 
     let record_batch = record_batch_from_name_array_iterator(iter, schema)?;
 
-    Ok((record_batch, cell_errors))
+    Ok((
+        record_batch,
+        CellErrors {
+            errors: cell_errors,
+        },
+    ))
 }

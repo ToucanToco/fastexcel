@@ -479,18 +479,31 @@ def test_fallback_infer_dtypes(mocker: MockerFixture) -> None:
 def test_to_arrow_with_errors(
     dtype: fastexcel.DType,
     expected_data: list[Any],
-    # expected_error_positions: list[tuple[int, int]],
 ):
     excel_reader = fastexcel.read_excel(path_for_fixture("fixture-type-errors.xlsx"))
     rb, cell_errors = excel_reader.load_sheet(0, dtypes={"Column": dtype}).to_arrow_with_errors()
-    pd_df = rb.to_pandas()
 
+    pd_df = rb.to_pandas()
     assert pd_df["Column"].replace(np.nan, None).to_list() == expected_data
 
-    error_positions = [err.position for err in cell_errors.errors]
+    def item_to_polars(item: Any):
+        if isinstance(item, pd.Timestamp):
+            return item.to_pydatetime()
+        if pd.isna(item):
+            return None
+        return item
+
+    pl_df = pl.from_arrow(rb)
+    assert isinstance(pl_df, pl.DataFrame)
+    pl_expected_data = list(map(item_to_polars, expected_data))
+    assert pl_df["Column"].to_list() == pl_expected_data
+
     # the only empty cell is (0, 0), so all other cells that were read as None
     # should be errors
     expected_error_positions = [
         (i, 0) for i in range(1, len(expected_data)) if expected_data[i] in {None, pd.NaT}
     ]
-    assert error_positions == expected_error_positions
+    if expected_error_positions:
+        assert cell_errors is not None
+        error_positions = [err.offset_position for err in cell_errors.errors]
+        assert error_positions == expected_error_positions

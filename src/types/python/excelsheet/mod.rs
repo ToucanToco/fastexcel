@@ -372,12 +372,24 @@ impl From<CalamineSheetVisible> for SheetVisible {
 #[derive(Debug, Clone)]
 #[pyclass]
 pub(crate) struct CellError {
-    /// `(int, int)`. The row and column of the error
+    /// `(int, int)`. The original row and column of the error
     #[pyo3(get)]
     pub position: (usize, usize),
+    /// `int`. The row offset
+    #[pyo3(get)]
+    pub row_offset: usize,
     /// `str`. The error message
     #[pyo3(get)]
     pub detail: String,
+}
+
+#[pymethods]
+impl CellError {
+    #[getter]
+    pub fn offset_position(&self) -> (usize, usize) {
+        let (row, col) = self.position;
+        (row - self.row_offset, col)
+    }
 }
 
 #[pyclass]
@@ -605,7 +617,7 @@ impl ExcelSheet {
         let offset = self.offset();
         let limit = self.limit();
 
-        let res = record_batch_from_data_and_columns_with_errors(
+        let (rb, errors) = record_batch_from_data_and_columns_with_errors(
             &self.selected_columns,
             self.data(),
             offset,
@@ -618,20 +630,16 @@ impl ExcelSheet {
             )
         })?;
 
-        let rb_and_errors = (
-            res.0
-                .to_pyarrow(py)
-                .map_err(|err| FastExcelErrorKind::ArrowError(err.to_string()).into())
-                .with_context(|| {
-                    format!(
-                        "could not convert RecordBatch to pyarrow for sheet \"{}\"",
-                        self.name()
-                    )
-                })?,
-            res.1,
-        )
-            .into_bound_py_any(py)?;
-        Ok(rb_and_errors)
+        let rb = rb
+            .to_pyarrow(py)
+            .map_err(|err| FastExcelErrorKind::ArrowError(err.to_string()).into())
+            .with_context(|| {
+                format!(
+                    "could not convert RecordBatch to pyarrow for sheet \"{}\"",
+                    self.name()
+                )
+            })?;
+        (rb, errors).into_bound_py_any(py)
     }
 
     pub fn __repr__(&self) -> String {
