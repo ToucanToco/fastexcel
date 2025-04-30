@@ -148,4 +148,4 @@ jobs:
           wheels-linux/*.whl
           wheels-macos/*.whl
           wheels-windows/*.whl
-          sdist/*.tag.gz
+          sdist/*.tar.gz
