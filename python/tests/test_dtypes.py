@@ -354,3 +354,156 @@ def test_fallback_infer_dtypes(mocker: MockerFixture) -> None:
         ),
     ]
     assert sheet.to_polars().dtypes == [pl.Float64, pl.String]
+
+
+@pytest.mark.parametrize(
+    ("dtype", "expected_data"),
+    [
+        (
+            "int",
+            [None] * 2
+            + [-1.0, 0.0, 1.0, 0.0, 1.0, 1.0, -1.0, 0.0, 1.0, None, 1.0, 0.0]
+            + [None] * 7
+            + [0.0],
+        ),
+        (
+            "float",
+            [None] * 2
+            + [-1.0, 0.0, 1.0, 0.0, 1.0, 1.1, -1.0, 0.0, 1.0, 1.1, 1.0, 0.0]
+            + [None] * 7
+            + [0.1],
+        ),
+        (
+            "string",
+            [
+                None,
+                "foo",
+                "-1",
+                "0",
+                "1",
+                "0",
+                "1",
+                "1.1",
+                "-1",
+                "0",
+                "1",
+                "1.1",
+                "true",
+                "false",
+                "2023-07-21 00:00:00",
+                "2023-07-21 12:20:00",
+                # calamine reads a time as datetimes here, which seems wrong
+                "1899-12-31 12:20:00",
+                "07/21/2023",
+                "7/21/2023  12:20:00 PM",
+                "July 23rd",
+                "12:20:00",
+                "0.1",
+            ],
+        ),
+        (
+            "boolean",
+            [None] * 2
+            + [True, False, True, False, True, True]
+            + [None] * 4
+            + [True, False]
+            + [None] * 7
+            + [True],
+        ),
+        (
+            "datetime",
+            [pd.NaT] * 2
+            + [
+                pd.Timestamp("1899-12-30 00:00:00"),
+                pd.Timestamp("1899-12-31 00:00:00"),
+                pd.Timestamp("1900-01-01 00:00:00"),
+                pd.Timestamp("1899-12-31 00:00:00"),
+                pd.Timestamp("1900-01-01 00:00:00"),
+                pd.Timestamp("1900-01-01 02:24:00"),
+            ]
+            + [pd.NaT] * 6
+            + [
+                pd.Timestamp("2023-7-21 00:00:00"),
+                pd.Timestamp("2023-7-21 12:20:00"),
+                # calamine currently adds a date to a time, which is
+                # questionable
+                pd.Timestamp("1899-12-31 12:20:00"),
+            ]
+            + [pd.NaT] * 4
+            + [
+                # calamine converts percentages to datetimes (since it does not
+                # distinguish from floats), which seems questionable
+                pd.Timestamp("1899-12-31 02:24:00")
+            ],
+        ),
+        (
+            "date",
+            [None] * 2
+            + [
+                pd.Timestamp("1899-12-30").date(),
+                pd.Timestamp("1899-12-31").date(),
+                pd.Timestamp("1900-01-01").date(),
+                pd.Timestamp("1899-12-31").date(),
+                pd.Timestamp("1900-01-01").date(),
+                pd.Timestamp("1900-01-01").date(),
+            ]
+            + [None] * 6
+            + [
+                pd.Timestamp("2023-7-21").date(),
+                pd.Timestamp("2023-7-21").date(),
+                # calamine converts any time to 1899-12-31, which is
+                # questionable
+                pd.Timestamp("1899-12-31").date(),
+            ]
+            + [None] * 4
+            + [
+                # calamine converts percentages to dates (since it does not
+                # distinguish from floats), which seems questionable
+                pd.Timestamp("1899-12-31").date()
+            ],
+        ),
+        (
+            "duration",
+            [pd.NaT] * 14
+            + [
+                # dates/datetimes are converted to durations, which seems
+                # questionable
+                pd.Timedelta(datetime(2023, 7, 21 + 1) - datetime(1899, 12, 31)),
+                pd.Timedelta(datetime(2023, 7, 21 + 1, 12, 20, 0) - datetime(1899, 12, 31)),
+                pd.Timedelta(hours=12, minutes=20),
+            ]
+            + [pd.NaT] * 5,
+        ),
+    ],
+)
+def test_to_arrow_with_errors(
+    dtype: fastexcel.DType,
+    expected_data: list[Any],
+):
+    excel_reader = fastexcel.read_excel(path_for_fixture("fixture-type-errors.xlsx"))
+    rb, cell_errors = excel_reader.load_sheet(0, dtypes={"Column": dtype}).to_arrow_with_errors()
+
+    pd_df = rb.to_pandas()
+    assert pd_df["Column"].replace(np.nan, None).to_list() == expected_data
+
+    def item_to_polars(item: Any):
+        if isinstance(item, pd.Timestamp):
+            return item.to_pydatetime()
+        if pd.isna(item):
+            return None
+        return item
+
+    pl_df = pl.from_arrow(rb)
+    assert isinstance(pl_df, pl.DataFrame)
+    pl_expected_data = list(map(item_to_polars, expected_data))
+    assert pl_df["Column"].to_list() == pl_expected_data
+
+    # the only empty cell is (0, 0), so all other cells that were read as None
+    # should be errors
+    expected_error_positions = [
+        (i, 0) for i in range(1, len(expected_data)) if expected_data[i] in {None, pd.NaT}
+    ]
+    if expected_error_positions:
+        assert cell_errors is not None
+        error_positions = [err.offset_position for err in cell_errors.errors]
+        assert error_positions == expected_error_positions
