@@ -11,6 +11,7 @@ use crate::{
     types::{
         dtype::{DType, DTypeCoercion, get_dtype_for_column},
         python::excelsheet::column_info::ColumnInfo,
+        python::excelsheet::{CellError, CellErrors},
     },
 };
 
@@ -73,6 +74,7 @@ impl<'a> From<Range<CalDataRef<'a>>> for ExcelSheetData<'a> {
 }
 
 mod array_impls {
+    use std::fmt::Debug;
     use std::sync::Arc;
 
     use arrow::array::{
@@ -82,8 +84,9 @@ mod array_impls {
     use calamine::{CellType, DataType, Range};
     use chrono::NaiveDate;
 
-    use crate::types::dtype::excel_float_to_string;
+    use crate::types::{dtype::excel_float_to_string, python::excelsheet::CellError};
 
+    // TODO: DRY duplicated code between create and create...with_errors functions
     pub(crate) fn create_boolean_array<DT: CellType + DataType>(
         data: &Range<DT>,
         col: usize,
@@ -105,6 +108,38 @@ mod array_impls {
         })))
     }
 
+    pub(crate) fn create_boolean_array_with_errors<DT: CellType + DataType + Debug>(
+        data: &Range<DT>,
+        col: usize,
+        offset: usize,
+        limit: usize,
+    ) -> (Arc<dyn Array>, Vec<CellError>) {
+        let mut cell_errors = vec![];
+
+        let arr = Arc::new(BooleanArray::from_iter((offset..limit).map(|row| {
+            data.get((row, col)).and_then(|cell| {
+                if cell.is_empty() {
+                    None
+                } else if let Some(b) = cell.get_bool() {
+                    Some(b)
+                } else if let Some(i) = cell.get_int() {
+                    Some(i != 0)
+                } else if let Some(f) = cell.get_float() {
+                    Some(f != 0.0)
+                } else {
+                    cell_errors.push(CellError {
+                        position: (row, col),
+                        row_offset: offset,
+                        detail: format!("Expected boolean but got '{:?}", cell),
+                    });
+                    None
+                }
+            })
+        })));
+
+        (arr, cell_errors)
+    }
+
     pub(crate) fn create_int_array<DT: CellType + DataType>(
         data: &Range<DT>,
         col: usize,
@@ -116,6 +151,36 @@ mod array_impls {
         ))
     }
 
+    pub(crate) fn create_int_array_with_errors<DT: CellType + DataType + Debug>(
+        data: &Range<DT>,
+        col: usize,
+        offset: usize,
+        limit: usize,
+    ) -> (Arc<dyn Array>, Vec<CellError>) {
+        let mut cell_errors = vec![];
+
+        let arr = Arc::new(Int64Array::from_iter((offset..limit).map(|row| {
+            data.get((row, col)).and_then(|cell| {
+                if cell.is_empty() {
+                    None
+                } else {
+                    match cell.as_i64() {
+                        Some(value) => Some(value),
+                        None => {
+                            cell_errors.push(CellError {
+                                position: (row, col),
+                                row_offset: offset,
+                                detail: format!("Expected int but got '{:?}'", cell),
+                            });
+                            None
+                        }
+                    }
+                }
+            })
+        })));
+        (arr, cell_errors)
+    }
+
     pub(crate) fn create_float_array<DT: CellType + DataType>(
         data: &Range<DT>,
         col: usize,
@@ -125,6 +190,36 @@ mod array_impls {
         Arc::new(Float64Array::from_iter(
             (offset..limit).map(|row| data.get((row, col)).and_then(|cell| cell.as_f64())),
         ))
+    }
+
+    pub(crate) fn create_float_array_with_errors<DT: CellType + DataType + Debug>(
+        data: &Range<DT>,
+        col: usize,
+        offset: usize,
+        limit: usize,
+    ) -> (Arc<dyn Array>, Vec<CellError>) {
+        let mut cell_errors = vec![];
+
+        let arr = Arc::new(Float64Array::from_iter((offset..limit).map(|row| {
+            data.get((row, col)).and_then(|cell| {
+                if cell.is_empty() {
+                    None
+                } else {
+                    match cell.as_f64() {
+                        Some(value) => Some(value),
+                        None => {
+                            cell_errors.push(CellError {
+                                position: (row, col),
+                                row_offset: offset,
+                                detail: format!("Expected float but got '{:?}'", cell),
+                            });
+                            None
+                        }
+                    }
+                }
+            })
+        })));
+        (arr, cell_errors)
     }
 
     pub(crate) fn create_string_array<DT: CellType + DataType>(
@@ -154,6 +249,49 @@ mod array_impls {
         })))
     }
 
+    pub(crate) fn create_string_array_with_errors<DT: CellType + DataType + Debug>(
+        data: &Range<DT>,
+        col: usize,
+        offset: usize,
+        limit: usize,
+    ) -> (Arc<dyn Array>, Vec<CellError>) {
+        let mut cell_errors = vec![];
+
+        let arr = Arc::new(StringArray::from_iter((offset..limit).map(|row| {
+            data.get((row, col)).and_then(|cell| {
+                if cell.is_empty() {
+                    None
+                } else if cell.is_string() {
+                    cell.get_string().map(str::to_string)
+                } else if cell.is_datetime() {
+                    cell.get_datetime()
+                        .and_then(|dt| dt.as_datetime())
+                        .map(|dt| dt.to_string())
+                } else if cell.is_datetime_iso() {
+                    cell.get_datetime_iso().map(str::to_string)
+                } else if cell.is_bool() {
+                    cell.get_bool().map(|v| v.to_string())
+                } else if cell.is_float() {
+                    cell.get_float().map(excel_float_to_string)
+                } else {
+                    match cell.as_string() {
+                        Some(value) => Some(value),
+                        None => {
+                            cell_errors.push(CellError {
+                                position: (row, col),
+                                row_offset: offset,
+                                detail: format!("Expected string but got '{:?}'", cell),
+                            });
+                            None
+                        }
+                    }
+                }
+            })
+        })));
+
+        (arr, cell_errors)
+    }
+
     fn duration_type_to_i64<DT: CellType + DataType>(caldt: &DT) -> Option<i64> {
         caldt.as_duration().map(|d| d.num_milliseconds())
     }
@@ -172,6 +310,40 @@ mod array_impls {
         })))
     }
 
+    pub(crate) fn create_date_array_with_errors<DT: CellType + DataType + Debug>(
+        data: &Range<DT>,
+        col: usize,
+        offset: usize,
+        limit: usize,
+    ) -> (Arc<dyn Array>, Vec<CellError>) {
+        let mut cell_errors = vec![];
+
+        let epoch = NaiveDate::from_ymd_opt(1970, 1, 1).unwrap();
+        let arr = Arc::new(Date32Array::from_iter((offset..limit).map(|row| {
+            data.get((row, col))
+                .and_then(|cell| {
+                    if cell.is_empty() {
+                        None
+                    } else {
+                        match cell.as_date() {
+                            Some(value) => Some(value),
+                            None => {
+                                cell_errors.push(CellError {
+                                    position: (row, col),
+                                    row_offset: offset,
+                                    detail: format!("Expected date but got '{:?}'", cell),
+                                });
+                                None
+                            }
+                        }
+                    }
+                })
+                .and_then(|date| i32::try_from(date.signed_duration_since(epoch).num_days()).ok())
+        })));
+
+        (arr, cell_errors)
+    }
+
     pub(crate) fn create_datetime_array<DT: CellType + DataType>(
         data: &Range<DT>,
         col: usize,
@@ -187,6 +359,39 @@ mod array_impls {
         )))
     }
 
+    pub(crate) fn create_datetime_array_with_errors<DT: CellType + DataType + Debug>(
+        data: &Range<DT>,
+        col: usize,
+        offset: usize,
+        limit: usize,
+    ) -> (Arc<dyn Array>, Vec<CellError>) {
+        let mut cell_errors = vec![];
+        let arr = Arc::new(TimestampMillisecondArray::from_iter((offset..limit).map(
+            |row| {
+                data.get((row, col))
+                    .and_then(|cell| {
+                        if cell.is_empty() {
+                            None
+                        } else {
+                            match cell.as_datetime() {
+                                Some(value) => Some(value),
+                                None => {
+                                    cell_errors.push(CellError {
+                                        position: (row, col),
+                                        row_offset: offset,
+                                        detail: format!("Expected datetime but got '{:?}'", cell),
+                                    });
+                                    None
+                                }
+                            }
+                        }
+                    })
+                    .map(|dt| dt.and_utc().timestamp_millis())
+            },
+        )));
+        (arr, cell_errors)
+    }
+
     pub(crate) fn create_duration_array<DT: CellType + DataType>(
         data: &Range<DT>,
         col: usize,
@@ -196,6 +401,37 @@ mod array_impls {
         Arc::new(DurationMillisecondArray::from_iter(
             (offset..limit).map(|row| data.get((row, col)).and_then(duration_type_to_i64)),
         ))
+    }
+
+    pub(crate) fn create_duration_array_with_errors<DT: CellType + DataType + Debug>(
+        data: &Range<DT>,
+        col: usize,
+        offset: usize,
+        limit: usize,
+    ) -> (Arc<dyn Array>, Vec<CellError>) {
+        let mut cell_errors = vec![];
+        let arr = Arc::new(DurationMillisecondArray::from_iter((offset..limit).map(
+            |row| {
+                data.get((row, col)).and_then(|cell| {
+                    if cell.is_empty() {
+                        None
+                    } else {
+                        match duration_type_to_i64(cell) {
+                            Some(value) => Some(value),
+                            None => {
+                                cell_errors.push(CellError {
+                                    position: (row, col),
+                                    row_offset: offset,
+                                    detail: format!("Expected duration but got '{:?}'", cell),
+                                });
+                                None
+                            }
+                        }
+                    }
+                })
+            },
+        )));
+        (arr, cell_errors)
     }
 }
 
@@ -216,6 +452,22 @@ macro_rules! create_array_function {
     };
 }
 
+macro_rules! create_array_function_with_errors {
+    ($func_name:ident) => {
+        pub(crate) fn $func_name(
+            data: &ExcelSheetData,
+            col: usize,
+            offset: usize,
+            limit: usize,
+        ) -> (Arc<dyn Array>, Vec<CellError>) {
+            match data {
+                ExcelSheetData::Owned(range) => array_impls::$func_name(range, col, offset, limit),
+                ExcelSheetData::Ref(range) => array_impls::$func_name(range, col, offset, limit),
+            }
+        }
+    };
+}
+
 create_array_function!(create_boolean_array);
 create_array_function!(create_string_array);
 create_array_function!(create_int_array);
@@ -223,6 +475,14 @@ create_array_function!(create_float_array);
 create_array_function!(create_datetime_array);
 create_array_function!(create_date_array);
 create_array_function!(create_duration_array);
+
+create_array_function_with_errors!(create_boolean_array_with_errors);
+create_array_function_with_errors!(create_int_array_with_errors);
+create_array_function_with_errors!(create_float_array_with_errors);
+create_array_function_with_errors!(create_string_array_with_errors);
+create_array_function_with_errors!(create_date_array_with_errors);
+create_array_function_with_errors!(create_datetime_array_with_errors);
+create_array_function_with_errors!(create_duration_array_with_errors);
 
 pub(crate) use array_impls::create_boolean_array as create_boolean_array_from_range;
 pub(crate) use array_impls::create_date_array as create_date_array_from_range;
@@ -293,4 +553,47 @@ pub(crate) fn record_batch_from_data_and_columns(
     });
 
     record_batch_from_name_array_iterator(iter, schema)
+}
+
+pub(crate) fn record_batch_from_data_and_columns_with_errors(
+    columns: &[ColumnInfo],
+    data: &ExcelSheetData,
+    offset: usize,
+    limit: usize,
+) -> FastExcelResult<(RecordBatch, CellErrors)> {
+    let schema = selected_columns_to_schema(columns);
+
+    let mut cell_errors = vec![];
+
+    let iter = columns.iter().map(|column_info| {
+        let col_idx = column_info.index();
+        let dtype = *column_info.dtype();
+
+        let (array, new_cell_errors) = match dtype {
+            DType::Null => (
+                Arc::new(NullArray::new(limit - offset)) as Arc<dyn arrow::array::Array>,
+                vec![],
+            ),
+            DType::Int => create_int_array_with_errors(data, col_idx, offset, limit),
+            DType::Float => create_float_array_with_errors(data, col_idx, offset, limit),
+            DType::String => create_string_array_with_errors(data, col_idx, offset, limit),
+            DType::Bool => create_boolean_array_with_errors(data, col_idx, offset, limit),
+            DType::DateTime => create_datetime_array_with_errors(data, col_idx, offset, limit),
+            DType::Date => create_date_array_with_errors(data, col_idx, offset, limit),
+            DType::Duration => create_duration_array_with_errors(data, col_idx, offset, limit),
+        };
+
+        cell_errors.extend(new_cell_errors);
+
+        (column_info.name.as_str(), array)
+    });
+
+    let record_batch = record_batch_from_name_array_iterator(iter, schema)?;
+
+    Ok((
+        record_batch,
+        CellErrors {
+            errors: cell_errors,
+        },
+    ))
 }
