@@ -41,6 +41,20 @@ class ColumnInfo:
     @property
     def dtype_from(self) -> DTypeFrom: ...
 
+class CellError:
+    @property
+    def position(self) -> tuple[int, int]: ...
+    @property
+    def row_offset(self) -> int: ...
+    @property
+    def offset_position(self) -> tuple[int, int]: ...
+    @property
+    def detail(self) -> str: ...
+
+class CellErrors:
+    @property
+    def errors(self) -> list[CellError]: ...
+
 class _ExcelSheet:
     @property
     def name(self) -> str:
@@ -70,6 +84,12 @@ class _ExcelSheet:
         """The visibility of the sheet"""
     def to_arrow(self) -> pa.RecordBatch:
         """Converts the sheet to a pyarrow `RecordBatch`"""
+    def to_arrow_with_errors(self) -> tuple[pa.RecordBatch, CellErrors]:
+        """Converts the sheet to a pyarrow `RecordBatch` with error information.
+
+        Stores the positions of any values that cannot be parsed as the specified type and were
+        therefore converted to None.
+        """
 
 class _ExcelTable:
     @property

@@ -23,6 +23,8 @@ from ._fastexcel import (
     CalamineCellError,
     CalamineError,
     CannotRetrieveCellDataError,
+    CellError,
+    CellErrors,
     ColumnInfo,
     ColumnInfoNoDtype,
     ColumnNotFoundError,
@@ -100,6 +102,17 @@ class ExcelSheet:
     def to_arrow(self) -> pa.RecordBatch:
         """Converts the sheet to a pyarrow `RecordBatch`"""
         return self._sheet.to_arrow()
+
+    def to_arrow_with_errors(self) -> tuple[pa.RecordBatch, CellErrors | None]:
+        """Converts the sheet to a pyarrow `RecordBatch` with error information.
+
+        Stores the positions of any values that cannot be parsed as the specified type and were
+        therefore converted to None.
+        """
+        rb, cell_errors = self._sheet.to_arrow_with_errors()
+        if not cell_errors.errors:
+            return (rb, None)
+        return (rb, cell_errors)
 
     def to_pandas(self) -> "pd.DataFrame":
         """Converts the sheet to a Pandas `DataFrame`.
@@ -517,6 +530,9 @@ __all__ = (
     "DTypeFrom",
     "ColumnNameFrom",
     "ColumnInfo",
+    # Parse error information
+    "CellError",
+    "CellErrors",
     # Exceptions
     "FastExcelError",
     "CannotRetrieveCellDataError",
