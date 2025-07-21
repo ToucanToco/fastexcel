@@ -284,9 +284,9 @@ checksum = "325918d6fe32f23b19878fe4b34794ae41fc19ddbe53b10571a4874d44ffd39b"
 
 [[package]]
 name = "calamine"
-version = "0.28.0"
+version = "0.29.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "15e02a18e79de779a78b0a6ec84a3deed1ff0607dd970a11369f993263f99f1a"
+checksum = "c779dabf85f0e5764a88dc28df403aa09e43fb869344f24cf1813a86854fa3ef"
 dependencies = [
  "atoi_simd",
  "byteorder",
@@ -1191,9 +1191,9 @@ dependencies = [
 
 [[package]]
 name = "zip"
-version = "4.1.0"
+version = "4.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "af7dcdb4229c0e79c2531a24de7726a0e980417a74fb4d030a35f535665439a0"
+checksum = "95ab361742de920c5535880f89bbd611ee62002bf11341d16a5f057bb8ba6899"
 dependencies = [
  "arbitrary",
  "crc32fast",
