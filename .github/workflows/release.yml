@@ -96,37 +96,37 @@ jobs:
     steps:
     - uses: dtolnay/rust-toolchain@stable
     - name: Download Linux 3.9 wheels for x86-64
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v5
       with:
         name: "wheels-linux-python-3.9-x86-64"
         path: wheels-linux
 
     - name: Download Linux 3.9 wheels for aarch64
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v5
       with:
         name: "wheels-linux-python-3.9-aarch64"
         path: wheels-linux
 
     - name: Download MacOS 3.9 wheels for x86-64
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v5
       with:
         name: "wheels-macos-python-3.9-x86-64"
         path: wheels-macos
 
     - name: Download MacOS 3.9 wheels for aarch64
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v5
       with:
         name: "wheels-macos-python-3.9-aarch64"
         path: wheels-macos
 
     - name: Download Windows 3.9 wheels
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v5
       with:
         name: "wheels-windows-python-3.9"
         path: wheels-windows
 
     - name: Download sdist
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v5
       with:
         name: "sdist"
         path: sdist
