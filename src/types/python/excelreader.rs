@@ -3,7 +3,9 @@ use std::{
     io::{BufReader, Cursor},
 };
 
-use arrow::{pyarrow::ToPyArrow, record_batch::RecordBatch};
+#[cfg(feature = "pyarrow")]
+use arrow::pyarrow::ToPyArrow;
+use arrow::record_batch::RecordBatch;
 use pyo3::{Bound, IntoPyObjectExt, PyAny, PyResult, Python, pyclass, pymethods};
 
 use calamine::{
@@ -86,7 +88,7 @@ impl ExcelSheets {
         }
     }
 
-    fn worksheet_range_ref(&mut self, name: &str) -> FastExcelResult<Range<DataRef>> {
+    fn worksheet_range_ref(&'_ mut self, name: &str) -> FastExcelResult<Range<DataRef<'_>>> {
         match self {
             ExcelSheets::File(Sheets::Xlsx(sheets)) => Ok(sheets.worksheet_range_ref(name)?),
             ExcelSheets::Bytes(Sheets::Xlsx(sheets)) => Ok(sheets.worksheet_range_ref(name)?),
@@ -207,7 +209,7 @@ impl ExcelReader {
                 .into_pyresult()?;
             let pagination =
                 Pagination::new(skip_rows.unwrap_or(0), n_rows, &range).into_pyresult()?;
-            Self::load_sheet_eager(
+            let rb = Self::load_sheet_eager(
                 &range.into(),
                 pagination,
                 header,
@@ -216,9 +218,18 @@ impl ExcelReader {
                 dtypes.as_ref(),
                 &dtype_coercion,
             )
-            .into_pyresult()
-            .and_then(|rb| rb.to_pyarrow(py))
-            .map(|py_object| py_object.into_bound(py))
+            .into_pyresult()?;
+
+            #[cfg(feature = "pyarrow")]
+            {
+                rb.to_pyarrow(py).map(|py_object| py_object.into_bound(py))
+            }
+            #[cfg(not(feature = "pyarrow"))]
+            {
+                Err(pyo3::exceptions::PyRuntimeError::new_err(
+                    "Eager loading requires pyarrow feature. Use eager=False for PyCapsule interface.",
+                ))
+            }
         } else {
             let range = self
                 .sheets
@@ -240,7 +251,16 @@ impl ExcelReader {
             .into_pyresult()?;
 
             if eager {
-                sheet.to_arrow(py)
+                #[cfg(feature = "pyarrow")]
+                {
+                    sheet.to_arrow(py)
+                }
+                #[cfg(not(feature = "pyarrow"))]
+                {
+                    Err(pyo3::exceptions::PyRuntimeError::new_err(
+                        "Eager loading requires pyarrow feature. Use eager=False for PyCapsule interface.",
+                    ))
+                }
             } else {
                 sheet.into_bound_py_any(py)
             }
@@ -287,7 +307,16 @@ impl ExcelReader {
         .into_pyresult()?;
 
         if eager {
-            Ok(excel_table.to_arrow(py)?.into_bound(py))
+            #[cfg(feature = "pyarrow")]
+            {
+                Ok(excel_table.to_arrow(py)?.into_bound(py))
+            }
+            #[cfg(not(feature = "pyarrow"))]
+            {
+                Err(pyo3::exceptions::PyRuntimeError::new_err(
+                    "Eager loading requires pyarrow feature. Use eager=False for PyCapsule interface.",
+                ))
+            }
         } else {
             excel_table.into_bound_py_any(py)
         }

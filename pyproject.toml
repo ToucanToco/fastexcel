@@ -23,15 +23,16 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: Implementation :: CPython",
 ]
-dependencies = [
-    "pyarrow>=8.0.0",
-    "typing-extensions>=4.0.0; python_version<'3.10'",
-]
+dependencies = ["typing-extensions>=4.0.0; python_version<'3.10'"]
 dynamic = ["version"]
 
 [project.optional-dependencies]
-pandas = ["pandas>=1.4.4"]
+pyarrow = ["pyarrow>=8.0.0"]
+pandas = ["pandas>=1.4.4", "pyarrow>=8.0.0"]
 polars = ["polars>=0.16.14"]
+
+[dependency-groups]
+test = ["pytest>=7.0.0", "pyarrow>=8.0.0", "pandas>=1.4.4", "polars>=0.16.14"]
 
 [project.urls]
 "Source Code" = "https://github.com/ToucanToco/fastexcel"

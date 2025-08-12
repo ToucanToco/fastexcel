@@ -5,7 +5,9 @@ use calamine::{CellType, Range, Sheet as CalamineSheet, SheetVisible as Calamine
 use column_info::{AvailableColumns, ColumnInfoNoDtype};
 use std::{cmp, collections::HashSet, fmt::Debug, str::FromStr};
 
-use arrow::{pyarrow::ToPyArrow, record_batch::RecordBatch};
+#[cfg(feature = "pyarrow")]
+use arrow::pyarrow::ToPyArrow;
+use arrow::record_batch::RecordBatch;
 
 use pyo3::{
     Bound, IntoPyObject, IntoPyObjectExt, PyAny, PyObject, PyResult,
@@ -13,6 +15,7 @@ use pyo3::{
     types::{PyList, PyString},
 };
 
+use crate::arrow_capsule;
 use crate::{
     data::{
         ExcelSheetData, record_batch_from_data_and_columns,
@@ -591,6 +594,7 @@ impl ExcelSheet {
         (&visible).into_pyobject(py)
     }
 
+    #[cfg(feature = "pyarrow")]
     pub fn to_arrow<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
         RecordBatch::try_from(self)
             .with_context(|| {
@@ -613,6 +617,7 @@ impl ExcelSheet {
             .and_then(|obj| obj.into_bound_py_any(py))
     }
 
+    #[cfg(feature = "pyarrow")]
     pub fn to_arrow_with_errors<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
         let offset = self.offset();
         let limit = self.limit();
@@ -640,6 +645,47 @@ impl ExcelSheet {
                 )
             })?;
         (rb, errors).into_bound_py_any(py)
+    }
+
+    /// Arrow PyCapsule Interface: __arrow_c_schema__
+    pub fn __arrow_c_schema__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+        let record_batch = RecordBatch::try_from(self)
+            .with_context(|| {
+                format!(
+                    "could not create RecordBatch from sheet \"{}\"",
+                    self.name()
+                )
+            })
+            .into_pyresult()?;
+
+        arrow_capsule::schema_to_pycapsule(py, record_batch.schema().as_ref())
+            .map(|capsule| capsule.into_any())
+    }
+
+    /// Arrow PyCapsule Interface: __arrow_c_array__
+    pub fn __arrow_c_array__<'py>(
+        &self,
+        py: Python<'py>,
+        requested_schema: Option<&Bound<'py, PyAny>>,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        let _ = requested_schema; // TODO: Support schema conversion if needed
+
+        let record_batch = RecordBatch::try_from(self)
+            .with_context(|| {
+                format!(
+                    "could not create RecordBatch from sheet \"{}\"",
+                    self.name()
+                )
+            })
+            .into_pyresult()?;
+
+        let (schema_capsule, array_capsule) =
+            arrow_capsule::record_batch_to_pycapsules(py, &record_batch)?;
+
+        Ok(
+            pyo3::types::PyTuple::new(py, [schema_capsule.into_any(), array_capsule.into_any()])?
+                .into_any(),
+        )
     }
 
     pub fn __repr__(&self) -> String {
