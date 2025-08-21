@@ -14,7 +14,7 @@ jobs:
         python-version: ["3.9"]
         architecture: [x86-64, aarch64]
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - uses: dtolnay/rust-toolchain@stable
     - name: build (release)
       uses: PyO3/maturin-action@v1
@@ -36,7 +36,7 @@ jobs:
         python-version: ["3.9"]
         architecture: [x86-64, aarch64]
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - uses: dtolnay/rust-toolchain@stable
     - name: build (release)
       uses: PyO3/maturin-action@v1
@@ -57,7 +57,7 @@ jobs:
         # amd64 only for windows, as no arm64 runners are available
         python-version: ["3.9"]
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - uses: dtolnay/rust-toolchain@stable
     - name: build (release)
       uses: PyO3/maturin-action@v1
@@ -73,7 +73,7 @@ jobs:
   sdist:
     runs-on: "ubuntu-latest"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
       - name: build (sdist)
         uses: PyO3/maturin-action@v1
