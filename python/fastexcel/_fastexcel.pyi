@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import typing
-from typing import Callable, Literal
+from typing import TYPE_CHECKING, Callable, Literal
 
-import pyarrow as pa
+if TYPE_CHECKING:
+    import pyarrow as pa
 
 DType = Literal["null", "int", "float", "string", "boolean", "datetime", "date", "duration"]
 DTypeMap = dict[str | int, DType]
@@ -82,14 +83,18 @@ class _ExcelSheet:
     @property
     def visible(self) -> SheetVisible:
         """The visibility of the sheet"""
-    def to_arrow(self) -> pa.RecordBatch:
+    def to_arrow(self) -> "pa.RecordBatch":
         """Converts the sheet to a pyarrow `RecordBatch`"""
-    def to_arrow_with_errors(self) -> tuple[pa.RecordBatch, CellErrors]:
+    def to_arrow_with_errors(self) -> "tuple[pa.RecordBatch, CellErrors]":
         """Converts the sheet to a pyarrow `RecordBatch` with error information.
 
         Stores the positions of any values that cannot be parsed as the specified type and were
         therefore converted to None.
         """
+    def __arrow_c_schema__(self) -> object:
+        """Arrow PyCapsule Interface: Export schema as a PyCapsule"""
+    def __arrow_c_array__(self, requested_schema: object = None) -> tuple[object, object]:
+        """Arrow PyCapsule Interface: Export array and schema as PyCapsules"""
 
 class _ExcelTable:
     @property
@@ -118,8 +123,12 @@ class _ExcelTable:
     @property
     def specified_dtypes(self) -> DTypeMap | None:
         """The dtypes specified for the table"""
-    def to_arrow(self) -> pa.RecordBatch:
+    def to_arrow(self) -> "pa.RecordBatch":
         """Converts the table to a pyarrow `RecordBatch`"""
+    def __arrow_c_schema__(self) -> object:
+        """Arrow PyCapsule Interface: Export schema as a PyCapsule"""
+    def __arrow_c_array__(self, requested_schema: object = None) -> tuple[object, object]:
+        """Arrow PyCapsule Interface: Export array and schema as PyCapsules"""
 
 class _ExcelReader:
     """A class representing an open Excel file and allowing to read its sheets"""

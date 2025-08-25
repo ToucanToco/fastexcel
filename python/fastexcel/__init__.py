@@ -12,11 +12,18 @@ else:
 if TYPE_CHECKING:
     import pandas as pd
     import polars as pl
+    import pyarrow as pa
 
 from os.path import expanduser
 from pathlib import Path
 
-import pyarrow as pa
+try:
+    import pyarrow as pa
+
+    _PYARROW_AVAILABLE = True
+except ImportError:
+    pa = None
+    _PYARROW_AVAILABLE = False
 
 from ._fastexcel import (
     ArrowError,
@@ -44,14 +51,6 @@ DTypeMap: TypeAlias = "dict[str | int, DType]"
 ColumnNameFrom: TypeAlias = Literal["provided", "looked_up", "generated"]
 DTypeFrom: TypeAlias = Literal["provided_by_index", "provided_by_name", "guessed"]
 SheetVisible: TypeAlias = Literal["visible", "hidden", "veryhidden"]
-
-
-def _recordbatch_to_polars(rb: pa.RecordBatch) -> pl.DataFrame:
-    import polars as pl
-
-    df = pl.from_arrow(data=rb)
-    assert isinstance(df, pl.DataFrame)
-    return df
 
 
 class ExcelSheet:
@@ -99,16 +98,24 @@ class ExcelSheet:
         """The visibility of the sheet"""
         return self._sheet.visible
 
-    def to_arrow(self) -> pa.RecordBatch:
+    def to_arrow(self) -> "pa.RecordBatch":
         """Converts the sheet to a pyarrow `RecordBatch`"""
+        if not _PYARROW_AVAILABLE:
+            raise ImportError(
+                "pyarrow is required for to_arrow(). Install with: pip install 'fastexcel[pyarrow]'"
+            )
         return self._sheet.to_arrow()
 
-    def to_arrow_with_errors(self) -> tuple[pa.RecordBatch, CellErrors | None]:
+    def to_arrow_with_errors(self) -> "tuple[pa.RecordBatch, CellErrors | None]":
         """Converts the sheet to a pyarrow `RecordBatch` with error information.
 
         Stores the positions of any values that cannot be parsed as the specified type and were
         therefore converted to None.
         """
+        if not _PYARROW_AVAILABLE:
+            raise ImportError(
+                "pyarrow is required for to_arrow_with_errors(). Install with: pip install 'fastexcel[pyarrow]'"  # noqa: E501
+            )
         rb, cell_errors = self._sheet.to_arrow_with_errors()
         if not cell_errors.errors:
             return (rb, None)
@@ -119,15 +126,36 @@ class ExcelSheet:
 
         Requires the `pandas` extra to be installed.
         """
-        # We know for sure that the sheet will yield exactly one RecordBatch
+        # Note: pandas PyCapsule interface requires __dataframe__ or __arrow_c_stream__
+        # which we don't implement. Using pyarrow conversion for now.
+        # (see https://pandas.pydata.org/docs/reference/api/pandas.api.interchange.from_dataframe.html)
         return self.to_arrow().to_pandas()
 
     def to_polars(self) -> "pl.DataFrame":
         """Converts the sheet to a Polars `DataFrame`.
 
+        Uses the Arrow PyCapsule Interface for zero-copy data exchange.
         Requires the `polars` extra to be installed.
         """
-        return _recordbatch_to_polars(self.to_arrow())
+        import polars as pl
+
+        return pl.DataFrame(self)
+
+    def __arrow_c_schema__(self) -> object:
+        """Arrow PyCapsule Interface: Export schema as a PyCapsule.
+
+        This method allows zero-copy data exchange with Arrow-compatible libraries
+        like Polars without requiring PyArrow as a dependency.
+        """
+        return self._sheet.__arrow_c_schema__()
+
+    def __arrow_c_array__(self, requested_schema: object | None = None) -> tuple[object, object]:
+        """Arrow PyCapsule Interface: Export array and schema as PyCapsules.
+
+        Returns data as a tuple of (schema_capsule, array_capsule) for zero-copy
+        data exchange with Arrow-compatible libraries.
+        """
+        return self._sheet.__arrow_c_array__(requested_schema)
 
     def __repr__(self) -> str:
         return self._sheet.__repr__()
@@ -183,8 +211,12 @@ class ExcelTable:
         """The dtypes specified for the table"""
         return self._table.specified_dtypes
 
-    def to_arrow(self) -> pa.RecordBatch:
+    def to_arrow(self) -> "pa.RecordBatch":
         """Converts the table to a pyarrow `RecordBatch`"""
+        if not _PYARROW_AVAILABLE:
+            raise ImportError(
+                "pyarrow is required for to_arrow(). Install with: pip install 'fastexcel[pyarrow]'"
+            )
         return self._table.to_arrow()
 
     def to_pandas(self) -> "pd.DataFrame":
@@ -192,15 +224,36 @@ class ExcelTable:
 
         Requires the `pandas` extra to be installed.
         """
-        # We know for sure that the table will yield exactly one RecordBatch
+        # Note: pandas PyCapsule interface requires __dataframe__ or __arrow_c_stream__
+        # which we don't implement. Using pyarrow conversion for now.
+        # (see https://pandas.pydata.org/docs/reference/api/pandas.api.interchange.from_dataframe.html)
         return self.to_arrow().to_pandas()
 
     def to_polars(self) -> "pl.DataFrame":
         """Converts the table to a Polars `DataFrame`.
 
+        Uses the Arrow PyCapsule Interface for zero-copy data exchange.
         Requires the `polars` extra to be installed.
         """
-        return _recordbatch_to_polars(self.to_arrow())
+        import polars as pl
+
+        return pl.DataFrame(self)
+
+    def __arrow_c_schema__(self) -> object:
+        """Arrow PyCapsule Interface: Export schema as a PyCapsule.
+
+        This method allows zero-copy data exchange with Arrow-compatible libraries
+        like Polars without requiring PyArrow as a dependency.
+        """
+        return self._table.__arrow_c_schema__()
+
+    def __arrow_c_array__(self, requested_schema: object | None = None) -> tuple[object, object]:
+        """Arrow PyCapsule Interface: Export array and schema as PyCapsules.
+
+        Returns data as a tuple of (schema_capsule, array_capsule) for zero-copy
+        data exchange with Arrow-compatible libraries.
+        """
+        return self._table.__arrow_c_array__(requested_schema)
 
 
 class ExcelReader:
@@ -331,7 +384,7 @@ class ExcelReader:
         | None = None,
         dtypes: DType | DTypeMap | None = None,
         eager: Literal[True] = ...,
-    ) -> pa.RecordBatch: ...
+    ) -> "pa.RecordBatch": ...
     def load_table(
         self,
         name: str,
@@ -349,7 +402,7 @@ class ExcelReader:
         | None = None,
         dtypes: DType | DTypeMap | None = None,
         eager: bool = False,
-    ) -> ExcelTable | pa.RecordBatch:
+    ) -> "ExcelTable | pa.RecordBatch":
         """Loads a table by name.
 
         :param name: The name of the table to load.
@@ -413,7 +466,7 @@ class ExcelReader:
         dtype_coercion: Literal["coerce", "strict"] = "coerce",
         use_columns: list[str] | list[int] | str | None = None,
         dtypes: DType | DTypeMap | None = None,
-    ) -> pa.RecordBatch:
+    ) -> "pa.RecordBatch":
         """Loads a sheet eagerly by index or name.
 
         For xlsx files, this will be faster and more memory-efficient, as it will use
