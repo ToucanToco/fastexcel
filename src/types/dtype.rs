@@ -5,7 +5,7 @@ use std::{
     sync::OnceLock,
 };
 
-use arrow::datatypes::{DataType as ArrowDataType, TimeUnit};
+use arrow_schema::{DataType as ArrowDataType, TimeUnit};
 use calamine::{CellErrorType, CellType, DataType, Range};
 use log::warn;
 use pyo3::{
