@@ -25,13 +25,13 @@ name = "fastexcel"
 crate-type = ["cdylib"]
 
 [dependencies]
-arrow-schema = "^55.2.0"
-arrow-array = { version = "^55.2.0", features = ["ffi"] }
-arrow-pyarrow = { version = "^55.2.0", optional = true }
+arrow-schema = "^56.1.0"
+arrow-array = { version = "^56.1.0", features = ["ffi"] }
+arrow-pyarrow = { version = "^56.1.0", optional = true }
 calamine = { version = "^0.30.0", features = ["dates"] }
 chrono = { version = "^0.4.41", default-features = false }
 log = "0.4.27"
-pyo3 = { version = "^0.24.2", features = ["abi3-py39"] }
+pyo3 = { version = "^0.25", features = ["abi3-py39"] }
 pyo3-log = "^0.12.4"
 
 [dev-dependencies]
