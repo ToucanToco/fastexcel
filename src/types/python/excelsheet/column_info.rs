@@ -1,6 +1,6 @@
 use std::{fmt::Display, str::FromStr};
 
-use arrow::datatypes::Field;
+use arrow_schema::Field;
 use calamine::DataType;
 use pyo3::{PyResult, pyclass, pymethods};
 

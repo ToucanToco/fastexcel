@@ -26,7 +26,12 @@ crate-type = ["cdylib"]
 
 [dependencies]
 # There's a lot of stuff we don't want here, such as serde support
-arrow = { version = "^55.2.0", default-features = false, features = ["ffi"] }
+# arrow = { version = "^55.2.0", default-features = false, features = ["ffi"] }
+arrow-schema = { version = "^55.2.0", default-features = false }
+arrow-array = { version = "^55.2.0", default-features = false, features = [
+    "ffi",
+] }
+arrow-pyarrow = { version = "^55.2.0", default-features = false, optional = true }
 calamine = { version = "^0.30.0", features = ["dates"] }
 chrono = { version = "^0.4.41", default-features = false }
 log = "0.4.27"
@@ -42,7 +47,7 @@ rstest = { version = "^0.26.1", default-features = false }
 [features]
 default = ["extension-module", "pyarrow"]
 extension-module = ["pyo3/extension-module"]
-pyarrow = ["arrow/pyarrow"]
+pyarrow = ["dep:arrow-pyarrow"]
 # feature for tests only. This makes Python::with_gil auto-initialize Python
 # interpreters, which allows us to instantiate Python objects in tests
 # (see https://pyo3.rs/v0.22.3/features#auto-initialize)
