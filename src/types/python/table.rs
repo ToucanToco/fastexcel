@@ -1,12 +1,14 @@
 use std::sync::Arc;
 
-use arrow::{
-    array::{NullArray, RecordBatch},
-    pyarrow::ToPyArrow,
-};
+use arrow::array::{NullArray, RecordBatch};
+#[cfg(feature = "pyarrow")]
+use arrow::pyarrow::ToPyArrow;
 use calamine::{Data, Range, Table};
+use pyo3::{Bound, PyAny, PyResult};
 use pyo3::{PyObject, Python, pyclass, pymethods};
 
+use crate::arrow_capsule;
+use crate::error::py_errors::IntoPyResult;
 use crate::{
     data::{
         create_boolean_array_from_range, create_date_array_from_range,
@@ -266,6 +268,7 @@ impl ExcelTable {
         })
     }
 
+    #[cfg(feature = "pyarrow")]
     pub fn to_arrow(&self, py: Python<'_>) -> FastExcelResult<PyObject> {
         RecordBatch::try_from(self)
             .with_context(|| {
@@ -284,6 +287,37 @@ impl ExcelTable {
                     table = self.name, sheet = self.sheet_name
                 )
             })
+    }
+
+    /// Arrow PyCapsule Interface: __arrow_c_schema__
+    pub fn __arrow_c_schema__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+        let record_batch = RecordBatch::try_from(self)
+            .with_context(|| format!("could not create RecordBatch from table \"{}\"", self.name))
+            .into_pyresult()?;
+
+        arrow_capsule::schema_to_pycapsule(py, record_batch.schema().as_ref())
+            .map(|capsule| capsule.into_any())
+    }
+
+    /// Arrow PyCapsule Interface: __arrow_c_array__
+    pub fn __arrow_c_array__<'py>(
+        &self,
+        py: Python<'py>,
+        requested_schema: Option<&Bound<'py, PyAny>>,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        let _ = requested_schema; // TODO: Support schema conversion if needed
+
+        let record_batch = RecordBatch::try_from(self)
+            .with_context(|| format!("could not create RecordBatch from table \"{}\"", self.name))
+            .into_pyresult()?;
+
+        let (schema_capsule, array_capsule) =
+            arrow_capsule::record_batch_to_pycapsules(py, &record_batch)?;
+
+        Ok(
+            pyo3::types::PyTuple::new(py, [schema_capsule.into_any(), array_capsule.into_any()])?
+                .into_any(),
+        )
     }
 
     pub fn __repr__(&self) -> String {
