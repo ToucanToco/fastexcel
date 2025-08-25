@@ -5,9 +5,9 @@ use calamine::{CellType, Range, Sheet as CalamineSheet, SheetVisible as Calamine
 use column_info::{AvailableColumns, ColumnInfoNoDtype};
 use std::{cmp, collections::HashSet, fmt::Debug, str::FromStr};
 
+use arrow_array::RecordBatch;
 #[cfg(feature = "pyarrow")]
-use arrow::pyarrow::ToPyArrow;
-use arrow::record_batch::RecordBatch;
+use arrow_pyarrow::ToPyArrow;
 
 use pyo3::{
     Bound, IntoPyObject, IntoPyObjectExt, PyAny, PyObject, PyResult,
