@@ -1,12 +1,10 @@
 from __future__ import annotations
 
 import typing
-from typing import TYPE_CHECKING, Any, Callable, Literal
+from typing import TYPE_CHECKING, Callable, Literal
 
 if TYPE_CHECKING:
     import pyarrow as pa
-else:
-    pa = Any
 
 DType = Literal["null", "int", "float", "string", "boolean", "datetime", "date", "duration"]
 DTypeMap = dict[str | int, DType]

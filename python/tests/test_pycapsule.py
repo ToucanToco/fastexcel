@@ -96,10 +96,9 @@ def test_to_polars_without_pyarrow():
     # Test with table as well
     excel_reader_table = fastexcel.read_excel(path_for_fixture("sheet-with-tables.xlsx"))
     table_names = excel_reader_table.table_names()
-    if table_names:
-        table = excel_reader_table.load_table(table_names[0])
-        df_table = table.to_polars()
-        assert isinstance(df_table, pl.DataFrame)
+    table = excel_reader_table.load_table(table_names[0])
+    df_table = table.to_polars()
+    assert isinstance(df_table, pl.DataFrame)
 
 
 def test_to_pandas_still_requires_pyarrow():
@@ -121,7 +120,6 @@ def test_to_pandas_still_requires_pyarrow():
     # Test with table as well
     excel_reader_table = fastexcel.read_excel(path_for_fixture("sheet-with-tables.xlsx"))
     table_names = excel_reader_table.table_names()
-    if table_names:
-        table = excel_reader_table.load_table(table_names[0])
-        df_table = table.to_pandas()
-        assert isinstance(df_table, pd.DataFrame)
+    table = excel_reader_table.load_table(table_names[0])
+    df_table = table.to_pandas()
+    assert isinstance(df_table, pd.DataFrame)

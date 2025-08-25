@@ -88,7 +88,7 @@ impl ExcelSheets {
         }
     }
 
-    fn worksheet_range_ref(&'_ mut self, name: &str) -> FastExcelResult<Range<DataRef<'_>>> {
+    fn worksheet_range_ref(&mut self, name: &str) -> FastExcelResult<Range<DataRef<'_>>> {
         match self {
             ExcelSheets::File(Sheets::Xlsx(sheets)) => Ok(sheets.worksheet_range_ref(name)?),
             ExcelSheets::Bytes(Sheets::Xlsx(sheets)) => Ok(sheets.worksheet_range_ref(name)?),

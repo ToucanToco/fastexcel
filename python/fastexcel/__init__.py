@@ -145,7 +145,7 @@ class ExcelSheet:
         """Arrow PyCapsule Interface: Export schema as a PyCapsule.
 
         This method allows zero-copy data exchange with Arrow-compatible libraries
-        like Polars without requiring pyarrow as a dependency.
+        like Polars without requiring PyArrow as a dependency.
         """
         return self._sheet.__arrow_c_schema__()
 
@@ -243,7 +243,7 @@ class ExcelTable:
         """Arrow PyCapsule Interface: Export schema as a PyCapsule.
 
         This method allows zero-copy data exchange with Arrow-compatible libraries
-        like Polars without requiring pyarrow as a dependency.
+        like Polars without requiring PyArrow as a dependency.
         """
         return self._table.__arrow_c_schema__()
 

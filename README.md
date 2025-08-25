@@ -61,7 +61,7 @@ import fastexcel
 reader = fastexcel.read_excel("data.xlsx")
 sheet = reader.load_sheet(0)
 
-# Convert to pandas (requires pandas[pyarrow] extra)
+# Convert to pandas (requires `pandas` extra)
 df = sheet.to_pandas()
 
 # Or get pyarrow RecordBatch directly
@@ -85,8 +85,8 @@ df = pl.DataFrame(table)  # Zero-copy via PyCapsule, no pyarrow needed
 ## Key Features
 
 - **Zero-copy data exchange** via [Arrow PyCapsule Interface](https://arrow.apache.org/docs/format/CDataInterface/PyCapsuleInterface.html)
-- **Flexible dependencies** - use with Polars (no pyarrow needed) or pandas (includes pyarrow)
-- **Seamless Polars integration** - `pl.DataFrame(sheet)` and `sheet.to_polars()` work without pyarrow via PyCapsule interface
+- **Flexible dependencies** - use with Polars (no PyArrow needed) or Pandas (includes PyArrow)
+- **Seamless Polars integration** - `pl.DataFrame(sheet)` and `sheet.to_polars()` work without PyArrow via PyCapsule interface
 - **High performance** - written in Rust with [calamine](https://github.com/tafia/calamine) and [Apache Arrow](https://arrow.apache.org/)
 - **Memory efficient** - lazy loading and optional eager evaluation
 - **Type safety** - automatic type inference with manual override options
