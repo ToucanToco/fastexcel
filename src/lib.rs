@@ -1,4 +1,3 @@
-mod arrow_capsule;
 mod data;
 mod error;
 mod types;

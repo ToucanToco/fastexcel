@@ -1,11 +1,15 @@
 pub(crate) mod column_info;
 pub(crate) mod table;
 
+use arrow_schema::Field;
 use calamine::{CellType, Range, Sheet as CalamineSheet, SheetVisible as CalamineSheetVisible};
 use column_info::{AvailableColumns, ColumnInfoNoDtype};
+use pyo3::types::{PyCapsule, PyTuple};
+use pyo3_arrow::ffi::{to_array_pycapsules, to_schema_pycapsule};
+use std::sync::Arc;
 use std::{cmp, collections::HashSet, fmt::Debug, str::FromStr};
 
-use arrow_array::RecordBatch;
+use arrow_array::{RecordBatch, StructArray};
 #[cfg(feature = "pyarrow")]
 use arrow_pyarrow::ToPyArrow;
 
@@ -15,7 +19,7 @@ use pyo3::{
     types::{PyList, PyString},
 };
 
-use crate::arrow_capsule;
+use crate::data::selected_columns_to_schema;
 use crate::{
     data::{
         ExcelSheetData, record_batch_from_data_and_columns,
@@ -648,28 +652,17 @@ impl ExcelSheet {
     }
 
     /// Arrow PyCapsule Interface: __arrow_c_schema__
-    pub fn __arrow_c_schema__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        let record_batch = RecordBatch::try_from(self)
-            .with_context(|| {
-                format!(
-                    "could not create RecordBatch from sheet \"{}\"",
-                    self.name()
-                )
-            })
-            .into_pyresult()?;
-
-        arrow_capsule::schema_to_pycapsule(py, record_batch.schema().as_ref())
-            .map(|capsule| capsule.into_any())
+    pub fn __arrow_c_schema__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyCapsule>> {
+        let schema = selected_columns_to_schema(&self.selected_columns);
+        Ok(to_schema_pycapsule(py, &schema)?)
     }
 
     /// Arrow PyCapsule Interface: __arrow_c_array__
     pub fn __arrow_c_array__<'py>(
         &self,
         py: Python<'py>,
-        requested_schema: Option<&Bound<'py, PyAny>>,
-    ) -> PyResult<Bound<'py, PyAny>> {
-        let _ = requested_schema; // TODO: Support schema conversion if needed
-
+        requested_schema: Option<Bound<'py, PyCapsule>>,
+    ) -> PyResult<Bound<'py, PyTuple>> {
         let record_batch = RecordBatch::try_from(self)
             .with_context(|| {
                 format!(
@@ -679,13 +672,14 @@ impl ExcelSheet {
             })
             .into_pyresult()?;
 
-        let (schema_capsule, array_capsule) =
-            arrow_capsule::record_batch_to_pycapsules(py, &record_batch)?;
-
-        Ok(
-            pyo3::types::PyTuple::new(py, [schema_capsule.into_any(), array_capsule.into_any()])?
-                .into_any(),
-        )
+        let field = Field::new_struct("", record_batch.schema_ref().fields().clone(), false);
+        let array = Arc::new(StructArray::from(record_batch.clone()));
+        Ok(to_array_pycapsules(
+            py,
+            field.into(),
+            array.as_ref(),
+            requested_schema,
+        )?)
     }
 
     pub fn __repr__(&self) -> String {
