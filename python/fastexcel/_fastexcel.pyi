@@ -92,9 +92,23 @@ class _ExcelSheet:
         therefore converted to None.
         """
     def __arrow_c_schema__(self) -> object:
-        """Arrow PyCapsule Interface: Export schema as a PyCapsule"""
+        """Export the schema as an `ArrowSchema` `PyCapsule`.
+
+        https://arrow.apache.org/docs/format/CDataInterface/PyCapsuleInterface.html#arrowschema-export
+
+        The Arrow PyCapsule Interface enables zero-copy data exchange with
+        Arrow-compatible libraries without requiring PyArrow as a dependency.
+        """
     def __arrow_c_array__(self, requested_schema: object = None) -> tuple[object, object]:
-        """Arrow PyCapsule Interface: Export array and schema as PyCapsules"""
+        """Export the schema and data as a pair of `ArrowSchema` and `ArrowArray` `PyCapsules`.
+
+        The optional `requested_schema` parameter allows for potential schema conversion.
+
+        https://arrow.apache.org/docs/format/CDataInterface/PyCapsuleInterface.html#arrowarray-export
+
+        The Arrow PyCapsule Interface enables zero-copy data exchange with
+        Arrow-compatible libraries without requiring PyArrow as a dependency.
+        """
 
 class _ExcelTable:
     @property
@@ -126,9 +140,24 @@ class _ExcelTable:
     def to_arrow(self) -> "pa.RecordBatch":
         """Converts the table to a pyarrow `RecordBatch`"""
     def __arrow_c_schema__(self) -> object:
-        """Arrow PyCapsule Interface: Export schema as a PyCapsule"""
+        """Export the schema as an `ArrowSchema` `PyCapsule`.
+
+        https://arrow.apache.org/docs/format/CDataInterface/PyCapsuleInterface.html#arrowschema-export
+
+        The Arrow PyCapsule Interface enables zero-copy data exchange with
+        Arrow-compatible libraries without requiring PyArrow as a dependency.
+        """
+
     def __arrow_c_array__(self, requested_schema: object = None) -> tuple[object, object]:
-        """Arrow PyCapsule Interface: Export array and schema as PyCapsules"""
+        """Export the schema and data as a pair of `ArrowSchema` and `ArrowArray` `PyCapsules`.
+
+        The optional `requested_schema` parameter allows for potential schema conversion.
+
+        https://arrow.apache.org/docs/format/CDataInterface/PyCapsuleInterface.html#arrowarray-export
+
+        The Arrow PyCapsule Interface enables zero-copy data exchange with
+        Arrow-compatible libraries without requiring PyArrow as a dependency.
+        """
 
 class _ExcelReader:
     """A class representing an open Excel file and allowing to read its sheets"""

@@ -32,6 +32,7 @@ calamine = { version = "^0.30.0", features = ["dates"] }
 chrono = { version = "^0.4.41", default-features = false }
 log = "0.4.27"
 pyo3 = { version = "^0.25", features = ["abi3-py39"] }
+pyo3-arrow = { version = "0.11", default-features = false }
 pyo3-log = "^0.12.4"
 
 [dev-dependencies]
