@@ -321,7 +321,7 @@ impl ExcelTable {
             .into_pyresult()?;
 
         let field = Field::new_struct("", record_batch.schema_ref().fields().clone(), false);
-        let array = Arc::new(StructArray::from(record_batch.clone()));
+        let array = Arc::new(StructArray::from(record_batch));
         Ok(to_array_pycapsules(
             py,
             field.into(),
