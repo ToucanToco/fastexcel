@@ -285,7 +285,7 @@ class ExcelReader:
         *,
         header_row: int | None = 0,
         column_names: list[str] | None = None,
-        skip_rows: int | None = None,
+        skip_rows: int | list[int] | Callable[[int], bool] | None = None,
         n_rows: int | None = None,
         schema_sample_rows: int | None = 1_000,
         dtype_coercion: Literal["coerce", "strict"] = "coerce",
@@ -306,13 +306,15 @@ class ExcelReader:
                              If `column_names` is used, `header_row` will be ignored.
         :param n_rows: Specifies how many rows should be loaded.
                        If `None`, all rows are loaded
-        :param skip_rows: Specifies how many rows should be skipped after the `header_row`.
+        :param skip_rows: Specifies which rows should be skipped after the `header_row`.
                           Any rows before the `header_row` are automatically skipped.
-                          If `header_row` is `None`:
-                            - if `skip_rows` is `None` (default): it skips all empty rows
-                            at the beginning of the sheet.
-                            - if `skip_rows` is a number, it skips the specified number
-                            of rows from the start of the sheet.
+                          It means row indices are relative to data rows, not the sheet!
+                          Can be one of:
+                          - `int`: Skip this many rows after the header row
+                          - `list[int]`: Skip specific row indices (0-based relative to data rows)
+                          - `Callable[[int], bool]`: Function that receives row index (0-based
+                          relative to data rows) and returns True to skip the row
+                          - `None`: If `header_row` is None, skips empty rows at beginning
         :param schema_sample_rows: Specifies how many rows should be used to determine
                                    the dtype of a column. Cannot be 0. A specific dtype can be
                                    enforced for some or all columns through the `dtypes` parameter.
@@ -378,6 +380,7 @@ class ExcelReader:
         dtypes: DType | DTypeMap | None = None,
         eager: Literal[False] = ...,
     ) -> ExcelTable: ...
+
     @typing.overload
     def load_table(
         self,
@@ -397,6 +400,7 @@ class ExcelReader:
         dtypes: DType | DTypeMap | None = None,
         eager: Literal[True] = ...,
     ) -> "pa.RecordBatch": ...
+
     def load_table(
         self,
         name: str,
@@ -472,7 +476,7 @@ class ExcelReader:
         *,
         header_row: int | None = 0,
         column_names: list[str] | None = None,
-        skip_rows: int | None = None,
+        skip_rows: int | list[int] | Callable[[int], bool] | None = None,
         n_rows: int | None = None,
         schema_sample_rows: int | None = 1_000,
         dtype_coercion: Literal["coerce", "strict"] = "coerce",
@@ -580,11 +584,11 @@ def read_excel(source: Path | str | bytes) -> ExcelReader:
 
 
 __all__ = (
-    ## version
+    # version
     "__version__",
-    ## main entrypoint
+    # main entrypoint
     "read_excel",
-    ## Python types
+    # Python types
     "DType",
     "DTypeMap",
     # Excel reader

@@ -14,7 +14,7 @@ use arrow_array::{RecordBatch, StructArray};
 use arrow_pyarrow::ToPyArrow;
 
 use pyo3::{
-    Bound, IntoPyObject, IntoPyObjectExt, PyAny, PyObject, PyResult,
+    Bound, FromPyObject, IntoPyObject, IntoPyObjectExt, PyAny, PyObject, PyResult,
     prelude::{PyAnyMethods, Python, pyclass, pymethods},
     types::{PyList, PyString},
 };
@@ -22,8 +22,8 @@ use pyo3::{
 use crate::data::selected_columns_to_schema;
 use crate::{
     data::{
-        ExcelSheetData, record_batch_from_data_and_columns,
-        record_batch_from_data_and_columns_with_errors,
+        ExcelSheetData, record_batch_from_data_and_columns_with_errors,
+        record_batch_from_data_and_columns_with_skip_rows,
     },
     error::{
         ErrorContext, FastExcelError, FastExcelErrorKind, FastExcelResult, py_errors::IntoPyResult,
@@ -61,34 +61,116 @@ impl Header {
     }
 }
 
+#[derive(Debug)]
+pub(crate) enum SkipRows {
+    Simple(usize),
+    List(HashSet<usize>),
+    Callable(PyObject),
+    SkipEmptyRowsAtBeginning,
+}
+
+impl FromPyObject<'_> for SkipRows {
+    fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
+        // Handle None case
+        if obj.is_none() {
+            return Ok(SkipRows::SkipEmptyRowsAtBeginning);
+        }
+
+        // Try to extract as int first
+        if let Ok(skip_count) = obj.extract::<usize>() {
+            return Ok(SkipRows::Simple(skip_count));
+        }
+
+        // Try to extract as list of integers
+        if let Ok(skip_list) = obj.extract::<Vec<usize>>() {
+            let skip_set: HashSet<usize> = skip_list.into_iter().collect();
+            return Ok(SkipRows::List(skip_set));
+        }
+
+        // Check if it's callable
+        if obj.hasattr("__call__").unwrap_or(false) {
+            return Ok(SkipRows::Callable(obj.clone().into()));
+        }
+
+        Err(FastExcelErrorKind::InvalidParameters(
+            "skip_rows must be int, list of int, callable, or None".to_string(),
+        )
+        .into())
+        .into_pyresult()
+    }
+}
+
+impl SkipRows {
+    pub(crate) fn should_skip_row(&self, row_idx: usize, py: Python) -> FastExcelResult<bool> {
+        match self {
+            SkipRows::Simple(offset) => Ok(row_idx < *offset),
+            SkipRows::List(skip_set) => Ok(skip_set.contains(&row_idx)),
+            SkipRows::Callable(func) => {
+                let result = func.call1(py, (row_idx,)).map_err(|e| {
+                    FastExcelErrorKind::InvalidParameters(format!(
+                        "Error calling skip_rows function for row {}: {}",
+                        row_idx, e
+                    ))
+                })?;
+                result.extract::<bool>(py).map_err(|e| {
+                    FastExcelErrorKind::InvalidParameters(format!(
+                        "skip_rows callable must return bool, got error: {}",
+                        e
+                    ))
+                    .into()
+                })
+            }
+            SkipRows::SkipEmptyRowsAtBeginning => {
+                // This is handled by calamine's FirstNonEmptyRow in the header logic
+                // For array creation, we don't need additional filtering
+                Ok(false)
+            }
+        }
+    }
+
+    pub(crate) fn simple_offset(&self) -> Option<usize> {
+        match self {
+            SkipRows::Simple(offset) => Some(*offset),
+            SkipRows::SkipEmptyRowsAtBeginning => Some(0), // Let calamine's FirstNonEmptyRow handle it
+            _ => None,
+        }
+    }
+}
+
 pub(crate) struct Pagination {
-    skip_rows: usize,
+    skip_rows: SkipRows,
     n_rows: Option<usize>,
 }
 
 impl Pagination {
     pub(crate) fn new<CT: CellType>(
-        skip_rows: usize,
+        skip_rows: SkipRows,
         n_rows: Option<usize>,
         range: &Range<CT>,
     ) -> FastExcelResult<Self> {
         let max_height = range.height();
-        if max_height < skip_rows {
-            Err(FastExcelErrorKind::InvalidParameters(format!(
-                "Too many rows skipped. Max height is {max_height}"
-            ))
-            .into())
-        } else {
-            Ok(Self { skip_rows, n_rows })
+        // Only validate for simple skip_rows case
+        if let SkipRows::Simple(skip_count) = &skip_rows {
+            if max_height < *skip_count {
+                return Err(FastExcelErrorKind::InvalidParameters(format!(
+                    "Too many rows skipped. Max height is {max_height}"
+                ))
+                .into());
+            }
         }
+        Ok(Self { skip_rows, n_rows })
     }
 
     pub(crate) fn offset(&self) -> usize {
-        self.skip_rows
+        self.skip_rows.simple_offset().unwrap_or(0)
     }
 
     pub(crate) fn n_rows(&self) -> Option<usize> {
         self.n_rows
+    }
+
+    pub(crate) fn skip_rows(&self) -> &SkipRows {
+        &self.skip_rows
     }
 }
 
@@ -528,11 +610,14 @@ impl TryFrom<&ExcelSheet> for RecordBatch {
     type Error = FastExcelError;
 
     fn try_from(sheet: &ExcelSheet) -> FastExcelResult<Self> {
-        let offset = sheet.offset();
-        let limit = sheet.limit();
-
-        record_batch_from_data_and_columns(&sheet.selected_columns, sheet.data(), offset, limit)
-            .with_context(|| format!("could not convert sheet {} to RecordBatch", sheet.name()))
+        record_batch_from_data_and_columns_with_skip_rows(
+            &sheet.selected_columns,
+            &sheet.data,
+            sheet.pagination.skip_rows(),
+            sheet.offset(),
+            sheet.limit(),
+        )
+        .with_context(|| format!("could not convert sheet {} to RecordBatch", sheet.name()))
     }
 }
 
@@ -550,7 +635,11 @@ impl ExcelSheet {
     #[getter]
     pub fn height(&mut self) -> usize {
         self.height.unwrap_or_else(|| {
-            let height = self.limit() - self.offset();
+            use crate::data::generate_row_selector;
+            let height =
+                generate_row_selector(self.pagination.skip_rows(), self.offset(), self.limit())
+                    .map(|selector| selector.len())
+                    .unwrap_or_else(|_| self.limit() - self.offset());
             self.height = Some(height);
             height
         })

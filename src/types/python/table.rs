@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use arrow_array::{NullArray, RecordBatch, StructArray};
+use arrow_array::{RecordBatch, StructArray};
 #[cfg(feature = "pyarrow")]
 use arrow_pyarrow::ToPyArrow;
 use arrow_schema::Field;
@@ -12,15 +12,10 @@ use pyo3_arrow::ffi::{to_array_pycapsules, to_schema_pycapsule};
 
 use crate::error::py_errors::IntoPyResult;
 use crate::{
-    data::{
-        create_boolean_array_from_range, create_date_array_from_range,
-        create_datetime_array_from_range, create_duration_array_from_range,
-        create_float_array_from_range, create_int_array_from_range, create_string_array_from_range,
-        record_batch_from_name_array_iterator, selected_columns_to_schema,
-    },
+    data::{record_batch_from_data_and_columns_with_skip_rows, selected_columns_to_schema},
     error::{ErrorContext, FastExcelError, FastExcelErrorKind, FastExcelResult},
     types::{
-        dtype::{DType, DTypeCoercion, DTypes},
+        dtype::{DTypeCoercion, DTypes},
         python::excelsheet::column_info::finalize_column_info,
     },
     utils::schema::get_schema_sample_rows,
@@ -140,63 +135,15 @@ impl TryFrom<&ExcelTable> for RecordBatch {
     type Error = FastExcelError;
 
     fn try_from(table: &ExcelTable) -> FastExcelResult<Self> {
-        let offset = table.offset();
-        let limit = table.limit();
-
-        let iter = table.selected_columns.iter().map(|column_info| {
-            (
-                column_info.name(),
-                match column_info.dtype() {
-                    DType::Bool => create_boolean_array_from_range(
-                        table.data(),
-                        column_info.index(),
-                        offset,
-                        limit,
-                    ),
-                    DType::Int => create_int_array_from_range(
-                        table.data(),
-                        column_info.index(),
-                        offset,
-                        limit,
-                    ),
-                    DType::Float => create_float_array_from_range(
-                        table.data(),
-                        column_info.index(),
-                        offset,
-                        limit,
-                    ),
-                    DType::String => create_string_array_from_range(
-                        table.data(),
-                        column_info.index(),
-                        offset,
-                        limit,
-                    ),
-                    DType::DateTime => create_datetime_array_from_range(
-                        table.data(),
-                        column_info.index(),
-                        offset,
-                        limit,
-                    ),
-                    DType::Date => create_date_array_from_range(
-                        table.data(),
-                        column_info.index(),
-                        offset,
-                        limit,
-                    ),
-                    DType::Duration => create_duration_array_from_range(
-                        table.data(),
-                        column_info.index(),
-                        offset,
-                        limit,
-                    ),
-                    DType::Null => Arc::new(NullArray::new(limit - offset)),
-                },
-            )
-        });
-
-        let schema = selected_columns_to_schema(&table.selected_columns);
-
-        record_batch_from_name_array_iterator(iter, schema).with_context(|| {
+        let excel_data = crate::data::ExcelSheetData::Owned(table.data().clone());
+        record_batch_from_data_and_columns_with_skip_rows(
+            &table.selected_columns,
+            &excel_data,
+            table.pagination.skip_rows(),
+            table.offset(),
+            table.limit(),
+        )
+        .with_context(|| {
             format!(
                 "could not convert table {table} in sheet {sheet} to RecordBatch",
                 table = &table.name,
