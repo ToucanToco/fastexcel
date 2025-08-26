@@ -380,7 +380,19 @@ fn column_info_from_header<D: CalamineDataProvider>(
             .map(|col_idx| {
                 data.get_as_string((*row_idx, col_idx))
                     .map(|col_name| {
-                        ColumnInfoNoDtype::new(col_name, col_idx, ColumnNameFrom::LookedUp)
+                        // Remove null bytes from column names to avoid CString panics in Arrow FFI.
+                        //
+                        // Excel strings (especially UTF-16 in .xls) may contain embedded nulls (`\0`) after
+                        // conversion to Rust `String`. Arrow’s C FFI uses `CString::new()`, which fails on
+                        // null bytes, causing panics.
+                        //
+                        // This strips nulls while keeping the readable content.
+                        let sanitized_col_name = col_name.replace('\0', "");
+                        ColumnInfoNoDtype::new(
+                            sanitized_col_name,
+                            col_idx,
+                            ColumnNameFrom::LookedUp,
+                        )
                     })
                     .unwrap_or_else(|| {
                         ColumnInfoNoDtype::new(

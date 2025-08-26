@@ -588,3 +588,10 @@ def test_header_row_and_skip_rows(
         .to_polars(),
         pl.DataFrame(expected),
     )
+
+
+def test_null_bytes_in_column_names() -> None:
+    """https://github.com/ToucanToco/fastexcel/issues/343"""
+    reader = fastexcel.read_excel(path_for_fixture("null-bytes-in-columns-names.xls"))
+    df = reader.load_sheet(0).to_polars()
+    assert df.shape == (8_763, 11)
