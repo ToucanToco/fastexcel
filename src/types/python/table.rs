@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
-use arrow::array::{NullArray, RecordBatch};
+use arrow_array::{NullArray, RecordBatch};
 #[cfg(feature = "pyarrow")]
-use arrow::pyarrow::ToPyArrow;
+use arrow_pyarrow::ToPyArrow;
 use calamine::{Data, Range, Table};
 use pyo3::{Bound, PyAny, PyResult};
 use pyo3::{PyObject, Python, pyclass, pymethods};
