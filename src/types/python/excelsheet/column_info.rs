@@ -2,13 +2,14 @@ use std::{fmt::Display, str::FromStr};
 
 use arrow_schema::Field;
 use calamine::DataType;
+#[cfg(feature = "python")]
 use pyo3::{PyResult, pyclass, pymethods};
 
+#[cfg(feature = "python")]
+use crate::error::py_errors::IntoPyResult;
 use crate::{
     data::ExcelSheetData,
-    error::{
-        ErrorContext, FastExcelError, FastExcelErrorKind, FastExcelResult, py_errors::IntoPyResult,
-    },
+    error::{ErrorContext, FastExcelError, FastExcelErrorKind, FastExcelResult},
     types::{
         dtype::{DType, DTypeCoercion, DTypes, get_dtype_for_column},
         idx_or_name::IdxOrName,
@@ -89,13 +90,9 @@ impl FromStr for DTypeFrom {
 // to specify them via docstrings
 /// This class provides information about a single column in a sheet
 #[derive(Debug, Clone, PartialEq)]
-#[pyclass(name = "ColumnInfo")]
-pub(crate) struct ColumnInfo {
-    /// `str`. The name of the column
-    #[pyo3(get)]
+#[cfg_attr(feature = "python", pyclass(name = "ColumnInfo"))]
+pub struct ColumnInfo {
     pub name: String,
-    /// `int`. The index of the column
-    #[pyo3(get)]
     index: usize,
     dtype: DType,
     column_name_from: ColumnNameFrom,
@@ -132,12 +129,14 @@ impl ColumnInfo {
     }
 }
 
+#[cfg(feature = "python")]
 impl From<&ColumnInfo> for Field {
     fn from(col_info: &ColumnInfo) -> Self {
         Field::new(col_info.name(), col_info.dtype().into(), true)
     }
 }
 
+#[cfg(feature = "python")]
 #[pymethods]
 impl ColumnInfo {
     /// Creates a new ColumnInfo object.
@@ -163,10 +162,23 @@ impl ColumnInfo {
             dtype_from.parse().into_pyresult()?,
         ))
     }
+
     /// `fastexcel.DType`. The dtype of the column
     #[getter(dtype)]
     fn get_dtype(&self) -> String {
         self.dtype.to_string()
+    }
+
+    #[getter("name")]
+    /// `str`. The name of the column
+    pub fn py_name(&self) -> &str {
+        &self.name
+    }
+
+    #[getter("index")]
+    /// `int`. The index of the column
+    pub fn py_index(&self) -> usize {
+        self.index
     }
 
     /// `fastexcel.ColumnNameFrom`. How the name of the column was determined.
@@ -211,15 +223,27 @@ impl ColumnInfo {
 /// This class provides information about a single column in a sheet, without associated type
 /// information
 #[derive(Debug, Clone, PartialEq)]
-#[pyclass(name = "ColumnInfoNoDtype")]
+#[cfg_attr(feature = "python", pyclass(name = "ColumnInfoNoDtype"))]
 pub(crate) struct ColumnInfoNoDtype {
-    /// `str`. The name of the column
-    #[pyo3(get)]
     name: String,
-    /// `int`. The index of the column
-    #[pyo3(get)]
     index: usize,
     column_name_from: ColumnNameFrom,
+}
+
+#[cfg(feature = "python")]
+#[pymethods]
+impl ColumnInfoNoDtype {
+    #[getter("name")]
+    /// `str`. The name of the column
+    pub fn py_name(&self) -> &str {
+        &self.name
+    }
+
+    #[getter("index")]
+    /// `int`. The index of the column
+    pub fn py_index(&self) -> usize {
+        self.index
+    }
 }
 
 // Allows us to easily compare ourselves to a column index or name

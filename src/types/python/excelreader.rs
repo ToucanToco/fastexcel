@@ -3,21 +3,24 @@ use std::{
     io::{BufReader, Cursor},
 };
 
+#[cfg(feature = "pyarrow")]
 use arrow_array::RecordBatch;
 #[cfg(feature = "pyarrow")]
 use arrow_pyarrow::ToPyArrow;
-use pyo3::{Bound, IntoPyObjectExt, PyAny, PyResult, Python, pyclass, pymethods};
+#[cfg(feature = "python")]
+use pyo3::{Bound, IntoPyObjectExt, PyAny, PyResult, Python, pyclass, pymethods, types::PyString};
 
 use calamine::{
     Data, DataRef, HeaderRow, Range, Reader, ReaderRef, Sheet as CalamineSheet, Sheets, Table,
     open_workbook_auto, open_workbook_auto_from_rs,
 };
 
+#[cfg(feature = "python")]
+use crate::{data::record_batch_from_data_and_columns, error::py_errors::IntoPyResult};
+
 use crate::{
-    data::{ExcelSheetData, record_batch_from_data_and_columns},
-    error::{
-        ErrorContext, FastExcelError, FastExcelErrorKind, FastExcelResult, py_errors::IntoPyResult,
-    },
+    data::ExcelSheetData,
+    error::{ErrorContext, FastExcelError, FastExcelErrorKind, FastExcelResult},
     types::{
         dtype::{DTypeCoercion, DTypes},
         idx_or_name::IdxOrName,
@@ -25,8 +28,6 @@ use crate::{
     },
     utils::schema::get_schema_sample_rows,
 };
-
-use pyo3::types::PyString;
 
 use super::excelsheet::{
     ExcelSheet, Header, Pagination, SelectedColumns,
@@ -108,14 +109,15 @@ impl ExcelSheets {
     }
 }
 
-#[pyclass(name = "_ExcelReader")]
-pub(crate) struct ExcelReader {
+#[cfg_attr(feature = "python", pyclass(name = "_ExcelReader"))]
+pub struct ExcelReader {
     sheets: ExcelSheets,
     sheet_metadata: Vec<CalamineSheet>,
     source: String,
 }
 
 impl ExcelReader {
+    #[cfg(feature = "python")]
     fn build_selected_columns(
         use_columns: Option<&Bound<'_, PyAny>>,
     ) -> FastExcelResult<SelectedColumns> {
@@ -136,6 +138,7 @@ impl ExcelReader {
         })
     }
 
+    #[cfg(feature = "python")]
     fn load_sheet_eager(
         data: &ExcelSheetData,
         pagination: Pagination,
@@ -172,6 +175,7 @@ impl ExcelReader {
         record_batch_from_data_and_columns(&available_columns, data, offset, limit)
     }
 
+    #[cfg(feature = "python")]
     #[allow(clippy::too_many_arguments)]
     fn build_sheet<'py>(
         &mut self,
@@ -267,6 +271,7 @@ impl ExcelReader {
         }
     }
 
+    #[cfg(feature = "python")]
     #[allow(clippy::too_many_arguments)]
     fn build_table<'py>(
         &mut self,
@@ -340,6 +345,7 @@ impl TryFrom<&[u8]> for ExcelReader {
     }
 }
 
+#[cfg(feature = "python")]
 #[pymethods]
 impl ExcelReader {
     pub fn __repr__(&self) -> String {
@@ -365,7 +371,7 @@ impl ExcelReader {
         eager = false,
     ))]
     #[allow(clippy::too_many_arguments)]
-    pub fn load_sheet<'py>(
+    pub(crate) fn load_sheet<'py>(
         &mut self,
         idx_or_name: &Bound<'py, PyAny>,
         header_row: Option<usize>,
@@ -443,7 +449,7 @@ impl ExcelReader {
         eager = false,
     ))]
     #[allow(clippy::too_many_arguments)]
-    pub fn load_table<'py>(
+    pub(crate) fn load_table<'py>(
         &mut self,
         name: &Bound<'py, PyString>,
         header_row: Option<usize>,

@@ -5,20 +5,24 @@ use std::{
     sync::OnceLock,
 };
 
+#[cfg(feature = "python")]
 use arrow_schema::{DataType as ArrowDataType, TimeUnit};
 use calamine::{CellErrorType, CellType, DataType, Range};
 use log::warn;
+#[cfg(feature = "python")]
 use pyo3::{
     Bound, FromPyObject, IntoPyObject, IntoPyObjectRef, PyAny, PyResult, Python,
     prelude::PyAnyMethods, types::PyString,
 };
 
-use crate::error::{FastExcelError, FastExcelErrorKind, FastExcelResult, py_errors::IntoPyResult};
+#[cfg(feature = "python")]
+use crate::error::py_errors::IntoPyResult;
+use crate::error::{FastExcelError, FastExcelErrorKind, FastExcelResult};
 
 use super::idx_or_name::IdxOrName;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Copy)]
-pub(crate) enum DType {
+pub enum DType {
     Null,
     Int,
     Float,
@@ -65,6 +69,7 @@ impl Display for DType {
     }
 }
 
+#[cfg(feature = "python")]
 impl<'py> IntoPyObject<'py> for DType {
     type Target = PyString;
 
@@ -76,6 +81,8 @@ impl<'py> IntoPyObject<'py> for DType {
         self.to_string().into_pyobject(py)
     }
 }
+
+#[cfg(feature = "python")]
 impl<'py> IntoPyObject<'py> for &DType {
     type Target = PyString;
 
@@ -88,6 +95,7 @@ impl<'py> IntoPyObject<'py> for &DType {
     }
 }
 
+#[cfg(feature = "python")]
 impl FromPyObject<'_> for DType {
     fn extract_bound(py_dtype: &Bound<'_, PyAny>) -> PyResult<Self> {
         if let Ok(dtype_pystr) = py_dtype.extract::<String>() {
@@ -102,10 +110,10 @@ impl FromPyObject<'_> for DType {
     }
 }
 
-pub(crate) type DTypeMap = HashMap<IdxOrName, DType>;
+pub type DTypeMap = HashMap<IdxOrName, DType>;
 
-#[derive(IntoPyObject, IntoPyObjectRef)]
-pub(crate) enum DTypes {
+#[cfg_attr(feature = "python", derive(IntoPyObject, IntoPyObjectRef))]
+pub enum DTypes {
     All(DType),
     Map(DTypeMap),
 }
@@ -118,6 +126,7 @@ impl FromStr for DTypes {
     }
 }
 
+#[cfg(feature = "python")]
 impl FromPyObject<'_> for DTypes {
     fn extract_bound(py_dtypes: &Bound<'_, PyAny>) -> PyResult<Self> {
         if let Ok(py_dtypes_str) = py_dtypes.extract::<String>() {
@@ -129,6 +138,7 @@ impl FromPyObject<'_> for DTypes {
     }
 }
 
+#[cfg(feature = "python")]
 impl From<&DType> for ArrowDataType {
     fn from(dtype: &DType) -> Self {
         match dtype {
@@ -165,6 +175,7 @@ impl FromStr for DTypeCoercion {
     }
 }
 
+#[cfg(feature = "python")]
 impl FromPyObject<'_> for DTypeCoercion {
     fn extract_bound(py_dtype_coercion: &Bound<'_, PyAny>) -> PyResult<Self> {
         if let Ok(dtype_coercion_pystr) = py_dtype_coercion.extract::<String>() {

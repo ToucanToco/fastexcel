@@ -17,3 +17,4 @@ docs
 uv.lock
 notebooks
 /python/tests/fixtures/~$*.xlsx
+.zed

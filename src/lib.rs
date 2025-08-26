@@ -3,18 +3,26 @@ mod error;
 mod types;
 mod utils;
 
-use error::{ErrorContext, py_errors};
+#[cfg(feature = "python")]
+use error::py_errors;
+#[cfg(feature = "python")]
 use pyo3::prelude::*;
-use types::python::{
-    ExcelReader, ExcelSheet,
-    excelsheet::column_info::{ColumnInfo, ColumnInfoNoDtype},
-    excelsheet::{CellError, CellErrors},
-    table::ExcelTable,
-};
+use types::python::excelsheet::column_info::{ColumnInfo, ColumnInfoNoDtype};
+#[cfg(feature = "python")]
+use types::python::excelsheet::{CellError, CellErrors};
 
+pub use types::python::{ExcelReader, ExcelSheet, table::ExcelTable};
+
+use crate::error::{ErrorContext, FastExcelResult};
+
+pub fn read_excel(path: &str) -> FastExcelResult<ExcelReader> {
+    ExcelReader::try_from_path(path).with_context(|| format!("could not load excel file at {path}"))
+}
+
+#[cfg(feature = "python")]
 /// Reads an excel file and returns an object allowing to access its sheets and a bit of metadata
-#[pyfunction]
-fn read_excel(source: &Bound<'_, PyAny>) -> PyResult<ExcelReader> {
+#[pyfunction(name = "read_excel")]
+fn py_read_excel(source: &Bound<'_, PyAny>) -> PyResult<ExcelReader> {
     use py_errors::IntoPyResult;
 
     if let Ok(path) = source.extract::<String>() {
@@ -44,12 +52,13 @@ fn get_version() -> String {
     version.replace("-alpha", "a").replace("-beta", "b")
 }
 
+#[cfg(feature = "python")]
 #[pymodule]
 fn _fastexcel(m: &Bound<'_, PyModule>) -> PyResult<()> {
     pyo3_log::init();
 
     let py = m.py();
-    m.add_function(wrap_pyfunction!(read_excel, m)?)?;
+    m.add_function(wrap_pyfunction!(py_read_excel, m)?)?;
     m.add_class::<ColumnInfo>()?;
     m.add_class::<ColumnInfoNoDtype>()?;
     m.add_class::<CellError>()?;

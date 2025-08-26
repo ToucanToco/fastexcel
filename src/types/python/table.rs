@@ -1,16 +1,20 @@
 use std::sync::Arc;
 
+#[cfg(feature = "python")]
 use arrow_array::{NullArray, RecordBatch, StructArray};
 #[cfg(feature = "pyarrow")]
 use arrow_pyarrow::ToPyArrow;
 use arrow_schema::Field;
 use calamine::{Data, Range, Table};
-use pyo3::types::{PyCapsule, PyTuple};
-use pyo3::{Bound, PyResult};
-use pyo3::{PyObject, Python, pyclass, pymethods};
+#[cfg(feature = "python")]
+use pyo3::{
+    Bound, PyObject, PyResult, Python, pyclass, pymethods,
+    types::{PyCapsule, PyTuple},
+};
+#[cfg(feature = "python")]
 use pyo3_arrow::ffi::{to_array_pycapsules, to_schema_pycapsule};
 
-use crate::error::py_errors::IntoPyResult;
+#[cfg(feature = "python")]
 use crate::{
     data::{
         create_boolean_array_from_range, create_date_array_from_range,
@@ -18,6 +22,10 @@ use crate::{
         create_float_array_from_range, create_int_array_from_range, create_string_array_from_range,
         record_batch_from_name_array_iterator, selected_columns_to_schema,
     },
+    error::py_errors::IntoPyResult,
+};
+
+use crate::{
     error::{ErrorContext, FastExcelError, FastExcelErrorKind, FastExcelResult},
     types::{
         dtype::{DType, DTypeCoercion, DTypes},
@@ -31,11 +39,9 @@ use super::excelsheet::{
     column_info::{AvailableColumns, ColumnInfo, build_available_columns_info},
 };
 
-#[pyclass(name = "_ExcelTable")]
-pub(crate) struct ExcelTable {
-    #[pyo3(get)]
+#[cfg_attr(feature = "python", pyclass(name = "_ExcelTable"))]
+pub struct ExcelTable {
     name: String,
-    #[pyo3(get)]
     sheet_name: String,
     selected_columns: Vec<ColumnInfo>,
     available_columns: AvailableColumns,
@@ -136,6 +142,7 @@ impl ExcelTable {
     }
 }
 
+#[cfg(feature = "python")]
 impl TryFrom<&ExcelTable> for RecordBatch {
     type Error = FastExcelError;
 
@@ -206,15 +213,12 @@ impl TryFrom<&ExcelTable> for RecordBatch {
     }
 }
 
-#[pymethods]
 impl ExcelTable {
-    #[getter]
     pub fn offset(&self) -> usize {
         self.header.offset() + self.pagination.offset()
     }
 
-    #[getter]
-    pub(crate) fn limit(&self) -> usize {
+    pub fn limit(&self) -> usize {
         let upper_bound = self.data().height();
         if let Some(n_rows) = self.pagination.n_rows() {
             let limit = self.offset() + n_rows;
@@ -226,24 +230,18 @@ impl ExcelTable {
         upper_bound
     }
 
-    #[getter]
     pub fn selected_columns(&self) -> Vec<ColumnInfo> {
         self.selected_columns.clone()
     }
 
-    pub fn available_columns<'p>(
-        &'p mut self,
-        _py: Python<'p>,
-    ) -> FastExcelResult<Vec<ColumnInfo>> {
+    pub fn available_columns(&mut self) -> FastExcelResult<Vec<ColumnInfo>> {
         self.load_available_columns().map(|cols| cols.to_vec())
     }
 
-    #[getter]
-    pub fn specified_dtypes(&self, _py: Python<'_>) -> Option<&DTypes> {
+    pub fn specified_dtypes(&self) -> Option<&DTypes> {
         self.dtypes.as_ref()
     }
 
-    #[getter]
     pub fn width(&mut self) -> usize {
         self.width.unwrap_or_else(|| {
             let width = self.data().width();
@@ -252,7 +250,6 @@ impl ExcelTable {
         })
     }
 
-    #[getter]
     pub fn height(&mut self) -> usize {
         self.height.unwrap_or_else(|| {
             let height = self.limit() - self.offset();
@@ -261,13 +258,69 @@ impl ExcelTable {
         })
     }
 
-    #[getter]
     pub fn total_height(&mut self) -> usize {
         self.total_height.unwrap_or_else(|| {
             let total_height = self.data().height() - self.header.offset();
             self.total_height = Some(total_height);
             total_height
         })
+    }
+}
+
+// NOTE: These proxy python implems are required because `#[getter]` does not play well with `cfg_attr`:
+// * https://github.com/PyO3/pyo3/issues/1003
+// * https://github.com/PyO3/pyo3/issues/780
+#[cfg(feature = "python")]
+#[pymethods]
+impl ExcelTable {
+    #[getter("name")]
+    pub fn py_name(&self) -> &str {
+        &self.name
+    }
+
+    #[getter("sheet_name")]
+    pub fn py_sheet_name(&self) -> &str {
+        &self.sheet_name
+    }
+
+    #[getter("offset")]
+    pub fn py_offset(&self) -> usize {
+        self.offset()
+    }
+
+    #[getter("limit")]
+    pub fn py_limit(&self) -> usize {
+        self.limit()
+    }
+
+    #[getter("selected_columns")]
+    pub fn py_selected_columns(&self) -> Vec<ColumnInfo> {
+        self.selected_columns()
+    }
+
+    #[pyo3(name = "available_columns")]
+    pub fn py_available_columns(&mut self) -> FastExcelResult<Vec<ColumnInfo>> {
+        self.available_columns()
+    }
+
+    #[getter("specified_dtypes")]
+    pub fn py_specified_dtypes(&self) -> Option<&DTypes> {
+        self.specified_dtypes()
+    }
+
+    #[getter("width")]
+    pub fn py_width(&mut self) -> usize {
+        self.width()
+    }
+
+    #[getter("height")]
+    pub fn py_height(&mut self) -> usize {
+        self.height()
+    }
+
+    #[getter("total_height")]
+    pub fn py_total_height(&mut self) -> usize {
+        self.total_height()
     }
 
     #[cfg(feature = "pyarrow")]
@@ -330,6 +383,7 @@ impl ExcelTable {
         )?)
     }
 
+    #[cfg(feature = "python")]
     pub fn __repr__(&self) -> String {
         format!(
             "ExcelTable<{sheet}/{name}>",

@@ -3,7 +3,7 @@ use calamine::XlsxError;
 use std::{error::Error, fmt::Display};
 
 #[derive(Debug)]
-pub(crate) enum FastExcelErrorKind {
+pub enum FastExcelErrorKind {
     UnsupportedColumnTypeCombination(String),
     CannotRetrieveCellData(usize, usize),
     CalamineCellError(calamine::CellErrorType),
@@ -48,9 +48,9 @@ impl Display for FastExcelErrorKind {
 }
 
 #[derive(Debug)]
-pub(crate) struct FastExcelError {
+pub struct FastExcelError {
     pub kind: FastExcelErrorKind,
-    context: Vec<String>,
+    pub context: Vec<String>,
 }
 
 pub(crate) trait ErrorContext {
@@ -122,6 +122,7 @@ impl<T> ErrorContext for FastExcelResult<T> {
 }
 
 /// Contains Python versions of our custom errors
+#[cfg(feature = "python")]
 pub(crate) mod py_errors {
     use super::FastExcelErrorKind;
     use crate::error;

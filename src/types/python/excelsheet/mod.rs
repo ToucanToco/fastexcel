@@ -1,33 +1,41 @@
 pub(crate) mod column_info;
 pub(crate) mod table;
 
-use arrow_schema::Field;
-use calamine::{CellType, Range, Sheet as CalamineSheet, SheetVisible as CalamineSheetVisible};
-use column_info::{AvailableColumns, ColumnInfoNoDtype};
-use pyo3::types::{PyCapsule, PyTuple};
-use pyo3_arrow::ffi::{to_array_pycapsules, to_schema_pycapsule};
 use std::sync::Arc;
 use std::{cmp, collections::HashSet, fmt::Debug, str::FromStr};
 
+#[cfg(feature = "python")]
 use arrow_array::{RecordBatch, StructArray};
 #[cfg(feature = "pyarrow")]
 use arrow_pyarrow::ToPyArrow;
+#[cfg(feature = "python")]
+use arrow_schema::Field;
+use calamine::{CellType, Range, Sheet as CalamineSheet, SheetVisible as CalamineSheetVisible};
+use column_info::{AvailableColumns, ColumnInfoNoDtype};
+#[cfg(feature = "python")]
+use pyo3::types::{PyCapsule, PyTuple};
+#[cfg(feature = "python")]
+use pyo3_arrow::ffi::{to_array_pycapsules, to_schema_pycapsule};
 
+#[cfg(feature = "python")]
 use pyo3::{
     Bound, IntoPyObject, IntoPyObjectExt, PyAny, PyObject, PyResult,
     prelude::{PyAnyMethods, Python, pyclass, pymethods},
     types::{PyList, PyString},
 };
 
-use crate::data::selected_columns_to_schema;
+#[cfg(feature = "python")]
 use crate::{
     data::{
-        ExcelSheetData, record_batch_from_data_and_columns,
-        record_batch_from_data_and_columns_with_errors,
+        record_batch_from_data_and_columns, record_batch_from_data_and_columns_with_errors,
+        selected_columns_to_schema,
     },
-    error::{
-        ErrorContext, FastExcelError, FastExcelErrorKind, FastExcelResult, py_errors::IntoPyResult,
-    },
+    error::py_errors::IntoPyResult,
+};
+
+use crate::{
+    data::ExcelSheetData,
+    error::{ErrorContext, FastExcelError, FastExcelErrorKind, FastExcelResult},
     types::{dtype::DTypes, idx_or_name::IdxOrName},
 };
 use crate::{types::dtype::DTypeCoercion, utils::schema::get_schema_sample_rows};
@@ -92,6 +100,7 @@ impl Pagination {
     }
 }
 
+#[cfg(feature = "python")]
 impl TryFrom<&Bound<'_, PyList>> for SelectedColumns {
     type Error = FastExcelError;
 
@@ -116,6 +125,7 @@ impl TryFrom<&Bound<'_, PyList>> for SelectedColumns {
 pub(crate) enum SelectedColumns {
     All,
     Selection(Vec<IdxOrName>),
+    #[cfg(feature = "python")]
     DynamicSelection(PyObject),
 }
 
@@ -124,6 +134,7 @@ impl std::fmt::Debug for SelectedColumns {
         match self {
             Self::All => write!(f, "All"),
             Self::Selection(selection) => write!(f, "Selection({selection:?})"),
+            #[cfg(feature = "python")]
             Self::DynamicSelection(func) => {
                 let addr = func as *const _ as usize;
                 write!(f, "DynamicSelection({addr})")
@@ -139,6 +150,7 @@ impl PartialEq for SelectedColumns {
             (Self::Selection(selection), Self::Selection(other_selection)) => {
                 selection == other_selection
             }
+            #[cfg(feature = "python")]
             (Self::DynamicSelection(f1), Self::DynamicSelection(f2)) => std::ptr::eq(f1, f2),
             _ => false,
         }
@@ -190,6 +202,7 @@ impl SelectedColumns {
                 // And finally, we drop the positions
                 Ok(cols.into_iter().map(|(_pos, elem)| elem).collect())
             }
+            #[cfg(feature = "python")]
             SelectedColumns::DynamicSelection(use_col_func) => Python::with_gil(|py| {
                 available_columns
                     .into_iter()
@@ -318,6 +331,7 @@ impl FromStr for SelectedColumns {
     }
 }
 
+#[cfg(feature = "python")]
 impl TryFrom<Option<&Bound<'_, PyAny>>> for SelectedColumns {
     type Error = FastExcelError;
 
@@ -351,6 +365,7 @@ impl TryFrom<Option<&Bound<'_, PyAny>>> for SelectedColumns {
 #[derive(Clone, Debug)]
 struct SheetVisible(CalamineSheetVisible);
 
+#[cfg(feature = "python")]
 impl<'py> IntoPyObject<'py> for &SheetVisible {
     type Target = PyString;
 
@@ -376,6 +391,7 @@ impl From<CalamineSheetVisible> for SheetVisible {
     }
 }
 
+#[cfg(feature = "python")]
 #[derive(Debug, Clone)]
 #[pyclass]
 pub(crate) struct CellError {
@@ -390,6 +406,7 @@ pub(crate) struct CellError {
     pub detail: String,
 }
 
+#[cfg(feature = "python")]
 #[pymethods]
 impl CellError {
     #[getter]
@@ -399,11 +416,13 @@ impl CellError {
     }
 }
 
+#[cfg(feature = "python")]
 #[pyclass]
 pub(crate) struct CellErrors {
     pub errors: Vec<CellError>,
 }
 
+#[cfg(feature = "python")]
 #[pymethods]
 impl CellErrors {
     #[getter]
@@ -412,8 +431,8 @@ impl CellErrors {
     }
 }
 
-#[pyclass(name = "_ExcelSheet")]
-pub(crate) struct ExcelSheet {
+#[cfg_attr(feature = "python", pyclass(name = "_ExcelSheet"))]
+pub struct ExcelSheet {
     sheet_meta: CalamineSheet,
     header: Header,
     pagination: Pagination,
@@ -522,8 +541,57 @@ impl ExcelSheet {
     pub(crate) fn schema_sample_rows(&self) -> usize {
         get_schema_sample_rows(self.schema_sample_rows, self.offset(), self.limit())
     }
+
+    pub fn width(&mut self) -> usize {
+        self.width.unwrap_or_else(|| {
+            let width = self.data.width();
+            self.width = Some(width);
+            width
+        })
+    }
+
+    pub fn height(&mut self) -> usize {
+        self.height.unwrap_or_else(|| {
+            let height = self.limit() - self.offset();
+            self.height = Some(height);
+            height
+        })
+    }
+
+    pub fn total_height(&mut self) -> usize {
+        self.total_height.unwrap_or_else(|| {
+            let total_height = self.data.height() - self.header.offset();
+            self.total_height = Some(total_height);
+            total_height
+        })
+    }
+
+    pub fn offset(&self) -> usize {
+        self.header.offset() + self.pagination.offset()
+    }
+
+    pub fn selected_columns(&self) -> Vec<ColumnInfo> {
+        self.selected_columns.clone()
+    }
+
+    pub fn available_columns(&mut self) -> FastExcelResult<Vec<ColumnInfo>> {
+        self.load_available_columns().map(|cols| cols.to_vec())
+    }
+
+    pub fn specified_dtypes(&self) -> Option<&DTypes> {
+        self.dtypes.as_ref()
+    }
+
+    pub fn name(&self) -> &str {
+        &self.sheet_meta.name
+    }
+
+    pub fn visible(&self) -> calamine::SheetVisible {
+        self.sheet_meta.visible
+    }
 }
 
+#[cfg(feature = "python")]
 impl TryFrom<&ExcelSheet> for RecordBatch {
     type Error = FastExcelError;
 
@@ -536,65 +604,55 @@ impl TryFrom<&ExcelSheet> for RecordBatch {
     }
 }
 
+// NOTE: These proxy python implems are required because `#[getter]` does not play well with `cfg_attr`:
+// * https://github.com/PyO3/pyo3/issues/1003
+// * https://github.com/PyO3/pyo3/issues/780
+#[cfg(feature = "python")]
 #[pymethods]
 impl ExcelSheet {
-    #[getter]
-    pub fn width(&mut self) -> usize {
-        self.width.unwrap_or_else(|| {
-            let width = self.data.width();
-            self.width = Some(width);
-            width
-        })
+    #[getter("width")]
+    pub fn py_width(&mut self) -> usize {
+        self.width()
     }
 
-    #[getter]
-    pub fn height(&mut self) -> usize {
-        self.height.unwrap_or_else(|| {
-            let height = self.limit() - self.offset();
-            self.height = Some(height);
-            height
-        })
+    #[getter("height")]
+    pub fn py_height(&mut self) -> usize {
+        self.height()
     }
 
-    #[getter]
-    pub fn total_height(&mut self) -> usize {
-        self.total_height.unwrap_or_else(|| {
-            let total_height = self.data.height() - self.header.offset();
-            self.total_height = Some(total_height);
-            total_height
-        })
+    #[getter("total_height")]
+    pub fn py_total_height(&mut self) -> usize {
+        self.total_height()
     }
 
-    #[getter]
-    pub fn offset(&self) -> usize {
-        self.header.offset() + self.pagination.offset()
+    #[getter("offset")]
+    pub fn py_offset(&self) -> usize {
+        self.offset()
     }
 
-    #[getter]
-    pub fn selected_columns<'p>(&'p self, _py: Python<'p>) -> Vec<ColumnInfo> {
-        self.selected_columns.clone()
+    #[getter("selected_columns")]
+    pub fn py_selected_columns(&self) -> Vec<ColumnInfo> {
+        self.selected_columns()
     }
 
-    pub fn available_columns<'p>(
-        &'p mut self,
-        _py: Python<'p>,
-    ) -> FastExcelResult<Vec<ColumnInfo>> {
-        self.load_available_columns().map(|cols| cols.to_vec())
+    #[pyo3(name = "available_columns")]
+    pub fn py_available_columns(&mut self) -> FastExcelResult<Vec<ColumnInfo>> {
+        self.available_columns()
     }
 
-    #[getter]
-    pub fn specified_dtypes(&self, _py: Python<'_>) -> Option<&DTypes> {
-        self.dtypes.as_ref()
+    #[getter("specified_dtypes")]
+    pub fn py_specified_dtypes(&self) -> Option<&DTypes> {
+        self.specified_dtypes()
     }
 
-    #[getter]
-    pub fn name(&self) -> &str {
-        &self.sheet_meta.name
+    #[getter("name")]
+    pub fn py_name(&self) -> &str {
+        self.name()
     }
 
-    #[getter]
-    pub fn visible<'py>(&'py self, py: Python<'py>) -> FastExcelResult<Bound<'py, PyString>> {
-        let visible: SheetVisible = self.sheet_meta.visible.into();
+    #[getter("visible")]
+    pub fn py_visible<'py>(&'py self, py: Python<'py>) -> FastExcelResult<Bound<'py, PyString>> {
+        let visible: SheetVisible = self.visible().into();
         (&visible).into_pyobject(py)
     }
 
@@ -695,6 +753,7 @@ impl ExcelSheet {
         )?)
     }
 
+    #[cfg(feature = "python")]
     pub fn __repr__(&self) -> String {
         format!("ExcelSheet<{}>", self.name())
     }

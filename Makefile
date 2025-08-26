@@ -7,9 +7,9 @@ format	= ruff format python/ *.py
 mypy	= mypy python/ *.py
 pytest	= pytest -v
 ## Rust
-clippy		= cargo clippy
-fmt		= cargo fmt
-cargo-test	= cargo test --no-default-features --features tests
+clippy		= cargo clippy --all-features
+fmt			= cargo fmt
+cargo-test	= cargo test --no-default-features --features python-tests
 ## Docs
 pdoc	= pdoc -o docs python/fastexcel
 
@@ -46,7 +46,7 @@ dev-setup: install-test-requirements install-doc-requirements
 	pre-commit install
 
 dev-install:
-	maturin develop --uv -E pandas,polars
+	maturin develop --all-features --uv -E pandas,polars
 
 prod-install:
 	./prod_install.sh
