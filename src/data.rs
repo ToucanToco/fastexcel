@@ -1,9 +1,7 @@
 use std::sync::Arc;
 
-use arrow::{
-    array::{Array, NullArray, RecordBatch},
-    datatypes::{Field, Schema},
-};
+use arrow_array::{Array, ArrayRef, NullArray, RecordBatch};
+use arrow_schema::{Field, Schema};
 use calamine::{Data as CalData, DataRef as CalDataRef, DataType, Range};
 
 use crate::{
@@ -77,7 +75,7 @@ mod array_impls {
     use std::fmt::Debug;
     use std::sync::Arc;
 
-    use arrow::array::{
+    use arrow_array::{
         Array, BooleanArray, Date32Array, DurationMillisecondArray, Float64Array, Int64Array,
         StringArray, TimestampMillisecondArray,
     };
@@ -570,10 +568,7 @@ pub(crate) fn record_batch_from_data_and_columns_with_errors(
         let dtype = *column_info.dtype();
 
         let (array, new_cell_errors) = match dtype {
-            DType::Null => (
-                Arc::new(NullArray::new(limit - offset)) as Arc<dyn arrow::array::Array>,
-                vec![],
-            ),
+            DType::Null => (Arc::new(NullArray::new(limit - offset)) as ArrayRef, vec![]),
             DType::Int => create_int_array_with_errors(data, col_idx, offset, limit),
             DType::Float => create_float_array_with_errors(data, col_idx, offset, limit),
             DType::String => create_string_array_with_errors(data, col_idx, offset, limit),

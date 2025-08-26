@@ -3,9 +3,9 @@ use std::{
     io::{BufReader, Cursor},
 };
 
+use arrow_array::RecordBatch;
 #[cfg(feature = "pyarrow")]
-use arrow::pyarrow::ToPyArrow;
-use arrow::record_batch::RecordBatch;
+use arrow_pyarrow::ToPyArrow;
 use pyo3::{Bound, IntoPyObjectExt, PyAny, PyResult, Python, pyclass, pymethods};
 
 use calamine::{

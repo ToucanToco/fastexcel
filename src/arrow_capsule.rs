@@ -1,8 +1,8 @@
 use std::ffi::c_void;
 
-use arrow::array::Array;
-use arrow::ffi::{FFI_ArrowArray, FFI_ArrowSchema};
-use arrow::record_batch::RecordBatch;
+use arrow_array::ffi::{FFI_ArrowArray, FFI_ArrowSchema};
+use arrow_array::{Array, RecordBatch, StructArray};
+use arrow_schema::Schema;
 use pyo3::exceptions::PyValueError;
 use pyo3::ffi::PyCapsule_New;
 use pyo3::prelude::*;
@@ -11,7 +11,7 @@ use pyo3::types::PyCapsule;
 /// Creates a PyCapsule containing an ArrowSchema
 pub fn schema_to_pycapsule<'py>(
     py: Python<'py>,
-    schema: &arrow::datatypes::Schema,
+    schema: &Schema,
 ) -> PyResult<Bound<'py, PyCapsule>> {
     let schema_ptr = Box::into_raw(Box::new(FFI_ArrowSchema::try_from(schema).map_err(
         |e| PyValueError::new_err(format!("Failed to convert schema to FFI format: {}", e)),
@@ -78,7 +78,7 @@ pub fn record_batch_to_pycapsules<'py>(
     let schema_capsule = schema_to_pycapsule(py, record_batch.schema().as_ref())?;
 
     // For record batches, we need to convert to a struct array
-    let struct_array = arrow::array::StructArray::from(record_batch.clone());
+    let struct_array = StructArray::from(record_batch.clone());
     let array_capsule = array_to_pycapsule(py, &struct_array)?;
 
     Ok((schema_capsule, array_capsule))
