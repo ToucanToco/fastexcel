@@ -142,18 +142,24 @@ class ExcelSheet:
         return pl.DataFrame(self)
 
     def __arrow_c_schema__(self) -> object:
-        """Arrow PyCapsule Interface: Export schema as a PyCapsule.
+        """Export the schema as an `ArrowSchema` `PyCapsule`.
 
-        This method allows zero-copy data exchange with Arrow-compatible libraries
-        like Polars without requiring PyArrow as a dependency.
+        https://arrow.apache.org/docs/format/CDataInterface/PyCapsuleInterface.html#arrowschema-export
+
+        The Arrow PyCapsule Interface enables zero-copy data exchange with
+        Arrow-compatible libraries without requiring PyArrow as a dependency.
         """
         return self._sheet.__arrow_c_schema__()
 
     def __arrow_c_array__(self, requested_schema: object | None = None) -> tuple[object, object]:
-        """Arrow PyCapsule Interface: Export array and schema as PyCapsules.
+        """Export the schema and data as a pair of `ArrowSchema` and `ArrowArray` `PyCapsules`.
 
-        Returns data as a tuple of (schema_capsule, array_capsule) for zero-copy
-        data exchange with Arrow-compatible libraries.
+        The optional `requested_schema` parameter allows for potential schema conversion.
+
+        https://arrow.apache.org/docs/format/CDataInterface/PyCapsuleInterface.html#arrowarray-export
+
+        The Arrow PyCapsule Interface enables zero-copy data exchange with
+        Arrow-compatible libraries without requiring PyArrow as a dependency.
         """
         return self._sheet.__arrow_c_array__(requested_schema)
 
@@ -240,18 +246,24 @@ class ExcelTable:
         return pl.DataFrame(self)
 
     def __arrow_c_schema__(self) -> object:
-        """Arrow PyCapsule Interface: Export schema as a PyCapsule.
+        """Export the schema as an `ArrowSchema` `PyCapsule`.
 
-        This method allows zero-copy data exchange with Arrow-compatible libraries
-        like Polars without requiring PyArrow as a dependency.
+        https://arrow.apache.org/docs/format/CDataInterface/PyCapsuleInterface.html#arrowschema-export
+
+        The Arrow PyCapsule Interface enables zero-copy data exchange with
+        Arrow-compatible libraries without requiring PyArrow as a dependency.
         """
         return self._table.__arrow_c_schema__()
 
     def __arrow_c_array__(self, requested_schema: object | None = None) -> tuple[object, object]:
-        """Arrow PyCapsule Interface: Export array and schema as PyCapsules.
+        """Export the schema and data as a pair of `ArrowSchema` and `ArrowArray` `PyCapsules`.
 
-        Returns data as a tuple of (schema_capsule, array_capsule) for zero-copy
-        data exchange with Arrow-compatible libraries.
+        The optional `requested_schema` parameter allows for potential schema conversion.
+
+        https://arrow.apache.org/docs/format/CDataInterface/PyCapsuleInterface.html#arrowarray-export
+
+        The Arrow PyCapsule Interface enables zero-copy data exchange with
+        Arrow-compatible libraries without requiring PyArrow as a dependency.
         """
         return self._table.__arrow_c_array__(requested_schema)
 

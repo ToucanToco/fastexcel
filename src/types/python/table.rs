@@ -1,13 +1,15 @@
 use std::sync::Arc;
 
-use arrow_array::{NullArray, RecordBatch};
+use arrow_array::{NullArray, RecordBatch, StructArray};
 #[cfg(feature = "pyarrow")]
 use arrow_pyarrow::ToPyArrow;
+use arrow_schema::Field;
 use calamine::{Data, Range, Table};
-use pyo3::{Bound, PyAny, PyResult};
+use pyo3::types::{PyCapsule, PyTuple};
+use pyo3::{Bound, PyResult};
 use pyo3::{PyObject, Python, pyclass, pymethods};
+use pyo3_arrow::ffi::{to_array_pycapsules, to_schema_pycapsule};
 
-use crate::arrow_capsule;
 use crate::error::py_errors::IntoPyResult;
 use crate::{
     data::{
@@ -289,35 +291,43 @@ impl ExcelTable {
             })
     }
 
-    /// Arrow PyCapsule Interface: __arrow_c_schema__
-    pub fn __arrow_c_schema__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        let record_batch = RecordBatch::try_from(self)
-            .with_context(|| format!("could not create RecordBatch from table \"{}\"", self.name))
-            .into_pyresult()?;
-
-        arrow_capsule::schema_to_pycapsule(py, record_batch.schema().as_ref())
-            .map(|capsule| capsule.into_any())
+    /// Export the schema as an [`ArrowSchema`] [`PyCapsule`].
+    ///
+    /// <https://arrow.apache.org/docs/format/CDataInterface/PyCapsuleInterface.html#arrowschema-export>
+    ///
+    /// [`ArrowSchema`]: arrow_array::ffi::FFI_ArrowSchema
+    /// [`PyCapsule`]: pyo3::types::PyCapsule
+    pub fn __arrow_c_schema__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyCapsule>> {
+        let schema = selected_columns_to_schema(&self.selected_columns);
+        Ok(to_schema_pycapsule(py, &schema)?)
     }
 
-    /// Arrow PyCapsule Interface: __arrow_c_array__
+    /// Export the schema and data as a pair of [`ArrowSchema`] and [`ArrowArray`] [`PyCapsules`]
+    ///
+    /// The optional `requested_schema` parameter allows for potential schema conversion.
+    ///
+    /// <https://arrow.apache.org/docs/format/CDataInterface/PyCapsuleInterface.html#arrowarray-export>
+    ///
+    /// [`ArrowSchema`]: arrow_array::ffi::FFI_ArrowSchema
+    /// [`ArrowArray`]: arrow_array::ffi::FFI_ArrowArray
+    /// [`PyCapsules`]: pyo3::types::PyCapsule
     pub fn __arrow_c_array__<'py>(
         &self,
         py: Python<'py>,
-        requested_schema: Option<&Bound<'py, PyAny>>,
-    ) -> PyResult<Bound<'py, PyAny>> {
-        let _ = requested_schema; // TODO: Support schema conversion if needed
-
+        requested_schema: Option<Bound<'py, PyCapsule>>,
+    ) -> PyResult<Bound<'py, PyTuple>> {
         let record_batch = RecordBatch::try_from(self)
             .with_context(|| format!("could not create RecordBatch from table \"{}\"", self.name))
             .into_pyresult()?;
 
-        let (schema_capsule, array_capsule) =
-            arrow_capsule::record_batch_to_pycapsules(py, &record_batch)?;
-
-        Ok(
-            pyo3::types::PyTuple::new(py, [schema_capsule.into_any(), array_capsule.into_any()])?
-                .into_any(),
-        )
+        let field = Field::new_struct("", record_batch.schema_ref().fields().clone(), false);
+        let array = Arc::new(StructArray::from(record_batch));
+        Ok(to_array_pycapsules(
+            py,
+            field.into(),
+            array.as_ref(),
+            requested_schema,
+        )?)
     }
 
     pub fn __repr__(&self) -> String {
