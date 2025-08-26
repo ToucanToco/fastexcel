@@ -651,13 +651,26 @@ impl ExcelSheet {
         (rb, errors).into_bound_py_any(py)
     }
 
-    /// Arrow PyCapsule Interface: __arrow_c_schema__
+    /// Export the schema as an [`ArrowSchema`] [`PyCapsule`].
+    ///
+    /// <https://arrow.apache.org/docs/format/CDataInterface/PyCapsuleInterface.html#arrowschema-export>
+    ///
+    /// [`ArrowSchema`]: arrow_array::ffi::FFI_ArrowSchema
+    /// [`PyCapsule`]: pyo3::types::PyCapsule
     pub fn __arrow_c_schema__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyCapsule>> {
         let schema = selected_columns_to_schema(&self.selected_columns);
         Ok(to_schema_pycapsule(py, &schema)?)
     }
 
-    /// Arrow PyCapsule Interface: __arrow_c_array__
+    /// Export the schema and data as a pair of [`ArrowSchema`] and [`ArrowArray`] [`PyCapsules`]
+    ///
+    /// The optional `requested_schema` parameter allows for potential schema conversion.
+    ///
+    /// <https://arrow.apache.org/docs/format/CDataInterface/PyCapsuleInterface.html#arrowarray-export>
+    ///
+    /// [`ArrowSchema`]: arrow_array::ffi::FFI_ArrowSchema
+    /// [`ArrowArray`]: arrow_array::ffi::FFI_ArrowArray
+    /// [`PyCapsules`]: pyo3::types::PyCapsule
     pub fn __arrow_c_array__<'py>(
         &self,
         py: Python<'py>,
