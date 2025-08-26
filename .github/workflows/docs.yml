@@ -18,6 +18,8 @@ jobs:
           python-version: "3.11"
       - name: Set up rust toolchain
         uses: dtolnay/rust-toolchain@stable
+      - name: install uv
+        uses: astral-sh/setup-uv@v6
       - run: |
           git config user.name github-actions
           git config user.email github-actions@github.com
@@ -26,14 +28,8 @@ jobs:
           git checkout gh-pages
           git merge -m 'Merge main' main
 
-          # venv required by maturin
-          python3 -m venv .venv
-          source .venv/bin/activate
-
-          make install-test-requirements
-          make install-doc-requirements
-          # Required for pdoc to be able to import the sources
-          make dev-install
+          # Install dependencies and build docs
+          make install
           make doc
 
           git add -f docs
