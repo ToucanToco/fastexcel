@@ -314,11 +314,8 @@ impl ExcelReader {
         )
     }
 
-    #[getter]
-    pub fn sheet_names(&self) -> Vec<&str> {
-        self.sheet_metadata
-            .iter()
-            .map(|s| s.name.as_str())
-            .collect()
+    #[getter("sheet_names")]
+    pub(crate) fn py_sheet_names(&self) -> Vec<&str> {
+        self.sheet_names()
     }
 }

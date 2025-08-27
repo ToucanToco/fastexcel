@@ -100,7 +100,7 @@ impl ExcelSheets {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct LoadSheetOptions {
     pub header_row: Option<usize>,
     pub column_names: Option<Vec<String>>,
@@ -110,6 +110,21 @@ pub struct LoadSheetOptions {
     pub dtype_coercion: DTypeCoercion,
     pub selected_columns: SelectedColumns,
     pub dtypes: Option<DTypes>,
+}
+
+impl Default for LoadSheetOptions {
+    fn default() -> Self {
+        Self {
+            header_row: Some(0),
+            column_names: Default::default(),
+            skip_rows: Default::default(),
+            n_rows: Default::default(),
+            schema_sample_rows: Default::default(),
+            dtype_coercion: Default::default(),
+            selected_columns: Default::default(),
+            dtypes: Default::default(),
+        }
+    }
 }
 
 impl LoadSheetOptions {
@@ -213,6 +228,13 @@ impl ExcelReader {
             opts.selected_columns,
             opts.dtypes,
         )
+    }
+
+    pub fn sheet_names(&self) -> Vec<&str> {
+        self.sheet_metadata
+            .iter()
+            .map(|s| s.name.as_str())
+            .collect()
     }
 }
 

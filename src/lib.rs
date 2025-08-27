@@ -3,6 +3,8 @@ mod error;
 mod types;
 mod utils;
 
+use std::fmt::Display;
+
 #[cfg(feature = "python")]
 use error::py_errors;
 #[cfg(feature = "python")]
@@ -16,8 +18,9 @@ pub use types::{ExcelReader, ExcelSheet, LoadSheetOptions};
 
 use crate::error::{ErrorContext, FastExcelResult};
 
-pub fn read_excel(path: &str) -> FastExcelResult<ExcelReader> {
-    ExcelReader::try_from_path(path).with_context(|| format!("could not load excel file at {path}"))
+pub fn read_excel<S: AsRef<str> + Display>(path: S) -> FastExcelResult<ExcelReader> {
+    ExcelReader::try_from_path(path.as_ref())
+        .with_context(|| format!("could not load excel file at {path}"))
 }
 
 #[cfg(feature = "python")]

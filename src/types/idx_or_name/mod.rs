@@ -27,3 +27,9 @@ impl From<String> for IdxOrName {
         Self::Name(name)
     }
 }
+
+impl From<&str> for IdxOrName {
+    fn from(name: &str) -> Self {
+        Self::Name(name.to_owned())
+    }
+}

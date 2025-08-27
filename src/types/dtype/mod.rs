@@ -82,16 +82,11 @@ impl FromStr for DTypes {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Copy)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Copy, Default)]
 pub enum DTypeCoercion {
+    #[default]
     Coerce,
     Strict,
-}
-
-impl Default for DTypeCoercion {
-    fn default() -> Self {
-        Self::Coerce
-    }
 }
 
 impl FromStr for DTypeCoercion {

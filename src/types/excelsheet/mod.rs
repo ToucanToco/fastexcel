@@ -47,6 +47,7 @@ impl Header {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct Pagination {
     skip_rows: usize,
     n_rows: Option<usize>,
@@ -78,7 +79,9 @@ impl Pagination {
     }
 }
 
+#[derive(Default)]
 pub enum SelectedColumns {
+    #[default]
     All,
     Selection(Vec<IdxOrName>),
     #[cfg(feature = "python")]
@@ -110,12 +113,6 @@ impl PartialEq for SelectedColumns {
             (Self::DynamicSelection(f1), Self::DynamicSelection(f2)) => std::ptr::eq(f1, f2),
             _ => false,
         }
-    }
-}
-
-impl Default for SelectedColumns {
-    fn default() -> Self {
-        Self::All
     }
 }
 
@@ -302,6 +299,7 @@ impl From<CalamineSheetVisible> for SheetVisible {
     }
 }
 
+#[derive(Debug)]
 #[cfg_attr(feature = "python", pyclass(name = "_ExcelSheet"))]
 pub struct ExcelSheet {
     sheet_meta: CalamineSheet,
