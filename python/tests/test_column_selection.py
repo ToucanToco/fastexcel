@@ -303,6 +303,138 @@ def test_single_sheet_with_unnamed_columns_and_str_range(
     pl_assert_frame_equal(sheet.to_polars(), pl.DataFrame(expected))
 
 
+def test_single_sheet_with_unnamed_columns_and_open_ended_range(
+    excel_reader_single_sheet_with_unnamed_columns: fastexcel.ExcelReader,
+    single_sheet_with_unnamed_columns_expected: dict[str, list[Any]],
+    sheet_with_unnamed_columns_expected_column_info: list[fastexcel.ColumnInfo],
+) -> None:
+    # Test B: (should get columns B, C, D, E - indices 1, 2, 3, 4)
+    use_columns_str = "B:"
+    expected = {
+        k: v
+        for k, v in single_sheet_with_unnamed_columns_expected.items()
+        if k in ["__UNNAMED__1", "col3", "__UNNAMED__3", "col5"]
+    }
+    sheet = excel_reader_single_sheet_with_unnamed_columns.load_sheet(
+        "With unnamed columns", use_columns=use_columns_str
+    )
+    assert sheet.selected_columns == sheet_with_unnamed_columns_expected_column_info[1:]
+    assert sheet.available_columns() == sheet_with_unnamed_columns_expected_column_info
+    pd_assert_frame_equal(sheet.to_pandas(), pd.DataFrame(expected))
+    pl_assert_frame_equal(sheet.to_polars(), pl.DataFrame(expected))
+
+
+def test_single_sheet_with_unnamed_columns_and_open_ended_range_from_start(
+    excel_reader_single_sheet_with_unnamed_columns: fastexcel.ExcelReader,
+    single_sheet_with_unnamed_columns_expected: dict[str, list[Any]],
+    sheet_with_unnamed_columns_expected_column_info: list[fastexcel.ColumnInfo],
+) -> None:
+    # Test A: (should get all columns)
+    use_columns_str = "A:"
+    expected = single_sheet_with_unnamed_columns_expected
+    sheet = excel_reader_single_sheet_with_unnamed_columns.load_sheet(
+        "With unnamed columns", use_columns=use_columns_str
+    )
+    assert sheet.selected_columns == sheet_with_unnamed_columns_expected_column_info
+    assert sheet.available_columns() == sheet_with_unnamed_columns_expected_column_info
+    pd_assert_frame_equal(sheet.to_pandas(), pd.DataFrame(expected))
+    pl_assert_frame_equal(sheet.to_polars(), pl.DataFrame(expected))
+
+
+def test_single_sheet_with_unnamed_columns_and_mixed_open_ended_range(
+    excel_reader_single_sheet_with_unnamed_columns: fastexcel.ExcelReader,
+    single_sheet_with_unnamed_columns_expected: dict[str, list[Any]],
+    sheet_with_unnamed_columns_expected_column_info: list[fastexcel.ColumnInfo],
+) -> None:
+    # Test A,C: (should get column A and columns from C onwards - indices 0, 2, 3, 4)
+    use_columns_str = "A,C:"
+    expected = {
+        k: v
+        for k, v in single_sheet_with_unnamed_columns_expected.items()
+        if k in ["col1", "col3", "__UNNAMED__3", "col5"]
+    }
+    sheet = excel_reader_single_sheet_with_unnamed_columns.load_sheet(
+        "With unnamed columns", use_columns=use_columns_str
+    )
+    expected_selected_cols = [
+        sheet_with_unnamed_columns_expected_column_info[0]
+    ] + sheet_with_unnamed_columns_expected_column_info[2:]
+    assert sheet.selected_columns == expected_selected_cols
+    assert sheet.available_columns() == sheet_with_unnamed_columns_expected_column_info
+    pd_assert_frame_equal(sheet.to_pandas(), pd.DataFrame(expected))
+    pl_assert_frame_equal(sheet.to_polars(), pl.DataFrame(expected))
+
+
+def test_single_sheet_with_unnamed_columns_and_from_beginning_range(
+    excel_reader_single_sheet_with_unnamed_columns: fastexcel.ExcelReader,
+    single_sheet_with_unnamed_columns_expected: dict[str, list[Any]],
+    sheet_with_unnamed_columns_expected_column_info: list[fastexcel.ColumnInfo],
+) -> None:
+    # Test :C (should get columns A, B, C - indices 0, 1, 2)
+    use_columns_str = ":C"
+    expected = {
+        k: v
+        for k, v in single_sheet_with_unnamed_columns_expected.items()
+        if k in ["col1", "__UNNAMED__1", "col3"]
+    }
+    sheet = excel_reader_single_sheet_with_unnamed_columns.load_sheet(
+        "With unnamed columns", use_columns=use_columns_str
+    )
+    assert sheet.selected_columns == sheet_with_unnamed_columns_expected_column_info[:3]
+    assert sheet.available_columns() == sheet_with_unnamed_columns_expected_column_info
+    pd_assert_frame_equal(sheet.to_pandas(), pd.DataFrame(expected))
+    pl_assert_frame_equal(sheet.to_polars(), pl.DataFrame(expected))
+
+
+def test_single_sheet_with_unnamed_columns_and_from_beginning_range_single_column(
+    excel_reader_single_sheet_with_unnamed_columns: fastexcel.ExcelReader,
+    single_sheet_with_unnamed_columns_expected: dict[str, list[Any]],
+    sheet_with_unnamed_columns_expected_column_info: list[fastexcel.ColumnInfo],
+) -> None:
+    # Test :A (should get only column A - index 0)
+    use_columns_str = ":A"
+    expected = {
+        k: v for k, v in single_sheet_with_unnamed_columns_expected.items() if k in ["col1"]
+    }
+    sheet = excel_reader_single_sheet_with_unnamed_columns.load_sheet(
+        "With unnamed columns", use_columns=use_columns_str
+    )
+    assert sheet.selected_columns == [sheet_with_unnamed_columns_expected_column_info[0]]
+    assert sheet.available_columns() == sheet_with_unnamed_columns_expected_column_info
+    pd_assert_frame_equal(sheet.to_pandas(), pd.DataFrame(expected))
+    pl_assert_frame_equal(sheet.to_polars(), pl.DataFrame(expected))
+
+
+def test_single_sheet_with_unnamed_columns_and_complex_mixed_pattern(
+    excel_reader_single_sheet_with_unnamed_columns: fastexcel.ExcelReader,
+    single_sheet_with_unnamed_columns_expected: dict[str, list[Any]],
+    sheet_with_unnamed_columns_expected_column_info: list[fastexcel.ColumnInfo],
+) -> None:
+    # Test A,:B,D,E: (should get A, A,B again (deduplicated), D, and E)
+    # This effectively becomes A,B,D,E (columns 0,1,3,4)
+    use_columns_str = "A,:B,D,E:"
+    expected = {
+        k: v
+        for k, v in single_sheet_with_unnamed_columns_expected.items()
+        if k in ["col1", "__UNNAMED__1", "__UNNAMED__3", "col5"]
+    }
+    sheet = excel_reader_single_sheet_with_unnamed_columns.load_sheet(
+        "With unnamed columns", use_columns=use_columns_str
+    )
+    # Expected: columns A, A,B (from :B), D, E (from E:)
+    # After deduplication: 0,1,3,4
+    expected_selected_cols = [
+        sheet_with_unnamed_columns_expected_column_info[0],  # A
+        sheet_with_unnamed_columns_expected_column_info[1],  # B
+        sheet_with_unnamed_columns_expected_column_info[3],  # D
+        sheet_with_unnamed_columns_expected_column_info[4],  # E
+    ]
+    assert sheet.selected_columns == expected_selected_cols
+    assert sheet.available_columns() == sheet_with_unnamed_columns_expected_column_info
+    pd_assert_frame_equal(sheet.to_pandas(), pd.DataFrame(expected))
+    pl_assert_frame_equal(sheet.to_polars(), pl.DataFrame(expected))
+
+
 def test_single_sheet_invalid_column_indices_negative_integer(
     excel_reader_single_sheet_with_unnamed_columns: fastexcel.ExcelReader,
 ) -> None:
