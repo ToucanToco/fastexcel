@@ -1,3 +1,4 @@
+mod cell_extractors;
 #[cfg(feature = "python")]
 mod python;
 #[cfg(feature = "python")]

@@ -7,13 +7,13 @@ use arrow_array::{
 };
 use arrow_schema::{Field, Schema};
 use calamine::{CellType, DataType, Range};
-use chrono::NaiveDate;
 
+use super::cell_extractors;
 use crate::{
     data::ExcelSheetData,
     error::{ErrorContext, FastExcelErrorKind, FastExcelResult},
     types::{
-        dtype::{DType, excel_float_to_string},
+        dtype::DType,
         excelsheet::{CellError, CellErrors, column_info::ColumnInfo},
     },
 };
@@ -21,7 +21,6 @@ use crate::{
 mod array_impls {
     use super::*;
 
-    // TODO: DRY duplicated code between create and create...with_errors functions
     pub(crate) fn create_boolean_array<DT: CellType + DataType>(
         data: &Range<DT>,
         col: usize,
@@ -29,17 +28,8 @@ mod array_impls {
         limit: usize,
     ) -> Arc<dyn Array> {
         Arc::new(BooleanArray::from_iter((offset..limit).map(|row| {
-            data.get((row, col)).and_then(|cell| {
-                if let Some(b) = cell.get_bool() {
-                    Some(b)
-                } else if let Some(i) = cell.get_int() {
-                    Some(i != 0)
-                }
-                // clippy formats else if let Some(blah) = ... { Some(x) } else { None } to the .map form
-                else {
-                    cell.get_float().map(|f| f != 0.0)
-                }
-            })
+            data.get((row, col))
+                .and_then(cell_extractors::extract_boolean)
         })))
     }
 
@@ -55,12 +45,8 @@ mod array_impls {
             data.get((row, col)).and_then(|cell| {
                 if cell.is_empty() {
                     None
-                } else if let Some(b) = cell.get_bool() {
+                } else if let Some(b) = cell_extractors::extract_boolean(cell) {
                     Some(b)
-                } else if let Some(i) = cell.get_int() {
-                    Some(i != 0)
-                } else if let Some(f) = cell.get_float() {
-                    Some(f != 0.0)
                 } else {
                     cell_errors.push(CellError {
                         position: (row, col),
@@ -81,9 +67,9 @@ mod array_impls {
         offset: usize,
         limit: usize,
     ) -> Arc<dyn Array> {
-        Arc::new(Int64Array::from_iter(
-            (offset..limit).map(|row| data.get((row, col)).and_then(|cell| cell.as_i64())),
-        ))
+        Arc::new(Int64Array::from_iter((offset..limit).map(|row| {
+            data.get((row, col)).and_then(cell_extractors::extract_int)
+        })))
     }
 
     pub(crate) fn create_int_array_with_errors<DT: CellType + DataType + Debug>(
@@ -99,7 +85,7 @@ mod array_impls {
                 if cell.is_empty() {
                     None
                 } else {
-                    match cell.as_i64() {
+                    match cell_extractors::extract_int(cell) {
                         Some(value) => Some(value),
                         None => {
                             cell_errors.push(CellError {
@@ -122,9 +108,10 @@ mod array_impls {
         offset: usize,
         limit: usize,
     ) -> Arc<dyn Array> {
-        Arc::new(Float64Array::from_iter(
-            (offset..limit).map(|row| data.get((row, col)).and_then(|cell| cell.as_f64())),
-        ))
+        Arc::new(Float64Array::from_iter((offset..limit).map(|row| {
+            data.get((row, col))
+                .and_then(cell_extractors::extract_float)
+        })))
     }
 
     pub(crate) fn create_float_array_with_errors<DT: CellType + DataType + Debug>(
@@ -140,7 +127,7 @@ mod array_impls {
                 if cell.is_empty() {
                     None
                 } else {
-                    match cell.as_f64() {
+                    match cell_extractors::extract_float(cell) {
                         Some(value) => Some(value),
                         None => {
                             cell_errors.push(CellError {
@@ -164,23 +151,8 @@ mod array_impls {
         limit: usize,
     ) -> Arc<dyn Array> {
         Arc::new(StringArray::from_iter((offset..limit).map(|row| {
-            data.get((row, col)).and_then(|cell| {
-                if cell.is_string() {
-                    cell.get_string().map(str::to_string)
-                } else if cell.is_datetime() {
-                    cell.get_datetime()
-                        .and_then(|dt| dt.as_datetime())
-                        .map(|dt| dt.to_string())
-                } else if cell.is_datetime_iso() {
-                    cell.get_datetime_iso().map(str::to_string)
-                } else if cell.is_bool() {
-                    cell.get_bool().map(|v| v.to_string())
-                } else if cell.is_float() {
-                    cell.get_float().map(excel_float_to_string)
-                } else {
-                    cell.as_string()
-                }
-            })
+            data.get((row, col))
+                .and_then(cell_extractors::extract_string)
         })))
     }
 
@@ -196,20 +168,8 @@ mod array_impls {
             data.get((row, col)).and_then(|cell| {
                 if cell.is_empty() {
                     None
-                } else if cell.is_string() {
-                    cell.get_string().map(str::to_string)
-                } else if cell.is_datetime() {
-                    cell.get_datetime()
-                        .and_then(|dt| dt.as_datetime())
-                        .map(|dt| dt.to_string())
-                } else if cell.is_datetime_iso() {
-                    cell.get_datetime_iso().map(str::to_string)
-                } else if cell.is_bool() {
-                    cell.get_bool().map(|v| v.to_string())
-                } else if cell.is_float() {
-                    cell.get_float().map(excel_float_to_string)
                 } else {
-                    match cell.as_string() {
+                    match cell_extractors::extract_string(cell) {
                         Some(value) => Some(value),
                         None => {
                             cell_errors.push(CellError {
@@ -227,21 +187,15 @@ mod array_impls {
         (arr, cell_errors)
     }
 
-    fn duration_type_to_i64<DT: CellType + DataType>(caldt: &DT) -> Option<i64> {
-        caldt.as_duration().map(|d| d.num_milliseconds())
-    }
-
     pub(crate) fn create_date_array<DT: CellType + DataType>(
         data: &Range<DT>,
         col: usize,
         offset: usize,
         limit: usize,
     ) -> Arc<dyn Array> {
-        let epoch = NaiveDate::from_ymd_opt(1970, 1, 1).unwrap();
         Arc::new(Date32Array::from_iter((offset..limit).map(|row| {
             data.get((row, col))
-                .and_then(|caldate| caldate.as_date())
-                .and_then(|date| i32::try_from(date.signed_duration_since(epoch).num_days()).ok())
+                .and_then(cell_extractors::extract_date_as_num_days)
         })))
     }
 
@@ -253,27 +207,24 @@ mod array_impls {
     ) -> (Arc<dyn Array>, Vec<CellError>) {
         let mut cell_errors = vec![];
 
-        let epoch = NaiveDate::from_ymd_opt(1970, 1, 1).unwrap();
         let arr = Arc::new(Date32Array::from_iter((offset..limit).map(|row| {
-            data.get((row, col))
-                .and_then(|cell| {
-                    if cell.is_empty() {
-                        None
-                    } else {
-                        match cell.as_date() {
-                            Some(value) => Some(value),
-                            None => {
-                                cell_errors.push(CellError {
-                                    position: (row, col),
-                                    row_offset: offset,
-                                    detail: format!("Expected date but got '{:?}'", cell),
-                                });
-                                None
-                            }
+            data.get((row, col)).and_then(|cell| {
+                if cell.is_empty() {
+                    None
+                } else {
+                    match cell_extractors::extract_date_as_num_days(cell) {
+                        Some(value) => Some(value),
+                        None => {
+                            cell_errors.push(CellError {
+                                position: (row, col),
+                                row_offset: offset,
+                                detail: format!("Expected date but got '{:?}'", cell),
+                            });
+                            None
                         }
                     }
-                })
-                .and_then(|date| i32::try_from(date.signed_duration_since(epoch).num_days()).ok())
+                }
+            })
         })));
 
         (arr, cell_errors)
@@ -288,8 +239,7 @@ mod array_impls {
         Arc::new(TimestampMillisecondArray::from_iter((offset..limit).map(
             |row| {
                 data.get((row, col))
-                    .and_then(|caldt| caldt.as_datetime())
-                    .map(|dt| dt.and_utc().timestamp_millis())
+                    .and_then(cell_extractors::extract_datetime_as_timestamp_ms)
             },
         )))
     }
@@ -303,25 +253,23 @@ mod array_impls {
         let mut cell_errors = vec![];
         let arr = Arc::new(TimestampMillisecondArray::from_iter((offset..limit).map(
             |row| {
-                data.get((row, col))
-                    .and_then(|cell| {
-                        if cell.is_empty() {
-                            None
-                        } else {
-                            match cell.as_datetime() {
-                                Some(value) => Some(value),
-                                None => {
-                                    cell_errors.push(CellError {
-                                        position: (row, col),
-                                        row_offset: offset,
-                                        detail: format!("Expected datetime but got '{:?}'", cell),
-                                    });
-                                    None
-                                }
+                data.get((row, col)).and_then(|cell| {
+                    if cell.is_empty() {
+                        None
+                    } else {
+                        match cell_extractors::extract_datetime_as_timestamp_ms(cell) {
+                            Some(value) => Some(value),
+                            None => {
+                                cell_errors.push(CellError {
+                                    position: (row, col),
+                                    row_offset: offset,
+                                    detail: format!("Expected datetime but got '{:?}'", cell),
+                                });
+                                None
                             }
                         }
-                    })
-                    .map(|dt| dt.and_utc().timestamp_millis())
+                    }
+                })
             },
         )));
         (arr, cell_errors)
@@ -333,9 +281,12 @@ mod array_impls {
         offset: usize,
         limit: usize,
     ) -> Arc<dyn Array> {
-        Arc::new(DurationMillisecondArray::from_iter(
-            (offset..limit).map(|row| data.get((row, col)).and_then(duration_type_to_i64)),
-        ))
+        Arc::new(DurationMillisecondArray::from_iter((offset..limit).map(
+            |row| {
+                data.get((row, col))
+                    .and_then(cell_extractors::extract_duration_as_ms)
+            },
+        )))
     }
 
     pub(crate) fn create_duration_array_with_errors<DT: CellType + DataType + Debug>(
@@ -351,7 +302,7 @@ mod array_impls {
                     if cell.is_empty() {
                         None
                     } else {
-                        match duration_type_to_i64(cell) {
+                        match cell_extractors::extract_duration_as_ms(cell) {
                             Some(value) => Some(value),
                             None => {
                                 cell_errors.push(CellError {
