@@ -1,3 +1,4 @@
+#![cfg(not(feature = "__pyo3-tests"))]
 mod utils;
 use anyhow::{Context, Result};
 use pretty_assertions::assert_eq;

@@ -460,6 +460,7 @@ impl ExcelSheet {
     }
 }
 
+#[cfg(feature = "__pyo3-tests")]
 #[cfg(test)]
 mod tests {
     use super::*;

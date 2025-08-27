@@ -45,7 +45,7 @@ lint-python:
 .PHONY: lint-rust  ## Lint rust source files
 lint-rust:
 	cargo fmt --all -- --check
-	cargo clippy
+	cargo clippy --all-features
 
 .PHONY: lint  ## Lint rust and python source files
 lint: lint-python lint-rust
@@ -58,7 +58,7 @@ format-python:
 .PHONY: format-rust  ## Auto-format rust source files
 format-rust:
 	cargo fmt
-	cargo clippy --fix --lib -p fastexcel --allow-dirty --allow-staged
+	cargo clippy --all-features --fix --lib -p fastexcel --allow-dirty --allow-staged
 
 .PHONY: format  ## Auto-format python and rust source files
 format: format-rust format-python
@@ -69,7 +69,8 @@ test-python: install
 
 .PHONY: test-rust  ## Run rust tests
 test-rust:
-	cargo test --no-default-features --features python-tests
+	cargo test --no-default-features --features __pyo3-tests
+	cargo test --no-default-features --features __rust-tests-standalone
 
 .PHONY: test  ## Run all tests
 test: test-rust test-python

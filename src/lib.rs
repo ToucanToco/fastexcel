@@ -9,7 +9,6 @@ use std::fmt::Display;
 use error::py_errors;
 #[cfg(feature = "python")]
 use pyo3::prelude::*;
-use types::excelsheet::column_info::{ColumnInfo, ColumnInfoNoDtype};
 #[cfg(feature = "python")]
 use types::excelsheet::{CellError, CellErrors};
 
@@ -59,6 +58,8 @@ fn get_version() -> String {
 #[cfg(feature = "python")]
 #[pymodule]
 fn _fastexcel(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    use crate::types::excelsheet::column_info::{ColumnInfo, ColumnInfoNoDtype};
+
     pyo3_log::init();
 
     let py = m.py();

@@ -282,6 +282,7 @@ pub(crate) fn excel_float_to_string(x: f64) -> String {
         .to_string()
 }
 
+#[cfg(feature = "__pyo3-tests")]
 #[cfg(test)]
 mod tests {
     use calamine::{Cell, Data as CalData};
