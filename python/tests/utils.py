@@ -1,6 +1,5 @@
-from os.path import dirname
-from os.path import join as path_join
+from pathlib import Path
 
 
 def path_for_fixture(fixture_file: str) -> str:
-    return path_join(dirname(__file__), "fixtures", fixture_file)
+    return str(Path(__file__).parent.parent.parent / "tests" / "fixtures" / fixture_file)
