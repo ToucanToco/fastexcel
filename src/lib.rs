@@ -7,11 +7,12 @@ mod utils;
 use error::py_errors;
 #[cfg(feature = "python")]
 use pyo3::prelude::*;
-use types::python::excelsheet::column_info::{ColumnInfo, ColumnInfoNoDtype};
+use types::excelsheet::column_info::{ColumnInfo, ColumnInfoNoDtype};
 #[cfg(feature = "python")]
-use types::python::excelsheet::{CellError, CellErrors};
+use types::excelsheet::{CellError, CellErrors};
 
-pub use types::python::{ExcelReader, ExcelSheet, table::ExcelTable};
+pub use types::exceltable::ExcelTable;
+pub use types::{ExcelReader, ExcelSheet, LoadSheetOptions};
 
 use crate::error::{ErrorContext, FastExcelResult};
 

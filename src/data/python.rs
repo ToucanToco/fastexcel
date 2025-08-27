@@ -14,7 +14,7 @@ use crate::{
     error::{ErrorContext, FastExcelErrorKind, FastExcelResult},
     types::{
         dtype::{DType, excel_float_to_string},
-        python::excelsheet::{CellError, CellErrors, column_info::ColumnInfo},
+        excelsheet::{CellError, CellErrors, column_info::ColumnInfo},
     },
 };
 

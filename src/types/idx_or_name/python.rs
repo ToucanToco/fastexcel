@@ -1,28 +1,13 @@
-#[cfg(feature = "python")]
 use pyo3::{
     Bound, FromPyObject, IntoPyObject, IntoPyObjectExt, PyAny, PyResult, Python,
-    prelude::PyAnyMethods,
+    types::PyAnyMethods,
 };
 
-#[cfg(feature = "python")]
-use crate::error::{FastExcelError, FastExcelErrorKind, FastExcelResult, py_errors::IntoPyResult};
+use crate::{
+    error::{FastExcelError, FastExcelErrorKind, FastExcelResult, py_errors::IntoPyResult},
+    types::idx_or_name::IdxOrName,
+};
 
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
-pub enum IdxOrName {
-    Idx(usize),
-    Name(String),
-}
-
-impl IdxOrName {
-    pub(crate) fn format_message(&self) -> String {
-        match self {
-            Self::Idx(idx) => format!("at index {idx}"),
-            Self::Name(name) => format!("with name \"{name}\""),
-        }
-    }
-}
-
-#[cfg(feature = "python")]
 impl TryFrom<&Bound<'_, PyAny>> for IdxOrName {
     type Error = FastExcelError;
 
@@ -40,14 +25,12 @@ impl TryFrom<&Bound<'_, PyAny>> for IdxOrName {
     }
 }
 
-#[cfg(feature = "python")]
 impl FromPyObject<'_> for IdxOrName {
     fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<Self> {
         ob.try_into().into_pyresult()
     }
 }
 
-#[cfg(feature = "python")]
 impl<'py> IntoPyObject<'py> for IdxOrName {
     type Target = PyAny;
 
@@ -63,7 +46,6 @@ impl<'py> IntoPyObject<'py> for IdxOrName {
     }
 }
 
-#[cfg(feature = "python")]
 impl<'py> IntoPyObject<'py> for &IdxOrName {
     type Target = PyAny;
 
@@ -76,17 +58,5 @@ impl<'py> IntoPyObject<'py> for &IdxOrName {
             IdxOrName::Idx(idx) => idx.into_bound_py_any(py),
             IdxOrName::Name(name) => name.into_bound_py_any(py),
         }
-    }
-}
-
-impl From<usize> for IdxOrName {
-    fn from(index: usize) -> Self {
-        Self::Idx(index)
-    }
-}
-
-impl From<String> for IdxOrName {
-    fn from(name: String) -> Self {
-        Self::Name(name)
     }
 }
