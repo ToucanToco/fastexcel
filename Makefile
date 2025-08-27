@@ -1,68 +1,113 @@
-.PHONY: lint format dev-setup dev-install prod-install test install-test-requirements benchmarks
+.DEFAULT_GOAL := all
+sources = python/fastexcel python/tests
 
-# Commands
-## Python
-ruff	= ruff check python/ *.py
-format	= ruff format python/ *.py
-mypy	= mypy python/ *.py
-pytest	= pytest -v
-## Rust
-clippy		= cargo clippy
-fmt		= cargo fmt
-cargo-test	= cargo test --no-default-features --features tests
-## Docs
-pdoc	= pdoc -o docs python/fastexcel
+export CARGO_TERM_COLOR=$(shell (test -t 0 && echo "always") || echo "auto")
 
+.PHONY: .uv  ## Check that uv is installed
+.uv:
+	@uv -V || echo 'Please install uv: https://docs.astral.sh/uv/getting-started/installation/'
+
+.PHONY: install  ## Install the package & dependencies with debug build
+install: .uv
+	uv sync --frozen --group all
+	uv run maturin develop --uv -E pandas,polars
+
+.PHONY: install-prod  ## Install the package & dependencies with release build
+install-prod: .uv
+	uv sync --frozen --group all
+	uv run maturin develop --uv --release -E pandas,polars
+
+.PHONY: setup-dev  ## First-time setup: install + pre-commit hooks
+setup-dev: install
+	uv run pre-commit install --install-hooks
+
+.PHONY: rebuild-lockfiles  ## Rebuild lockfiles from scratch, updating all dependencies
+rebuild-lockfiles: .uv
+	uv lock --upgrade
+	cargo update
+
+.PHONY: build-dev  ## Build the development version of the package
+build-dev:
+	uv run maturin develop --uv -E pandas,polars
+
+.PHONY: build-wheel  ## Build production wheel and install it
+build-wheel:
+	@rm -rf target/wheels/
+	uv run maturin build --release
+	@wheel=$$(ls target/wheels/*.whl); uv pip install --force-reinstall "$$wheel[pandas,polars]"
+
+.PHONY: lint-python  ## Lint python source files
 lint-python:
-	$(ruff)
-	$(format)  --check --diff
-	$(mypy)
+	uv run ruff check $(sources)
+	uv run ruff format --check $(sources)
+	uv run mypy $(sources)
 
+.PHONY: lint-rust  ## Lint rust source files
 lint-rust:
-	$(clippy)
+	cargo fmt --all -- --check
+	cargo clippy
 
-lint: lint-rust lint-python
+.PHONY: lint  ## Lint rust and python source files
+lint: lint-python lint-rust
 
+.PHONY: format-python  ## Auto-format python source files
 format-python:
-	$(ruff) --fix
-	$(format)
+	uv run ruff check --fix $(sources)
+	uv run ruff format $(sources)
 
+.PHONY: format-rust  ## Auto-format rust source files
 format-rust:
-	$(fmt)
-	$(clippy) --fix --lib -p fastexcel --allow-dirty --allow-staged
+	cargo fmt
+	cargo clippy --fix --lib -p fastexcel --allow-dirty --allow-staged
 
+.PHONY: format  ## Auto-format python and rust source files
 format: format-rust format-python
 
-install-build-requirements:
-	pip install -U -r build-requirements.txt
+.PHONY: test-python  ## Run python tests
+test-python: build-dev
+	uv run pytest
 
-install-test-requirements: install-build-requirements
-	uv pip install -U -r test-requirements.txt
-
-install-doc-requirements: install-build-requirements
-	uv pip install -r doc-requirements.txt
-
-dev-setup: install-test-requirements install-doc-requirements
-	pre-commit install
-
-dev-install:
-	maturin develop --uv -E pandas,polars
-
-prod-install:
-	./prod_install.sh
-
+.PHONY: test-rust  ## Run rust tests
 test-rust:
-	$(cargo-test)
+	cargo test --no-default-features --features tests
 
-test-python:
-	$(pytest)
-
+.PHONY: test  ## Run all tests
 test: test-rust test-python
 
-doc:
-	$(pdoc)
+.PHONY: doc-serve  ## Serve documentation with live reload
+doc-serve: build-dev
+	uv run pdoc python/fastexcel
 
-test-ci: dev-install test
+.PHONY: doc  ## Build documentation
+doc: build-dev
+	uv run pdoc -o docs python/fastexcel
 
-benchmarks: prod-install
-	pytest ./python/tests/benchmarks/speed.py
+.PHONY: all  ## Run the standard set of checks performed in CI
+all: format build-dev lint test
+
+.PHONY: benchmarks  ## Run benchmarks
+benchmarks: build-wheel
+	uv run pytest ./python/tests/benchmarks/speed.py
+
+.PHONY: clean  ## Clear local caches and build artifacts
+clean:
+	rm -rf `find . -name __pycache__`
+	rm -f `find . -type f -name '*.py[co]' `
+	rm -f `find . -type f -name '*~' `
+	rm -f `find . -type f -name '.*~' `
+	rm -rf .cache
+	rm -rf htmlcov
+	rm -rf .pytest_cache
+	rm -rf *.egg-info
+	rm -f .coverage
+	rm -f .coverage.*
+	rm -rf build
+	rm -rf perf.data*
+	rm -rf python/fastexcel/*.so
+
+.PHONY: help  ## Display this message
+help:
+	@grep -E \
+		'^.PHONY: .*?## .*$$' $(MAKEFILE_LIST) | \
+		sort | \
+		awk 'BEGIN {FS = ".PHONY: |## "}; {printf "\033[36m%-19s\033[0m %s\n", $$2, $$3}'

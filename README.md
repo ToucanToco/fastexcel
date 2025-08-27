@@ -91,55 +91,75 @@ df = pl.DataFrame(table)  # Zero-copy via PyCapsule, no pyarrow needed
 - **Memory efficient** - lazy loading and optional eager evaluation
 - **Type safety** - automatic type inference with manual override options
 
-## Dev setup
+## Contributing & Development
 
 ### Prerequisites
 
-Python>=3.9 and a recent Rust toolchain must be installed on your machine. `cargo` must be available in your `PATH`.
+You'll need:
+1. **[Rust](https://rustup.rs/)** - Rust stable or nightly
+2. **[uv](https://docs.astral.sh/uv/getting-started/installation/)** - Fast Python package manager (will install Python 3.9+ automatically)
+3. **[git](https://git-scm.com/)** - For version control
+4. **[make](https://www.gnu.org/software/make/)** - For running development commands
 
-### First setup
-
-On the very first time you setup the project, you'll need to create a virtualenv and install the necessary tools:
-
-```console
-python -m venv .venv
-source .venv/bin/activate
-(.venv) make dev-setup
+**Python Version Management:**
+uv handles Python installation automatically. To use a specific Python version:
+```bash
+uv python install 3.13  # Install Python 3.13
+uv python pin 3.13      # Pin project to Python 3.13
 ```
 
-This will also set up [pre-commit](https://pre-commit.com/).
+### Quick Start
 
-### Installing the project in dev mode
+```bash
+# Clone the repository (or from your fork)
+git clone https://github.com/ToucanToco/fastexcel.git
+cd fastexcel
 
-In order to install the project in dev mode (for local tests for example), use `make dev-install`.
-This will compile the wheel (in debug mode) and install it. It will then be available in your venv.
+# First-time setup: install dependencies, build debug version, and setup pre-commit hooks
+make setup-dev
+```
 
-### Installing the project in prod mode
+Verify your installation by running:
 
-This is required for profiling, as dev mode wheels are much slower. `make prod-install` will compile the project
-in release mode and install it in your local venv, overriding previous dev installs.
+```bash
+make
+```
 
-### Linting and formatting
+This runs a full development cycle: formatting, building, linting, and testing
 
-The Makefile provides the `lint` and `format` extras to ease this.
+### Development Commands
 
-## Running the tests
+Run `make help` to see all available commands, or use these common ones:
 
-`make test`
+```bash
+make all          # full dev cycle: format, build, lint, test
+make install      # install with debug build (daily development)
+make install-prod # install with release build (benchmarking)
+make test         # to run the tests
+make lint         # to run the linter
+make format       # to format python and rust code
+make doc-serve    # to serve the documentation locally
+```
 
-## Running the benchmarks
+### Useful Resources
 
-### Speed benchmark
+* [`python/fastexcel/_fastexcel.pyi`](./python/fastexcel/_fastexcel.pyi) - Python API types
+* [`python/tests/`](./python/tests) - Comprehensive usage examples
 
-`make benchmarks`
+## Benchmarking
 
-### Memory benchmark
+For benchmarking, use `make benchmarks` which automatically builds an optimised wheel.
+This is required for profiling, as dev mode builds are much slower.
 
-`mprof run -T 0.01 python python/tests/benchmarks/memory.py python/tests/benchmarks/fixtures/plain_data.xls`
+### Speed benchmarks
+```bash
+make benchmarks
+```
 
-## Building the docs
-
-`make doc`
+### Memory profiling
+```bash
+mprof run -T 0.01 python python/tests/benchmarks/memory.py python/tests/benchmarks/fixtures/plain_data.xls
+```
 
 ## Creating a release
 
