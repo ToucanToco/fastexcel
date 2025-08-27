@@ -91,7 +91,7 @@ df = pl.DataFrame(table)  # Zero-copy via PyCapsule, no pyarrow needed
 - **Memory efficient** - lazy loading and optional eager evaluation
 - **Type safety** - automatic type inference with manual override options
 
-## Getting Started
+## Contributing & Development
 
 ### Prerequisites
 
@@ -100,6 +100,13 @@ You'll need:
 2. **[uv](https://docs.astral.sh/uv/getting-started/installation/)** - Fast Python package manager (will install Python 3.9+ automatically)
 3. **[git](https://git-scm.com/)** - For version control
 4. **[make](https://www.gnu.org/software/make/)** - For running development commands
+
+**Python Version Management:**
+uv handles Python installation automatically. To use a specific Python version:
+```bash
+uv python install 3.13  # Install Python 3.13
+uv python pin 3.13      # Pin project to Python 3.13
+```
 
 ### Quick Start
 
