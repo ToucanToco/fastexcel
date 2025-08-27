@@ -1,25 +1,30 @@
 .DEFAULT_GOAL := all
 sources = python/fastexcel python/tests
 
-# using pip install cargo (via maturin via pip) doesn't get the tty handle
-# so doesn't render color without some help
 export CARGO_TERM_COLOR=$(shell (test -t 0 && echo "always") || echo "auto")
 
 .PHONY: .uv  ## Check that uv is installed
 .uv:
 	@uv -V || echo 'Please install uv: https://docs.astral.sh/uv/getting-started/installation/'
 
-.PHONY: install  ## Install the package & dependencies
+.PHONY: install  ## Install the package & dependencies with debug build
 install: .uv
 	uv sync --frozen --group all
+	uv run maturin develop --uv -E pandas,polars
 
-.PHONY: install-dev  ## Install the package, dependencies, and pre-commit for local development
-install-dev: install
+.PHONY: install-prod  ## Install the package & dependencies with release build
+install-prod: .uv
+	uv sync --frozen --group all
+	uv run maturin develop --uv --release -E pandas,polars
+
+.PHONY: setup-dev  ## First-time setup: install + pre-commit hooks
+setup-dev: install
 	uv run pre-commit install --install-hooks
 
 .PHONY: rebuild-lockfiles  ## Rebuild lockfiles from scratch, updating all dependencies
 rebuild-lockfiles: .uv
 	uv lock --upgrade
+	cargo update
 
 .PHONY: build-dev  ## Build the development version of the package
 build-dev:

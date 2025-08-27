@@ -58,7 +58,7 @@ wheels = [
 
 [[package]]
 name = "fastexcel"
-source = { editable = "." }
+source = { virtual = "." }
 dependencies = [
     { name = "typing-extensions", marker = "python_full_version < '3.10'" },
 ]
@@ -145,24 +145,24 @@ all = [
     { name = "pytest-benchmark", specifier = ">=4.0.0,<6" },
     { name = "pytest-mock", specifier = ">=3.1" },
     { name = "ruff", specifier = ">=0.12,<0.13" },
-    { name = "uv", specifier = ">=0.2.27" },
+    { name = "uv", specifier = ">=0.8.4" },
     { name = "xlrd", specifier = ">=2.0.1,<3" },
 ]
 dev = [
     { name = "maturin", specifier = ">=1.7.0,<2.0" },
-    { name = "uv", specifier = ">=0.2.27" },
+    { name = "uv", specifier = ">=0.8.4" },
 ]
 docs = [
     { name = "maturin", specifier = ">=1.7.0,<2.0" },
     { name = "pdoc" },
-    { name = "uv", specifier = ">=0.2.27" },
+    { name = "uv", specifier = ">=0.8.4" },
 ]
 linting = [
     { name = "maturin", specifier = ">=1.7.0,<2.0" },
     { name = "mypy", specifier = ">=1.11.2,<2" },
     { name = "pre-commit", specifier = ">=2.20.0,<5" },
     { name = "ruff", specifier = ">=0.12,<0.13" },
-    { name = "uv", specifier = ">=0.2.27" },
+    { name = "uv", specifier = ">=0.8.4" },
 ]
 testing = [
     { name = "maturin", specifier = ">=1.7.0,<2.0" },
@@ -173,7 +173,7 @@ testing = [
     { name = "pytest", specifier = ">=7.1.3" },
     { name = "pytest-benchmark", specifier = ">=4.0.0,<6" },
     { name = "pytest-mock", specifier = ">=3.1" },
-    { name = "uv", specifier = ">=0.2.27" },
+    { name = "uv", specifier = ">=0.8.4" },
     { name = "xlrd", specifier = ">=2.0.1,<3" },
 ]
 

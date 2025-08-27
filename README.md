@@ -115,8 +115,8 @@ uv python pin 3.13      # Pin project to Python 3.13
 git clone https://github.com/ToucanToco/fastexcel.git
 cd fastexcel
 
-# Install all dependencies using uv and setup pre-commit hooks for development
-make install-dev
+# First-time setup: install dependencies, build debug version, and setup pre-commit hooks
+make setup-dev
 ```
 
 Verify your installation by running:
@@ -132,9 +132,9 @@ This runs a full development cycle: formatting, building, linting, and testing
 Run `make help` to see all available commands, or use these common ones:
 
 ```bash
-make all          # to run build-dev + format + lint + test
-make build-dev    # to build the package during development
-make build-wheel  # to install an optimised wheel for benchmarking
+make all          # full dev cycle: format, build, lint, test
+make install      # install with debug build (daily development)
+make install-prod # install with release build (benchmarking)
 make test         # to run the tests
 make lint         # to run the linter
 make format       # to format python and rust code
