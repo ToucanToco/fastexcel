@@ -12,7 +12,7 @@ use pyo3::{PyObject, Python, pyclass};
 
 use self::column_info::{ColumnInfo, build_available_columns_info, finalize_column_info};
 use crate::{
-    data::ExcelSheetData,
+    data::{ExcelSheetData, FastExcelColumn},
     error::{ErrorContext, FastExcelError, FastExcelErrorKind, FastExcelResult},
     types::{dtype::DTypes, idx_or_name::IdxOrName},
 };
@@ -439,8 +439,8 @@ impl ExcelSheet {
         self.header.offset() + self.pagination.offset()
     }
 
-    pub fn selected_columns(&self) -> Vec<ColumnInfo> {
-        self.selected_columns.clone()
+    pub fn selected_columns(&self) -> &Vec<ColumnInfo> {
+        &self.selected_columns
     }
 
     pub fn available_columns(&mut self) -> FastExcelResult<Vec<ColumnInfo>> {
@@ -457,6 +457,20 @@ impl ExcelSheet {
 
     pub fn visible(&self) -> calamine::SheetVisible {
         self.sheet_meta.visible
+    }
+
+    pub fn to_columns(&self) -> FastExcelResult<Vec<FastExcelColumn>> {
+        self.selected_columns
+            .iter()
+            .map(|column_info| {
+                FastExcelColumn::try_from_column_info(
+                    column_info,
+                    &self.data,
+                    self.offset(),
+                    self.limit(),
+                )
+            })
+            .collect()
     }
 }
 

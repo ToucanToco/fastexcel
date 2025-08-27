@@ -1,14 +1,23 @@
 mod cell_extractors;
 #[cfg(feature = "python")]
 mod python;
+mod rust;
+use chrono::{Duration, NaiveDate, NaiveDateTime};
 #[cfg(feature = "python")]
 pub(crate) use python::*;
 
 use calamine::{Data as CalData, DataRef as CalDataRef, DataType, Range};
 
 use crate::{
-    error::FastExcelResult,
-    types::dtype::{DType, DTypeCoercion, get_dtype_for_column},
+    data::rust::{
+        create_boolean_vec, create_date_vec, create_datetime_vec, create_duration_vec,
+        create_float_vec, create_int_vec, create_string_vec,
+    },
+    error::{FastExcelErrorKind, FastExcelResult},
+    types::{
+        dtype::{DType, DTypeCoercion, get_dtype_for_column},
+        excelsheet::column_info::ColumnInfo,
+    },
 };
 
 #[derive(Debug)]
@@ -66,5 +75,124 @@ impl From<Range<CalData>> for ExcelSheetData<'_> {
 impl<'a> From<Range<CalDataRef<'a>>> for ExcelSheetData<'a> {
     fn from(range: Range<CalDataRef<'a>>) -> Self {
         Self::Ref(range)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum FastExcelSeries {
+    Null,
+    Bool(Vec<Option<bool>>),
+    String(Vec<Option<String>>),
+    Int(Vec<Option<i64>>),
+    Float(Vec<Option<f64>>),
+    Datetime(Vec<Option<NaiveDateTime>>),
+    Date(Vec<Option<NaiveDate>>),
+    Duration(Vec<Option<Duration>>),
+}
+
+macro_rules! from_vec {
+    ($type:ty, $variant:ident) => {
+        impl From<Vec<Option<$type>>> for FastExcelSeries {
+            fn from(vec: Vec<Option<$type>>) -> Self {
+                Self::$variant(vec)
+            }
+        }
+    };
+}
+
+from_vec!(bool, Bool);
+from_vec!(String, String);
+from_vec!(i64, Int);
+from_vec!(f64, Float);
+from_vec!(NaiveDateTime, Datetime);
+from_vec!(NaiveDate, Date);
+from_vec!(Duration, Duration);
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct FastExcelColumn {
+    pub name: String,
+    data: FastExcelSeries,
+    len: usize,
+}
+
+impl FastExcelColumn {
+    pub fn try_new(
+        name: String,
+        data: FastExcelSeries,
+        len: Option<usize>,
+    ) -> FastExcelResult<Self> {
+        let data_len = match &data {
+            FastExcelSeries::Null => None,
+            FastExcelSeries::Bool(v) => Some(v.len()),
+            FastExcelSeries::String(v) => Some(v.len()),
+            FastExcelSeries::Int(v) => Some(v.len()),
+            FastExcelSeries::Float(v) => Some(v.len()),
+            FastExcelSeries::Datetime(v) => Some(v.len()),
+            FastExcelSeries::Date(v) => Some(v.len()),
+            FastExcelSeries::Duration(v) => Some(v.len()),
+        };
+        if let Some(len) = len
+            && let Some(data_len) = data_len
+            && data_len != len
+        {
+            return Err(FastExcelErrorKind::InvalidColumn(format!(
+                "Column '{name}' has length {data_len} but expected {len}"
+            ))
+            .into());
+        }
+        let len = len.or(data_len).ok_or_else(|| {
+            FastExcelErrorKind::InvalidColumn(
+                "`len` is mandatory for `FastExcelSeries::Null`".to_string(),
+            )
+        })?;
+        Ok(Self { name, data, len })
+    }
+
+    pub(crate) fn try_from_column_info(
+        column_info: &ColumnInfo,
+        data: &ExcelSheetData,
+        offset: usize,
+        limit: usize,
+    ) -> FastExcelResult<Self> {
+        let len = limit.checked_sub(offset).ok_or_else(|| {
+            FastExcelErrorKind::InvalidParameters(format!(
+                "limit is smaller than offset: {limit} is smaller than {offset}"
+            ))
+        })?;
+        let data = match column_info.dtype() {
+            DType::Null => FastExcelSeries::Null,
+            DType::Int => {
+                FastExcelSeries::Int(create_int_vec(data, column_info.index(), offset, limit))
+            }
+            DType::Float => {
+                FastExcelSeries::Float(create_float_vec(data, column_info.index(), offset, limit))
+            }
+            DType::String => {
+                FastExcelSeries::String(create_string_vec(data, column_info.index(), offset, limit))
+            }
+            DType::Bool => {
+                FastExcelSeries::Bool(create_boolean_vec(data, column_info.index(), offset, limit))
+            }
+            DType::DateTime => FastExcelSeries::Datetime(create_datetime_vec(
+                data,
+                column_info.index(),
+                offset,
+                limit,
+            )),
+            DType::Date => {
+                FastExcelSeries::Date(create_date_vec(data, column_info.index(), offset, limit))
+            }
+            DType::Duration => FastExcelSeries::Duration(create_duration_vec(
+                data,
+                column_info.index(),
+                offset,
+                limit,
+            )),
+        };
+        Ok(Self {
+            name: column_info.name.clone(),
+            data,
+            len,
+        })
     }
 }

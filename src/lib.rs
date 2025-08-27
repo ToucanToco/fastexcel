@@ -12,8 +12,8 @@ use pyo3::prelude::*;
 #[cfg(feature = "python")]
 use types::excelsheet::{CellError, CellErrors};
 
-pub use types::exceltable::ExcelTable;
-pub use types::{ExcelReader, ExcelSheet, LoadSheetOptions};
+pub use data::{FastExcelColumn, FastExcelSeries};
+pub use types::{ExcelReader, ExcelSheet, ExcelTable, LoadSheetOptions};
 
 use crate::error::{ErrorContext, FastExcelResult};
 
@@ -45,7 +45,8 @@ fn py_read_excel(source: &Bound<'_, PyAny>) -> PyResult<ExcelReader> {
 
 // Taken from pydantic-core:
 // https://github.com/pydantic/pydantic-core/blob/main/src/lib.rs#L24
-fn get_version() -> String {
+#[cfg(feature = "python")]
+fn get_python_version() -> String {
     let version = env!("CARGO_PKG_VERSION").to_string();
     // cargo uses "1.0-alpha1" etc. while python uses "1.0.0a1", this is not full compatibility,
     // but it's good enough for now
@@ -71,7 +72,7 @@ fn _fastexcel(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<ExcelSheet>()?;
     m.add_class::<ExcelReader>()?;
     m.add_class::<ExcelTable>()?;
-    m.add("__version__", get_version())?;
+    m.add("__version__", get_python_version())?;
 
     // errors
     [

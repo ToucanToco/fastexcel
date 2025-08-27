@@ -167,7 +167,7 @@ impl ExcelSheet {
 
     #[getter("selected_columns")]
     pub fn py_selected_columns(&self) -> Vec<ColumnInfo> {
-        self.selected_columns()
+        self.selected_columns().to_owned()
     }
 
     #[pyo3(name = "available_columns")]

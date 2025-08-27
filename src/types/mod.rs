@@ -6,3 +6,4 @@ pub(crate) mod idx_or_name;
 
 pub use excelreader::{ExcelReader, LoadSheetOptions};
 pub use excelsheet::ExcelSheet;
+pub use exceltable::ExcelTable;

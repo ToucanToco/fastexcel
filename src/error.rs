@@ -14,6 +14,7 @@ pub enum FastExcelErrorKind {
     // the actual type has not much value for us, so we just store a string context
     ArrowError(String),
     InvalidParameters(String),
+    InvalidColumn(String),
     Internal(String),
 }
 
@@ -42,6 +43,7 @@ impl Display for FastExcelErrorKind {
             }
             FastExcelErrorKind::ArrowError(err) => write!(f, "arrow error: {err}"),
             FastExcelErrorKind::InvalidParameters(err) => write!(f, "invalid parameters: {err}"),
+            FastExcelErrorKind::InvalidColumn(err) => write!(f, "invalid column: {err}"),
             FastExcelErrorKind::Internal(err) => write!(f, "fastexcel error: {err}"),
         }
     }
@@ -191,6 +193,13 @@ pub(crate) mod py_errors {
         FastExcelError,
         "Provided parameters are invalid"
     );
+    // Invalid column
+    create_exception!(
+        _fastexcel,
+        InvalidColumnError,
+        FastExcelError,
+        "Column is invalid"
+    );
     // Internal error
     create_exception!(
         _fastexcel,
@@ -217,6 +226,7 @@ pub(crate) mod py_errors {
                 FastExcelErrorKind::InvalidParameters(_) => {
                     InvalidParametersError::new_err(message)
                 }
+                FastExcelErrorKind::InvalidColumn(_) => InvalidColumnError::new_err(message),
                 FastExcelErrorKind::Internal(_) => ArrowError::new_err(message),
             }
         }

@@ -205,7 +205,7 @@ impl ExcelReader {
         opts: LoadSheetOptions,
     ) -> FastExcelResult<ExcelSheet> {
         let calamine_header_row = opts.calamine_header_row();
-        let data_header_row = opts.header_row.and(Some(0));
+        let data_header_row = opts.data_header_row();
 
         let sheet_meta = self.find_sheet_meta(idx_or_name)?.to_owned();
 
