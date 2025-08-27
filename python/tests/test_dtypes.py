@@ -12,7 +12,7 @@ from pandas.testing import assert_frame_equal as pd_assert_frame_equal
 from polars.testing import assert_frame_equal as pl_assert_frame_equal
 from pytest_mock import MockerFixture
 
-from utils import path_for_fixture
+from .utils import path_for_fixture
 
 
 @pytest.fixture

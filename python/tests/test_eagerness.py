@@ -6,7 +6,7 @@ from pandas.testing import assert_frame_equal as pd_assert_frame_equal
 from polars.testing import assert_frame_equal as pl_assert_frame_equal
 from pyarrow import RecordBatch
 
-from utils import path_for_fixture
+from .utils import path_for_fixture
 
 
 def test_load_sheet_eager_single_sheet() -> None:

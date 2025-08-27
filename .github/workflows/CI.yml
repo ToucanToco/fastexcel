@@ -10,7 +10,6 @@ on:
 env:
   MIN_PYTHON_VERSION: "3.9"
 
-
 defaults:
   run:
     # Prevents windows runners from running on powershell
@@ -20,27 +19,23 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v5
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: "${{ env.MIN_PYTHON_VERSION }}"
-    - name: Set up rust toolchain
-      uses: dtolnay/rust-toolchain@stable
-    - name: Set up rustfmt
-      run: rustup component add rustfmt
+      - uses: actions/checkout@v5
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "${{ env.MIN_PYTHON_VERSION }}"
+      - name: Set up rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - name: Set up rustfmt
+        run: rustup component add rustfmt
 
-    # Maturin requires a venv to be activated, that's why we have to create one here
-    - name: Create virtualenv
-      run: |
-        python -m venv .venv
-        source .venv/bin/activate
-        make install-test-requirements
+      - name: install uv
+        uses: astral-sh/setup-uv@v6
 
-    - name: Lint
-      run: |
-        source .venv/bin/activate
-        make lint
+      - name: Install dependencies and lint
+        run: |
+          make install
+          make lint
 
   check-docs:
     runs-on: ubuntu-latest
@@ -52,18 +47,11 @@ jobs:
           python-version: "3.11"
       - name: Set up rust toolchain
         uses: dtolnay/rust-toolchain@stable
-      - run: |
-          git config user.name github-actions
-          git config user.email github-actions@github.com
-
-          # venv required by maturin
-          python3 -m venv .venv
-          source .venv/bin/activate
-
-          make install-test-requirements
-          make install-doc-requirements
-          # Required for pdoc to be able to import the sources
-          make dev-install
+      - name: install uv
+        uses: astral-sh/setup-uv@v6
+      - name: Check documentation
+        run: |
+          make install
           make doc
 
   # GitHub provides only x86_64 runners, so we cannot test on arm architecture
@@ -74,29 +62,21 @@ jobs:
         python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
         os: ["ubuntu-latest", "macos-14", "windows-latest"]
     steps:
-    - uses: actions/checkout@v5
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: ${{ matrix.python-version }}
-    - name: Set up rust toolchain
-      uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@v5
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Set up rust toolchain
+        uses: dtolnay/rust-toolchain@stable
 
-    # Maturin requires a venv to be activated, that's why we have to create one here
-    - name: Create virtualenv
-      env:
-        BIN: ${{ matrix.os == 'windows-latest' && 'Scripts' || 'bin' }}
-      run: |
-        python -m venv .venv
-        echo "${{ github.workspace }}/.venv/${{ env.BIN }}" >> $GITHUB_PATH
+      - name: install uv
+        uses: astral-sh/setup-uv@v6
 
-    - name: Install dependencies
-      run: |
-        echo "PATH IS $PATH"
-        make install-test-requirements
-
-    - name: Test
-      run: make test-ci
+      - name: Install dependencies and test
+        run: |
+          make install
+          make test
 
   check-wheel-build:
     runs-on: ${{ matrix.os }}
@@ -111,28 +91,28 @@ jobs:
           - os: windows-latest
             architecture: aarch64
     steps:
-    - uses: actions/checkout@v5
-    - uses: dtolnay/rust-toolchain@stable
-    - name: Set Rust target
-      id: target
-      if: matrix.os != 'windows-latest'
-      run: |
-        TARGET=${{ matrix.os == 'macos-14' && (matrix.architecture == 'aarch64' && 'aarch64-apple-darwin' || 'x86_64-apple-darwin') || (matrix.architecture == 'aarch64' && 'aarch64-unknown-linux-gnu' || null) }}
-        echo "target=$TARGET" >> $GITHUB_OUTPUT
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Set Rust target
+        id: target
+        if: matrix.os != 'windows-latest'
+        run: |
+          TARGET=${{ matrix.os == 'macos-14' && (matrix.architecture == 'aarch64' && 'aarch64-apple-darwin' || 'x86_64-apple-darwin') || (matrix.architecture == 'aarch64' && 'aarch64-unknown-linux-gnu' || null) }}
+          echo "target=$TARGET" >> $GITHUB_OUTPUT
 
-    - name: build (fast)
-      uses: PyO3/maturin-action@v1
-      with:
-        manylinux: auto
-        command: build
-        args: "-o dist"
-        target: ${{ steps.target.outputs.target }}
+      - name: build (fast)
+        uses: PyO3/maturin-action@v1
+        with:
+          manylinux: auto
+          command: build
+          args: "-o dist"
+          target: ${{ steps.target.outputs.target }}
 
-    - name: Upload wheels
-      uses: actions/upload-artifact@v4
-      with:
-        name: "wheels-${{ matrix.os }}-python-${{ matrix.python-version }}-${{ matrix.architecture }}"
-        path: dist
+      - name: Upload wheels
+        uses: actions/upload-artifact@v4
+        with:
+          name: "wheels-${{ matrix.os }}-python-${{ matrix.python-version }}-${{ matrix.architecture }}"
+          path: dist
 
   check-sdist-build:
     runs-on: "ubuntu-latest"

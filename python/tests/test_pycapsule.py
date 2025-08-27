@@ -4,7 +4,7 @@ import fastexcel
 import pandas as pd
 import polars as pl
 
-from utils import path_for_fixture
+from .utils import path_for_fixture
 
 
 def test_sheet_arrow_c_schema():
