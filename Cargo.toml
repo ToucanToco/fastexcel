@@ -57,3 +57,5 @@ python-tests = [
     "dep:pyo3-log",
     "dep:pyo3-arrow",
 ]
+# Private feature for maturin usage, should not be used directly
+__maturin = ["extension-module", "pyarrow"]

@@ -1,7 +1,7 @@
 import fastexcel
 import pytest
 
-from utils import path_for_fixture
+from .utils import path_for_fixture
 
 
 @pytest.mark.parametrize("path", ("empty.ods", "empty.xlsx"))

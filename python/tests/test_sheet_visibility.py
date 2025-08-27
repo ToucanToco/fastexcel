@@ -1,6 +1,6 @@
 import fastexcel
 
-from utils import path_for_fixture
+from .utils import path_for_fixture
 
 
 def test_sheet_visibilities() -> None:
