@@ -3,7 +3,7 @@ from __future__ import annotations
 import fastexcel
 import pytest
 
-from utils import path_for_fixture
+from .utils import path_for_fixture
 
 
 def test_read_excel_bad_type() -> None:
