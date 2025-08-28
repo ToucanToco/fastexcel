@@ -2,9 +2,11 @@
 mod utils;
 use anyhow::{Context, Result};
 use chrono::NaiveDate;
-use fastexcel::LoadSheetOptions;
+use fastexcel::{FastExcelColumn, LoadSheetOptions};
+#[cfg(feature = "polars")]
+use polars_core::{df, frame::DataFrame, series::Series};
 use pretty_assertions::assert_eq;
-
+use rstest::rstest;
 use utils::path_for_fixture;
 
 #[test]
@@ -45,8 +47,6 @@ fn test_single_sheet() -> Result<()> {
 
     #[cfg(feature = "polars")]
     {
-        use polars_core::df;
-
         let df_by_name = sheet_by_name
             .to_polars()
             .context("could not convert sheet by name to DataFrame")?;
@@ -105,8 +105,6 @@ fn test_single_sheet_bytes() -> Result<()> {
 
     #[cfg(feature = "polars")]
     {
-        use polars_core::df;
-
         let df_by_name = sheet_by_name
             .to_polars()
             .context("could not convert sheet by name to DataFrame")?;
@@ -159,8 +157,6 @@ fn test_single_sheet_with_types() -> Result<()> {
 
     #[cfg(feature = "polars")]
     {
-        use polars_core::df;
-
         let df = sheet
             .to_polars()
             .context("could not convert sheet to DataFrame")?;
@@ -223,8 +219,6 @@ fn test_multiple_sheets() -> Result<()> {
 
     #[cfg(feature = "polars")]
     {
-        use polars_core::df;
-
         let expected_df_sheet_0 = df!("Month" => [1.0], "Year" => [2019.0])?;
         let df_sheet_0 = sheet_0
             .to_polars()
@@ -298,8 +292,6 @@ fn test_sheet_with_header_row_diff_from_zero() -> Result<()> {
 
     #[cfg(feature = "polars")]
     {
-        use polars_core::df;
-
         let df_by_name = sheet_by_name
             .to_polars()
             .context("could not convert sheet \"Sheet1\" to DataFrame")?;
@@ -356,8 +348,6 @@ fn test_sheet_with_pagination_and_without_headers() -> Result<()> {
 
     #[cfg(feature = "polars")]
     {
-        use polars_core::df;
-
         let df = sheet
             .to_polars()
             .context("could not convert sheet to DataFrame")?;
@@ -370,6 +360,81 @@ fn test_sheet_with_pagination_and_without_headers() -> Result<()> {
 
         assert!(df.equals_missing(&expected_df));
     }
+
+    Ok(())
+}
+
+#[rstest]
+#[case(Some(0), None, fe_columns!("a" => ["b"], "0" => [1.0]))]
+#[case(None, Some(0), fe_columns!("__UNNAMED__0" => [None, None, Some("a"), Some("b")], "__UNNAMED__1" => [None, None, Some(0.0), Some(1.0)]))]
+#[case(None, None, fe_columns!("__UNNAMED__0" => ["a", "b"], "__UNNAMED__1" => [0.0, 1.0]))]
+#[case(Some(0), Some(0), fe_columns!("__UNNAMED__0" => [None, Some("a"), Some("b")], "__UNNAMED__1" => [None, Some(0.0), Some(1.0)]))]
+#[case(Some(0), Some(1), fe_columns!("__UNNAMED__0" => ["a", "b"], "__UNNAMED__1" => [0.0, 1.0]))]
+#[case(None, Some(2), fe_columns!("__UNNAMED__0" => ["a", "b"], "__UNNAMED__1" => [0.0, 1.0]))]
+#[case(None, Some(3), fe_columns!("__UNNAMED__0" => ["b"], "__UNNAMED__1" => [1.0]))]
+#[case(Some(1), Some(0), fe_columns!("__UNNAMED__0" => ["a", "b"], "__UNNAMED__1" => [0.0, 1.0]))]
+#[case(Some(2), Some(0), fe_columns!("a" => ["b"], "0" => [1.0]))]
+#[case(Some(2), None, fe_columns!("a" => ["b"], "0" => [1.0]))]
+#[case(Some(2), Some(1), vec![FastExcelColumn::null("a", 0), FastExcelColumn::null("0", 0)])]
+fn test_header_row_and_skip_rows(
+    #[case] header_row: Option<usize>,
+    #[case] skip_rows: Option<usize>,
+    #[case] expected: Vec<FastExcelColumn>,
+) -> Result<()> {
+    let mut excel_reader = fastexcel::read_excel(path_for_fixture("no-header.xlsx"))
+        .context("could not read excel file")?;
+
+    let opts = LoadSheetOptions {
+        header_row,
+        skip_rows,
+        ..Default::default()
+    };
+    let sheet = excel_reader
+        .load_sheet(0.into(), opts)
+        .context("could not load sheet 0")?;
+
+    let sheet_columns = sheet
+        .to_columns()
+        .context("could not convert sheet to columns")?;
+    assert_eq!(&sheet_columns, &expected);
+    Ok(())
+}
+
+#[cfg(feature = "polars")]
+#[rstest]
+#[case(Some(0), None, df!("a" => ["b"], "0" => [1.0])?)]
+#[case(None, Some(0), df!("__UNNAMED__0" => [None, None, Some("a"), Some("b")], "__UNNAMED__1" => [None, None, Some(0.0), Some(1.0)])?)]
+#[case(None, None, df!("__UNNAMED__0" => ["a", "b"], "__UNNAMED__1" => [0.0, 1.0])?)]
+#[case(Some(0), Some(0), df!("__UNNAMED__0" => [None, Some("a"), Some("b")], "__UNNAMED__1" => [None, Some(0.0), Some(1.0)])?)]
+#[case(Some(0), Some(1), df!("__UNNAMED__0" => ["a", "b"], "__UNNAMED__1" => [0.0, 1.0])?)]
+#[case(None, Some(2), df!("__UNNAMED__0" => ["a", "b"], "__UNNAMED__1" => [0.0, 1.0])?)]
+#[case(None, Some(3), df!("__UNNAMED__0" => ["b"], "__UNNAMED__1" => [1.0])?)]
+#[case(Some(1), Some(0), df!("__UNNAMED__0" => ["a", "b"], "__UNNAMED__1" => [0.0, 1.0])?)]
+#[case(Some(2), Some(0), df!("a" => ["b"], "0" => [1.0])?)]
+#[case(Some(2), None, df!("a" => ["b"], "0" => [1.0])?)]
+#[case(Some(2), Some(1), df!("a" => Series::new_null("a".into(), 0), "0" => Series::new_null("0".into(), 0))?)]
+fn test_header_row_and_skip_rows_polars(
+    #[case] header_row: Option<usize>,
+    #[case] skip_rows: Option<usize>,
+    #[case] expected: DataFrame,
+) -> Result<()> {
+    let mut excel_reader = fastexcel::read_excel(path_for_fixture("no-header.xlsx"))
+        .context("could not read excel file")?;
+
+    let opts = LoadSheetOptions {
+        header_row,
+        skip_rows,
+        ..Default::default()
+    };
+    let sheet = excel_reader
+        .load_sheet(0.into(), opts)
+        .context("could not load sheet 0")?;
+
+    let df = sheet
+        .to_polars()
+        .context("could not convert sheet to DataFrame")?;
+
+    assert!(df.equals_missing(&expected));
 
     Ok(())
 }

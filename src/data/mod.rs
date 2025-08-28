@@ -173,6 +173,14 @@ impl FastExcelColumn {
         Ok(Self { name, data, len })
     }
 
+    pub fn null<S: Into<String>>(name: S, len: usize) -> Self {
+        Self {
+            name: name.into(),
+            data: FastExcelSeries::Null,
+            len,
+        }
+    }
+
     pub(crate) fn try_from_column_info(
         column_info: &ColumnInfo,
         data: &ExcelSheetData,
