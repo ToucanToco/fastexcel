@@ -120,6 +120,19 @@ from_vec_or_array!(NaiveDateTime, Datetime);
 from_vec_or_array!(NaiveDate, Date);
 from_vec_or_array!(Duration, Duration);
 
+// Conflicting impls when using `From<AsRef<[&str]>>`
+impl<const N: usize> From<[Option<&str>; N]> for FastExcelSeries {
+    fn from(arr: [Option<&str>; N]) -> Self {
+        Self::String(arr.into_iter().map(|s| s.map(|s| s.to_string())).collect())
+    }
+}
+
+impl<const N: usize> From<[&str; N]> for FastExcelSeries {
+    fn from(arr: [&str; N]) -> Self {
+        Self::String(arr.into_iter().map(|s| Some(s.to_string())).collect())
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct FastExcelColumn {
     pub name: String,
