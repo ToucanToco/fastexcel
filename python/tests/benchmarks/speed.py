@@ -3,7 +3,8 @@ Compare read performance with fastexcel, xlrd and different openpyxl options
 """
 
 import pytest
-from readers import fastexcel_read, pyxl_read, xlrd_read
+
+from .readers import fastexcel_read, pyxl_read, xlrd_read
 
 
 @pytest.fixture
