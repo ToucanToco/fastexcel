@@ -42,7 +42,7 @@ pyo3-log = { version = "^0.12.4", optional = true }
 
 [dev-dependencies]
 anyhow = "1.0.99"
-pretty_assertions = "^1.4.1"
+pretty_assertions = { version = "^1.4.1", features = ["unstable"] }
 rstest = { version = "^0.26.1", default-features = false }
 
 # NOTE: This is a hack to bypass pyo3 limitations when testing:

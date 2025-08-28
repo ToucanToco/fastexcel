@@ -294,7 +294,7 @@ impl FromStr for SelectedColumns {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SheetVisible {
     Visible,
     Hidden,

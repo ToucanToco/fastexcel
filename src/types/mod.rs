@@ -7,7 +7,7 @@ pub(crate) mod idx_or_name;
 pub use dtype::DType;
 pub use excelreader::{ExcelReader, LoadSheetOrTableOptions};
 pub use excelsheet::{
-    ExcelSheet,
+    ExcelSheet, SheetVisible,
     column_info::{ColumnInfo, ColumnNameFrom, DTypeFrom},
 };
 pub use exceltable::ExcelTable;
