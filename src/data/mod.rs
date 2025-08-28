@@ -90,23 +90,35 @@ pub enum FastExcelSeries {
     Duration(Vec<Option<Duration>>),
 }
 
-macro_rules! from_vec {
+macro_rules! from_vec_or_array {
     ($type:ty, $variant:ident) => {
         impl From<Vec<Option<$type>>> for FastExcelSeries {
             fn from(vec: Vec<Option<$type>>) -> Self {
                 Self::$variant(vec)
             }
         }
+
+        impl<const N: usize> From<[Option<$type>; N]> for FastExcelSeries {
+            fn from(arr: [Option<$type>; N]) -> Self {
+                Self::$variant(arr.to_vec())
+            }
+        }
+
+        impl<const N: usize> From<[$type; N]> for FastExcelSeries {
+            fn from(arr: [$type; N]) -> Self {
+                Self::$variant(arr.into_iter().map(Some).collect())
+            }
+        }
     };
 }
 
-from_vec!(bool, Bool);
-from_vec!(String, String);
-from_vec!(i64, Int);
-from_vec!(f64, Float);
-from_vec!(NaiveDateTime, Datetime);
-from_vec!(NaiveDate, Date);
-from_vec!(Duration, Duration);
+from_vec_or_array!(bool, Bool);
+from_vec_or_array!(String, String);
+from_vec_or_array!(i64, Int);
+from_vec_or_array!(f64, Float);
+from_vec_or_array!(NaiveDateTime, Datetime);
+from_vec_or_array!(NaiveDate, Date);
+from_vec_or_array!(Duration, Duration);
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct FastExcelColumn {

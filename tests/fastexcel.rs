@@ -38,10 +38,10 @@ fn test_single_sheet() -> Result<()> {
         .context("could not convert sheet by index to columns")?;
 
     assert_eq!(&columns_by_name, &columns_by_idx);
-    let expected_columns = vec![
-        fe_column!("Month", vec![Some(1.0), Some(2.0)])?,
-        fe_column!("Year", vec![Some(2019.0), Some(2020.0)])?,
-    ];
+    let expected_columns = fe_columns!(
+        "Month" => [1.0, 2.0],
+        "Year" => [2019.0, 2020.0],
+    );
     assert_eq!(&columns_by_name, &expected_columns);
 
     #[cfg(feature = "polars")]
@@ -55,8 +55,8 @@ fn test_single_sheet() -> Result<()> {
             .to_polars()
             .context("could not convert sheet by index to DataFrame")?;
         let expected_df = df!(
-            "Month" => &[1.0, 2.0],
-            "Year" => &[2019.0, 2020.0]
+            "Month" => [1.0, 2.0],
+            "Year" => [2019.0, 2020.0]
         )
         .context("could not create expected DataFrame")?;
         assert_eq!(&df_by_name, &df_by_idx);
@@ -98,10 +98,10 @@ fn test_single_sheet_bytes() -> Result<()> {
         .context("could not convert sheet by index to columns")?;
 
     assert_eq!(&columns_by_name, &columns_by_idx);
-    let expected_columns = vec![
-        fe_column!("Month", vec![Some(1.0), Some(2.0)])?,
-        fe_column!("Year", vec![Some(2019.0), Some(2020.0)])?,
-    ];
+    let expected_columns = fe_columns!(
+        "Month" => [1.0, 2.0],
+        "Year" => [2019.0, 2020.0]
+    );
     assert_eq!(&columns_by_name, &expected_columns);
 
     #[cfg(feature = "polars")]
@@ -115,8 +115,8 @@ fn test_single_sheet_bytes() -> Result<()> {
             .to_polars()
             .context("could not convert sheet by index to DataFrame")?;
         let expected_df = df!(
-            "Month" => &[1.0, 2.0],
-            "Year" => &[2019.0, 2020.0]
+            "Month" => [1.0, 2.0],
+            "Year" => [2019.0, 2020.0]
         )
         .context("could not create expected DataFrame")?;
         assert_eq!(&df_by_name, &df_by_idx);
@@ -150,12 +150,12 @@ fn test_single_sheet_with_types() -> Result<()> {
         .and_hms_opt(5, 43, 4)
         .unwrap();
 
-    let expected_columns = vec![
-        fe_column!("__UNNAMED__0", vec![Some(0.0), Some(1.0), Some(2.0)])?,
-        fe_column!("bools", vec![Some(true), Some(false), Some(true)])?,
-        fe_column!("dates", [Some(naive_date); 3].to_vec())?,
-        fe_column!("floats", vec![Some(12.35), Some(42.69), Some(1234567.0)])?,
-    ];
+    let expected_columns = fe_columns!(
+        "__UNNAMED__0" => [0.0, 1.0, 2.0],
+        "bools" => [true, false, true],
+        "dates" => [naive_date; 3],
+        "floats" => [12.35, 42.69, 1234567.0],
+    );
     assert_eq!(&columns, &expected_columns);
 
     #[cfg(feature = "polars")]
