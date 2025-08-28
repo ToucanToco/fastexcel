@@ -18,11 +18,11 @@ from os.path import expanduser
 from pathlib import Path
 
 try:
-    import pyarrow as pa
+    import importlib.util
 
+    importlib.util.find_spec("pyarrow")
     _PYARROW_AVAILABLE = True
 except ImportError:
-    pa = None
     _PYARROW_AVAILABLE = False
 
 from ._fastexcel import (
@@ -462,21 +462,34 @@ class ExcelReader:
         :param dtypes: An optional dtype (for all columns)
                        or dict of dtypes with keys as column indices or names.
         """
-        output = self._reader.load_table(  # type:ignore[call-overload,misc]
-            name=name,
-            header_row=header_row,
-            column_names=column_names,
-            skip_rows=skip_rows,
-            n_rows=n_rows,
-            schema_sample_rows=schema_sample_rows,
-            dtype_coercion=dtype_coercion,
-            use_columns=use_columns,
-            dtypes=dtypes,
-            eager=eager,
-        )
         if eager:
-            return output
-        return ExcelTable(output)
+            return self._reader.load_table(
+                name=name,
+                header_row=header_row,
+                column_names=column_names,
+                skip_rows=skip_rows,
+                n_rows=n_rows,
+                schema_sample_rows=schema_sample_rows,
+                dtype_coercion=dtype_coercion,
+                use_columns=use_columns,
+                dtypes=dtypes,
+                eager=True,
+            )
+        else:
+            return ExcelTable(
+                self._reader.load_table(
+                    name=name,
+                    header_row=header_row,
+                    column_names=column_names,
+                    skip_rows=skip_rows,
+                    n_rows=n_rows,
+                    schema_sample_rows=schema_sample_rows,
+                    dtype_coercion=dtype_coercion,
+                    use_columns=use_columns,
+                    dtypes=dtypes,
+                    eager=False,
+                )
+            )
 
     def load_sheet_eager(
         self,
