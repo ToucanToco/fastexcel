@@ -44,6 +44,25 @@ fn test_single_sheet() -> Result<()> {
     ];
     assert_eq!(&columns_by_name, &expected_columns);
 
+    #[cfg(feature = "polars")]
+    {
+        use polars_core::df;
+
+        let df_by_name = sheet_by_name
+            .to_polars()
+            .context("could not convert sheet by name to DataFrame")?;
+        let df_by_idx = sheet_by_idx
+            .to_polars()
+            .context("could not convert sheet by index to DataFrame")?;
+        let expected_df = df!(
+            "Month" => &[1.0, 2.0],
+            "Year" => &[2019.0, 2020.0]
+        )
+        .context("could not create expected DataFrame")?;
+        assert_eq!(&df_by_name, &df_by_idx);
+        assert!(df_by_name.equals_missing(&expected_df));
+    }
+
     Ok(())
 }
 
@@ -85,6 +104,25 @@ fn test_single_sheet_bytes() -> Result<()> {
     ];
     assert_eq!(&columns_by_name, &expected_columns);
 
+    #[cfg(feature = "polars")]
+    {
+        use polars_core::df;
+
+        let df_by_name = sheet_by_name
+            .to_polars()
+            .context("could not convert sheet by name to DataFrame")?;
+        let df_by_idx = sheet_by_idx
+            .to_polars()
+            .context("could not convert sheet by index to DataFrame")?;
+        let expected_df = df!(
+            "Month" => &[1.0, 2.0],
+            "Year" => &[2019.0, 2020.0]
+        )
+        .context("could not create expected DataFrame")?;
+        assert_eq!(&df_by_name, &df_by_idx);
+        assert!(df_by_name.equals_missing(&expected_df));
+    }
+
     Ok(())
 }
 
@@ -119,6 +157,24 @@ fn test_single_sheet_with_types() -> Result<()> {
         fe_column!("floats", vec![Some(12.35), Some(42.69), Some(1234567.0)])?,
     ];
     assert_eq!(&columns, &expected_columns);
+
+    #[cfg(feature = "polars")]
+    {
+        use polars_core::df;
+
+        let df = sheet
+            .to_polars()
+            .context("could not convert sheet to DataFrame")?;
+        let expected_df = df!(
+            "__UNNAMED__0" => [0.0, 1.0, 2.0],
+            "bools" => [true, false, true],
+            "dates" => [naive_date; 3],
+            "floats" => [12.35, 42.69, 1234567.0],
+        )
+        .context("could not create expected DataFrame")?;
+
+        assert!(df.equals_missing(&expected_df));
+    }
 
     Ok(())
 }

@@ -67,10 +67,20 @@ format: format-rust format-python
 test-python: install
 	uv run pytest
 
-.PHONY: test-rust  ## Run rust tests
-test-rust:
+.PHONY: test-rust-pyo3  ## Run PyO3 rust tests
+test-rust-pyo3:
 	cargo test --no-default-features --features __pyo3-tests
+
+.PHONY: test-rust-standalone  ## Run standalone rust tests
+test-rust-standalone:
 	cargo test --no-default-features --features __rust-tests-standalone
+
+.PHONY: test-rust-polars  ## Run polars rust tests
+test-rust-polars:
+	cargo test --no-default-features --features __rust-tests-polars
+
+.PHONY: test-rust  ## Run rust tests
+test-rust: test-rust-pyo3 test-rust-standalone test-rust-polars
 
 .PHONY: test  ## Run all tests
 test: test-rust test-python

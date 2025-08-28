@@ -17,3 +17,4 @@ docs
 notebooks
 /python/tests/fixtures/~$*.xlsx
 .zed
+dist

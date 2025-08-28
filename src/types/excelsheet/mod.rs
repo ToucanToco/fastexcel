@@ -1,4 +1,6 @@
 pub(crate) mod column_info;
+#[cfg(feature = "polars")]
+mod polars;
 #[cfg(feature = "python")]
 mod python;
 pub(crate) mod table;
@@ -7,6 +9,8 @@ use std::{cmp, collections::HashSet, fmt::Debug, str::FromStr};
 
 use calamine::{CellType, Range, Sheet as CalamineSheet, SheetVisible as CalamineSheetVisible};
 use column_info::{AvailableColumns, ColumnInfoNoDtype};
+#[cfg(feature = "polars")]
+use polars_core::frame::DataFrame;
 #[cfg(feature = "python")]
 use pyo3::{PyObject, Python, pyclass};
 
@@ -471,6 +475,14 @@ impl ExcelSheet {
                 )
             })
             .collect()
+    }
+
+    #[cfg(feature = "polars")]
+    pub fn to_polars(&self) -> FastExcelResult<DataFrame> {
+        let pl_columns = self.to_columns()?.into_iter().map(Into::into).collect();
+        DataFrame::new(pl_columns).map_err(|err| {
+            FastExcelErrorKind::Internal(format!("could not create DataFrame: {err:?}")).into()
+        })
     }
 }
 

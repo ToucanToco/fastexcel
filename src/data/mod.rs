@@ -111,7 +111,7 @@ from_vec!(Duration, Duration);
 #[derive(Debug, Clone, PartialEq)]
 pub struct FastExcelColumn {
     pub name: String,
-    data: FastExcelSeries,
+    pub(crate) data: FastExcelSeries,
     len: usize,
 }
 
@@ -194,5 +194,13 @@ impl FastExcelColumn {
             data,
             len,
         })
+    }
+
+    pub fn len(&self) -> usize {
+        self.len
+    }
+
+    pub fn name(&self) -> &str {
+        &self.name
     }
 }
