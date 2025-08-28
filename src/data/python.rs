@@ -421,8 +421,8 @@ pub(crate) fn record_batch_from_data_and_columns(
 ) -> FastExcelResult<RecordBatch> {
     let schema = selected_columns_to_schema(columns);
     let iter = columns.iter().map(|column_info| {
-        let col_idx = column_info.index();
-        let dtype = *column_info.dtype();
+        let col_idx = column_info.index;
+        let dtype = column_info.dtype;
         (
             column_info.name.as_str(),
             match dtype {
@@ -452,8 +452,8 @@ pub(crate) fn record_batch_from_data_and_columns_with_errors(
     let mut cell_errors = vec![];
 
     let iter = columns.iter().map(|column_info| {
-        let col_idx = column_info.index();
-        let dtype = *column_info.dtype();
+        let col_idx = column_info.index;
+        let dtype = column_info.dtype;
 
         let (array, new_cell_errors) = match dtype {
             DType::Null => (Arc::new(NullArray::new(limit - offset)) as ArrayRef, vec![]),

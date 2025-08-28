@@ -34,47 +34,41 @@ impl TryFrom<&ExcelTable> for RecordBatch {
 
         let iter = table.selected_columns.iter().map(|column_info| {
             (
-                column_info.name(),
-                match column_info.dtype() {
+                column_info.name.as_str(),
+                match column_info.dtype {
                     DType::Bool => create_boolean_array_from_range(
                         table.data(),
-                        column_info.index(),
+                        column_info.index,
                         offset,
                         limit,
                     ),
-                    DType::Int => create_int_array_from_range(
-                        table.data(),
-                        column_info.index(),
-                        offset,
-                        limit,
-                    ),
+                    DType::Int => {
+                        create_int_array_from_range(table.data(), column_info.index, offset, limit)
+                    }
                     DType::Float => create_float_array_from_range(
                         table.data(),
-                        column_info.index(),
+                        column_info.index,
                         offset,
                         limit,
                     ),
                     DType::String => create_string_array_from_range(
                         table.data(),
-                        column_info.index(),
+                        column_info.index,
                         offset,
                         limit,
                     ),
                     DType::DateTime => create_datetime_array_from_range(
                         table.data(),
-                        column_info.index(),
+                        column_info.index,
                         offset,
                         limit,
                     ),
-                    DType::Date => create_date_array_from_range(
-                        table.data(),
-                        column_info.index(),
-                        offset,
-                        limit,
-                    ),
+                    DType::Date => {
+                        create_date_array_from_range(table.data(), column_info.index, offset, limit)
+                    }
                     DType::Duration => create_duration_array_from_range(
                         table.data(),
-                        column_info.index(),
+                        column_info.index,
                         offset,
                         limit,
                     ),

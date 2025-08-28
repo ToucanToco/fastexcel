@@ -8,7 +8,7 @@ use crate::{
 
 impl From<&ColumnInfo> for Field {
     fn from(col_info: &ColumnInfo) -> Self {
-        Field::new(col_info.name(), col_info.dtype().into(), true)
+        Field::new(&col_info.name, (&col_info.dtype).into(), true)
     }
 }
 

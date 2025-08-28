@@ -115,18 +115,6 @@ impl ColumnInfo {
             dtype_from,
         }
     }
-
-    pub(crate) fn name(&self) -> &str {
-        &self.name
-    }
-
-    pub(crate) fn index(&self) -> usize {
-        self.index
-    }
-
-    pub(crate) fn dtype(&self) -> &DType {
-        &self.dtype
-    }
 }
 
 /// This class provides information about a single column in a sheet, without associated type

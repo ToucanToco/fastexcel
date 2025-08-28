@@ -295,11 +295,19 @@ impl FromStr for SelectedColumns {
 }
 
 #[derive(Clone, Debug)]
-struct SheetVisible(CalamineSheetVisible);
+pub enum SheetVisible {
+    Visible,
+    Hidden,
+    VeryHidden,
+}
 
 impl From<CalamineSheetVisible> for SheetVisible {
     fn from(value: CalamineSheetVisible) -> Self {
-        Self(value)
+        match value {
+            CalamineSheetVisible::Visible => SheetVisible::Visible,
+            CalamineSheetVisible::Hidden => SheetVisible::Hidden,
+            CalamineSheetVisible::VeryHidden => SheetVisible::VeryHidden,
+        }
     }
 }
 
@@ -459,8 +467,8 @@ impl ExcelSheet {
         &self.sheet_meta.name
     }
 
-    pub fn visible(&self) -> calamine::SheetVisible {
-        self.sheet_meta.visible
+    pub fn visible(&self) -> SheetVisible {
+        self.sheet_meta.visible.into()
     }
 
     pub fn to_columns(&self) -> FastExcelResult<Vec<FastExcelColumn>> {

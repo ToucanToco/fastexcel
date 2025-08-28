@@ -198,32 +198,32 @@ impl FastExcelColumn {
                 "limit is smaller than offset: {limit} is smaller than {offset}"
             ))
         })?;
-        let data = match column_info.dtype() {
+        let data = match column_info.dtype {
             DType::Null => FastExcelSeries::Null,
             DType::Int => {
-                FastExcelSeries::Int(create_int_vec(data, column_info.index(), offset, limit))
+                FastExcelSeries::Int(create_int_vec(data, column_info.index, offset, limit))
             }
             DType::Float => {
-                FastExcelSeries::Float(create_float_vec(data, column_info.index(), offset, limit))
+                FastExcelSeries::Float(create_float_vec(data, column_info.index, offset, limit))
             }
             DType::String => {
-                FastExcelSeries::String(create_string_vec(data, column_info.index(), offset, limit))
+                FastExcelSeries::String(create_string_vec(data, column_info.index, offset, limit))
             }
             DType::Bool => {
-                FastExcelSeries::Bool(create_boolean_vec(data, column_info.index(), offset, limit))
+                FastExcelSeries::Bool(create_boolean_vec(data, column_info.index, offset, limit))
             }
             DType::DateTime => FastExcelSeries::Datetime(create_datetime_vec(
                 data,
-                column_info.index(),
+                column_info.index,
                 offset,
                 limit,
             )),
             DType::Date => {
-                FastExcelSeries::Date(create_date_vec(data, column_info.index(), offset, limit))
+                FastExcelSeries::Date(create_date_vec(data, column_info.index, offset, limit))
             }
             DType::Duration => FastExcelSeries::Duration(create_duration_vec(
                 data,
-                column_info.index(),
+                column_info.index,
                 offset,
                 limit,
             )),

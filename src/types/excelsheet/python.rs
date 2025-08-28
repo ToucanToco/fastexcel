@@ -2,7 +2,6 @@ use std::sync::Arc;
 
 use arrow_array::{RecordBatch, StructArray};
 use arrow_schema::Field;
-use calamine::SheetVisible as CalamineSheetVisible;
 #[cfg(feature = "pyarrow")]
 use pyo3::PyResult;
 use pyo3::{
@@ -83,10 +82,10 @@ impl<'py> IntoPyObject<'py> for &SheetVisible {
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         Ok(PyString::new(
             py,
-            match self.0 {
-                CalamineSheetVisible::Visible => "visible",
-                CalamineSheetVisible::Hidden => "hidden",
-                CalamineSheetVisible::VeryHidden => "veryhidden",
+            match self {
+                SheetVisible::Visible => "visible",
+                SheetVisible::Hidden => "hidden",
+                SheetVisible::VeryHidden => "veryhidden",
             },
         ))
     }
@@ -187,7 +186,7 @@ impl ExcelSheet {
 
     #[getter("visible")]
     pub fn py_visible<'py>(&'py self, py: Python<'py>) -> FastExcelResult<Bound<'py, PyString>> {
-        let visible: SheetVisible = self.visible().into();
+        let visible: SheetVisible = self.visible();
         (&visible).into_pyobject(py)
     }
 

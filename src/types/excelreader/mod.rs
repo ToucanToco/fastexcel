@@ -6,13 +6,14 @@ use std::{
     io::{BufReader, Cursor},
 };
 
+use calamine::{
+    CellType, Data, HeaderRow, Range, Reader, Sheet as CalamineSheet, Sheets, Table,
+    open_workbook_auto, open_workbook_auto_from_rs,
+};
+#[cfg(feature = "python")]
+use calamine::{DataRef, ReaderRef};
 #[cfg(feature = "python")]
 use pyo3::pyclass;
-
-use calamine::{
-    CellType, Data, DataRef, HeaderRow, Range, Reader, ReaderRef, Sheet as CalamineSheet, Sheets,
-    Table, open_workbook_auto, open_workbook_auto_from_rs,
-};
 
 use crate::{
     ExcelSheet, ExcelTable,
@@ -57,6 +58,7 @@ impl ExcelSheets {
         Ok(names.into_iter().map(String::as_str).collect())
     }
 
+    #[cfg(feature = "python")]
     fn supports_by_ref(&self) -> bool {
         matches!(
             self,
@@ -77,6 +79,7 @@ impl ExcelSheets {
         }
     }
 
+    #[cfg(feature = "python")]
     fn worksheet_range_ref(&mut self, name: &str) -> FastExcelResult<Range<DataRef<'_>>> {
         match self {
             ExcelSheets::File(Sheets::Xlsx(sheets)) => Ok(sheets.worksheet_range_ref(name)?),
@@ -213,6 +216,7 @@ impl LoadSheetOrTableOptions {
 pub struct ExcelReader {
     sheets: ExcelSheets,
     sheet_metadata: Vec<CalamineSheet>,
+    #[cfg(feature = "python")]
     source: String,
 }
 
@@ -227,6 +231,7 @@ impl ExcelReader {
         Ok(Self {
             sheets: ExcelSheets::File(sheets),
             sheet_metadata,
+            #[cfg(feature = "python")]
             source: path.to_owned(),
         })
     }
@@ -339,6 +344,7 @@ impl TryFrom<&[u8]> for ExcelReader {
         Ok(Self {
             sheets: ExcelSheets::Bytes(sheets),
             sheet_metadata,
+            #[cfg(feature = "python")]
             source: "bytes".to_owned(),
         })
     }
