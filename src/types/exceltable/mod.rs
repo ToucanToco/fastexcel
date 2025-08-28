@@ -2,10 +2,13 @@
 mod python;
 
 use calamine::{Data, Range, Table};
+#[cfg(feature = "polars")]
+use polars_core::frame::DataFrame;
 #[cfg(feature = "python")]
 use pyo3::pyclass;
 
 use crate::{
+    FastExcelColumn,
     error::FastExcelResult,
     types::{
         dtype::{DTypeCoercion, DTypes},
@@ -33,6 +36,26 @@ pub struct ExcelTable {
     height: Option<usize>,
     total_height: Option<usize>,
     width: Option<usize>,
+}
+
+// https://github.com/tafia/calamine/pull/547
+impl std::fmt::Debug for ExcelTable {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ExcelTable")
+            .field("name", &self.name)
+            .field("sheet_name", &self.sheet_name)
+            .field("selected_columns", &self.selected_columns)
+            .field("available_columns", &self.available_columns)
+            .field("table", &"Table<Data>")
+            .field("header", &self.header)
+            .field("pagination", &self.pagination)
+            .field("dtypes", &self.dtypes)
+            .field("dtype_coercion", &self.dtype_coercion)
+            .field("height", &self.height)
+            .field("total_height", &self.total_height)
+            .field("width", &self.width)
+            .finish()
+    }
 }
 
 impl ExcelTable {
@@ -120,9 +143,7 @@ impl ExcelTable {
         self.ensure_available_columns_loaded()?;
         self.available_columns.as_loaded()
     }
-}
 
-impl ExcelTable {
     pub fn offset(&self) -> usize {
         self.header.offset() + self.pagination.offset()
     }
@@ -172,6 +193,38 @@ impl ExcelTable {
             let total_height = self.data().height() - self.header.offset();
             self.total_height = Some(total_height);
             total_height
+        })
+    }
+
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    pub fn sheet_name(&self) -> &str {
+        &self.sheet_name
+    }
+
+    pub fn to_columns(&self) -> FastExcelResult<Vec<FastExcelColumn>> {
+        self.selected_columns
+            .iter()
+            .map(|column_info| {
+                FastExcelColumn::try_from_column_info(
+                    column_info,
+                    self.table.data(),
+                    self.offset(),
+                    self.limit(),
+                )
+            })
+            .collect()
+    }
+
+    #[cfg(feature = "polars")]
+    pub fn to_polars(&self) -> FastExcelResult<DataFrame> {
+        use crate::error::FastExcelErrorKind;
+
+        let pl_columns = self.to_columns()?.into_iter().map(Into::into).collect();
+        DataFrame::new(pl_columns).map_err(|err| {
+            FastExcelErrorKind::Internal(format!("could not create DataFrame: {err:?}")).into()
         })
     }
 }

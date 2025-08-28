@@ -4,6 +4,10 @@ pub(crate) mod excelsheet;
 pub(crate) mod exceltable;
 pub(crate) mod idx_or_name;
 
-pub use excelreader::{ExcelReader, LoadSheetOptions};
-pub use excelsheet::ExcelSheet;
+pub use dtype::DType;
+pub use excelreader::{ExcelReader, LoadSheetOrTableOptions};
+pub use excelsheet::{
+    ExcelSheet,
+    column_info::{ColumnInfo, ColumnNameFrom, DTypeFrom},
+};
 pub use exceltable::ExcelTable;

@@ -15,7 +15,7 @@ use calamine::{
 };
 
 use crate::{
-    ExcelSheet,
+    ExcelSheet, ExcelTable,
     error::{ErrorContext, FastExcelError, FastExcelErrorKind, FastExcelResult},
     types::{
         dtype::{DTypeCoercion, DTypes},
@@ -49,15 +49,12 @@ impl ExcelSheets {
         }
     }
 
-    fn table_names(&mut self, sheet_name: Option<&str>) -> FastExcelResult<Vec<String>> {
-        match self {
-            Self::File(sheets) => {
-                extract_table_names(sheets, sheet_name)?.map(|v| v.into_iter().cloned().collect())
-            }
-            Self::Bytes(sheets) => {
-                extract_table_names(sheets, sheet_name)?.map(|v| v.into_iter().cloned().collect())
-            }
-        }
+    fn table_names(&mut self, sheet_name: Option<&str>) -> FastExcelResult<Vec<&str>> {
+        let names = match self {
+            Self::File(sheets) => extract_table_names(sheets, sheet_name),
+            Self::Bytes(sheets) => extract_table_names(sheets, sheet_name),
+        }?;
+        Ok(names.into_iter().map(String::as_str).collect())
     }
 
     fn supports_by_ref(&self) -> bool {
@@ -94,14 +91,14 @@ impl ExcelSheets {
 
     fn get_table(&mut self, name: &str) -> FastExcelResult<Table<Data>> {
         match self {
-            Self::File(sheets) => extract_table_range(name, sheets)?,
-            Self::Bytes(sheets) => extract_table_range(name, sheets)?,
+            Self::File(sheets) => extract_table_range(name, sheets),
+            Self::Bytes(sheets) => extract_table_range(name, sheets),
         }
     }
 }
 
 #[derive(Debug)]
-pub struct LoadSheetOptions {
+pub struct LoadSheetOrTableOptions {
     pub header_row: Option<usize>,
     pub column_names: Option<Vec<String>>,
     pub skip_rows: Option<usize>,
@@ -112,22 +109,7 @@ pub struct LoadSheetOptions {
     pub dtypes: Option<DTypes>,
 }
 
-impl Default for LoadSheetOptions {
-    fn default() -> Self {
-        Self {
-            header_row: Some(0),
-            column_names: Default::default(),
-            skip_rows: Default::default(),
-            n_rows: Default::default(),
-            schema_sample_rows: Default::default(),
-            dtype_coercion: Default::default(),
-            selected_columns: Default::default(),
-            dtypes: Default::default(),
-        }
-    }
-}
-
-impl LoadSheetOptions {
+impl LoadSheetOrTableOptions {
     /// Returns a `calamine::HeaderRow`, indicating the first row of the range to be read. For us,
     /// `header_row` can be `None` (meaning there is no header and we should start reading the data
     /// at the beginning of the sheet)
@@ -148,8 +130,34 @@ impl LoadSheetOptions {
         Pagination::try_new(self.skip_rows.unwrap_or(0), self.n_rows, range)
     }
 
-    pub fn new() -> Self {
-        Self::default()
+    /// Returns a new `LoadSheetOrTableOptions` instance for loading a sheet. `header_row` is set to
+    /// `Some(0)`
+    pub fn new_for_sheet() -> Self {
+        Self {
+            header_row: Some(0),
+            column_names: Default::default(),
+            skip_rows: Default::default(),
+            n_rows: Default::default(),
+            schema_sample_rows: Default::default(),
+            dtype_coercion: Default::default(),
+            selected_columns: Default::default(),
+            dtypes: Default::default(),
+        }
+    }
+
+    /// Returns a new `LoadSheetOrTableOptions` instance for loading a sheet. `header_row` is set to
+    /// `None`
+    pub fn new_for_table() -> Self {
+        Self {
+            header_row: None,
+            column_names: Default::default(),
+            skip_rows: Default::default(),
+            n_rows: Default::default(),
+            schema_sample_rows: Default::default(),
+            dtype_coercion: Default::default(),
+            selected_columns: Default::default(),
+            dtypes: Default::default(),
+        }
     }
 
     pub fn header_row(mut self, header_row: usize) -> Self {
@@ -254,7 +262,7 @@ impl ExcelReader {
     pub fn load_sheet(
         &mut self,
         idx_or_name: IdxOrName,
-        opts: LoadSheetOptions,
+        opts: LoadSheetOrTableOptions,
     ) -> FastExcelResult<ExcelSheet> {
         let calamine_header_row = opts.calamine_header_row();
         let data_header_row = opts.data_header_row();
@@ -282,11 +290,40 @@ impl ExcelReader {
         )
     }
 
+    /// Load a table from the Excel file.
+    pub fn load_table(
+        &mut self,
+        name: &str,
+        opts: LoadSheetOrTableOptions,
+    ) -> FastExcelResult<ExcelTable> {
+        let table = self.sheets.get_table(name)?;
+        let pagination = opts.pagination(table.data())?;
+        let header = match (opts.column_names, opts.header_row) {
+            (None, None) => Header::With(table.columns().into()),
+            (None, Some(row)) => Header::At(row),
+            (Some(column_names), _) => Header::With(column_names),
+        };
+
+        ExcelTable::try_new(
+            table,
+            header,
+            pagination,
+            opts.schema_sample_rows,
+            opts.dtype_coercion,
+            opts.selected_columns,
+            opts.dtypes,
+        )
+    }
+
     pub fn sheet_names(&self) -> Vec<&str> {
         self.sheet_metadata
             .iter()
             .map(|s| s.name.as_str())
             .collect()
+    }
+
+    pub fn table_names(&mut self, sheet_name: Option<&str>) -> FastExcelResult<Vec<&str>> {
+        self.sheets.table_names(sheet_name)
     }
 }
 

@@ -467,12 +467,17 @@ impl ExcelSheet {
         self.selected_columns
             .iter()
             .map(|column_info| {
-                FastExcelColumn::try_from_column_info(
-                    column_info,
-                    &self.data,
-                    self.offset(),
-                    self.limit(),
-                )
+                let offset = self.offset();
+                let limit = self.limit();
+
+                match self.data() {
+                    ExcelSheetData::Owned(range) => {
+                        FastExcelColumn::try_from_column_info(column_info, range, offset, limit)
+                    }
+                    ExcelSheetData::Ref(range) => {
+                        FastExcelColumn::try_from_column_info(column_info, range, offset, limit)
+                    }
+                }
             })
             .collect()
     }

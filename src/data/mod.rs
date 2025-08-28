@@ -6,7 +6,7 @@ use chrono::{Duration, NaiveDate, NaiveDateTime};
 #[cfg(feature = "python")]
 pub(crate) use python::*;
 
-use calamine::{Data as CalData, DataRef as CalDataRef, DataType, Range};
+use calamine::{CellType, Data as CalData, DataRef as CalDataRef, DataType, Range};
 
 use crate::{
     data::rust::{
@@ -109,6 +109,12 @@ macro_rules! from_vec_or_array {
                 Self::$variant(arr.into_iter().map(Some).collect())
             }
         }
+
+        impl From<&[$type]> for FastExcelSeries {
+            fn from(arr: &[$type]) -> Self {
+                Self::$variant(arr.into_iter().map(|it| Some(it.to_owned())).collect())
+            }
+        }
     };
 }
 
@@ -181,9 +187,9 @@ impl FastExcelColumn {
         }
     }
 
-    pub(crate) fn try_from_column_info(
+    pub(crate) fn try_from_column_info<CT: CellType + DataType>(
         column_info: &ColumnInfo,
-        data: &ExcelSheetData,
+        data: &Range<CT>,
         offset: usize,
         limit: usize,
     ) -> FastExcelResult<Self> {

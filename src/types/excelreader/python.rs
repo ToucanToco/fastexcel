@@ -3,12 +3,12 @@ use pyo3::{Bound, IntoPyObjectExt, PyAny, PyResult, Python, pymethods, types::Py
 
 use super::ExcelReader;
 use crate::{
-    ExcelSheet, ExcelTable,
+    ExcelSheet,
     data::{ExcelSheetData, record_batch_from_data_and_columns},
     error::{ErrorContext, FastExcelErrorKind, FastExcelResult, py_errors::IntoPyResult},
     types::{
         dtype::{DTypeCoercion, DTypes},
-        excelreader::LoadSheetOptions,
+        excelreader::LoadSheetOrTableOptions,
         excelsheet::{
             Header, Pagination, SelectedColumns,
             column_info::{build_available_columns_info, finalize_column_info},
@@ -64,7 +64,7 @@ impl ExcelReader {
     fn build_sheet<'py>(
         &mut self,
         idx_or_name: IdxOrName,
-        opts: LoadSheetOptions,
+        opts: LoadSheetOrTableOptions,
         eager: bool,
         py: Python<'py>,
     ) -> PyResult<Bound<'py, PyAny>> {
@@ -147,41 +147,12 @@ impl ExcelReader {
     #[allow(clippy::too_many_arguments)]
     fn build_table<'py>(
         &mut self,
-        name: String,
-        header_row: Option<usize>,
-        column_names: Option<Vec<String>>,
-        skip_rows: usize,
-        n_rows: Option<usize>,
-        schema_sample_rows: Option<usize>,
-        dtype_coercion: DTypeCoercion,
-        use_columns: Option<&Bound<'_, PyAny>>,
-        dtypes: Option<DTypes>,
+        name: &str,
+        opts: LoadSheetOrTableOptions,
         eager: bool,
         py: Python<'py>,
     ) -> PyResult<Bound<'py, PyAny>> {
-        let selected_columns = Self::build_selected_columns(use_columns).into_pyresult()?;
-
-        let table = self.sheets.get_table(&name).into_pyresult()?;
-        let header = {
-            match (column_names, header_row) {
-                (None, None) => Header::With(table.columns().into()),
-                (None, Some(row)) => Header::At(row),
-                (Some(column_names), _) => Header::With(column_names),
-            }
-        };
-
-        let pagination = Pagination::try_new(skip_rows, n_rows, table.data()).into_pyresult()?;
-
-        let excel_table = ExcelTable::try_new(
-            table,
-            header,
-            pagination,
-            schema_sample_rows,
-            dtype_coercion,
-            selected_columns,
-            dtypes,
-        )
-        .into_pyresult()?;
+        let excel_table = self.load_table(name, opts).into_pyresult()?;
 
         if eager {
             #[cfg(feature = "pyarrow")]
@@ -206,8 +177,8 @@ impl ExcelReader {
         format!("ExcelReader<{}>", &self.source)
     }
 
-    #[pyo3(signature = (sheet_name = None))]
-    pub fn table_names(&mut self, sheet_name: Option<&str>) -> PyResult<Vec<String>> {
+    #[pyo3(name = "table_names", signature = (sheet_name = None))]
+    pub(crate) fn py_table_names(&mut self, sheet_name: Option<&str>) -> PyResult<Vec<&str>> {
         self.sheets.table_names(sheet_name).into_pyresult()
     }
 
@@ -249,7 +220,7 @@ impl ExcelReader {
         }
         let idx_or_name = idx_or_name.try_into().into_pyresult()?;
         let selected_columns = Self::build_selected_columns(use_columns).into_pyresult()?;
-        let opts = LoadSheetOptions {
+        let opts = LoadSheetOrTableOptions {
             header_row,
             column_names,
             skip_rows,
@@ -263,12 +234,12 @@ impl ExcelReader {
         self.build_sheet(idx_or_name, opts, eager, py)
     }
 
-    #[pyo3(signature = (
+    #[pyo3(name = "load_table", signature = (
         name,
         *,
         header_row = 0,
         column_names = None,
-        skip_rows = 0,
+        skip_rows = None,
         n_rows = None,
         schema_sample_rows = 1_000,
         dtype_coercion = DTypeCoercion::Coerce,
@@ -277,12 +248,12 @@ impl ExcelReader {
         eager = false,
     ))]
     #[allow(clippy::too_many_arguments)]
-    pub(crate) fn load_table<'py>(
+    pub(crate) fn py_load_table<'py>(
         &mut self,
         name: &Bound<'py, PyString>,
         header_row: Option<usize>,
         column_names: Option<Vec<String>>,
-        skip_rows: usize,
+        skip_rows: Option<usize>,
         n_rows: Option<usize>,
         schema_sample_rows: Option<usize>,
         dtype_coercion: DTypeCoercion,
@@ -299,19 +270,20 @@ impl ExcelReader {
             .into())
             .into_pyresult();
         }
-        self.build_table(
-            name.to_string(),
+
+        let selected_columns = Self::build_selected_columns(use_columns).into_pyresult()?;
+        let opts = LoadSheetOrTableOptions {
             header_row,
             column_names,
             skip_rows,
             n_rows,
             schema_sample_rows,
             dtype_coercion,
-            use_columns,
+            selected_columns,
             dtypes,
-            eager,
-            py,
-        )
+        };
+
+        self.build_table(&name.to_string(), opts, eager, py)
     }
 
     #[getter("sheet_names")]

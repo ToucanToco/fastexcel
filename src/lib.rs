@@ -13,7 +13,10 @@ use pyo3::prelude::*;
 use types::excelsheet::{CellError, CellErrors};
 
 pub use data::{FastExcelColumn, FastExcelSeries};
-pub use types::{ExcelReader, ExcelSheet, ExcelTable, LoadSheetOptions};
+pub use types::{
+    ColumnInfo, ColumnNameFrom, DType, DTypeFrom, ExcelReader, ExcelSheet, ExcelTable,
+    LoadSheetOrTableOptions,
+};
 
 use crate::error::{ErrorContext, FastExcelResult};
 

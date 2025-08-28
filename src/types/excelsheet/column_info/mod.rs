@@ -19,7 +19,7 @@ use crate::{
 use super::{Header, SelectedColumns};
 
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) enum ColumnNameFrom {
+pub enum ColumnNameFrom {
     Provided,
     LookedUp,
     Generated,
@@ -52,7 +52,7 @@ impl Display for ColumnNameFrom {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) enum DTypeFrom {
+pub enum DTypeFrom {
     ProvidedForAll,
     ProvidedByIndex,
     ProvidedByName,
@@ -93,10 +93,10 @@ impl FromStr for DTypeFrom {
 #[cfg_attr(feature = "python", pyclass(name = "ColumnInfo"))]
 pub struct ColumnInfo {
     pub name: String,
-    index: usize,
-    dtype: DType,
-    column_name_from: ColumnNameFrom,
-    dtype_from: DTypeFrom,
+    pub index: usize,
+    pub dtype: DType,
+    pub column_name_from: ColumnNameFrom,
+    pub dtype_from: DTypeFrom,
 }
 
 impl ColumnInfo {

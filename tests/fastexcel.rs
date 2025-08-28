@@ -1,8 +1,9 @@
 #[macro_use]
 mod utils;
+
 use anyhow::{Context, Result};
 use chrono::NaiveDate;
-use fastexcel::{FastExcelColumn, LoadSheetOptions};
+use fastexcel::{FastExcelColumn, LoadSheetOrTableOptions};
 #[cfg(feature = "polars")]
 use polars_core::{df, frame::DataFrame, series::Series};
 use pretty_assertions::assert_eq;
@@ -16,10 +17,10 @@ fn test_single_sheet() -> Result<()> {
 
     assert_eq!(reader.sheet_names(), vec!["January"]);
     let mut sheet_by_name = reader
-        .load_sheet("January".into(), Default::default())
+        .load_sheet("January".into(), LoadSheetOrTableOptions::new_for_sheet())
         .context("could not load sheet by name")?;
     let mut sheet_by_idx = reader
-        .load_sheet(0.into(), Default::default())
+        .load_sheet(0.into(), LoadSheetOrTableOptions::new_for_sheet())
         .context("could not load sheet by index")?;
 
     assert_eq!(sheet_by_name.name(), sheet_by_idx.name());
@@ -74,10 +75,10 @@ fn test_single_sheet_bytes() -> Result<()> {
 
     assert_eq!(reader.sheet_names(), vec!["January"]);
     let mut sheet_by_name = reader
-        .load_sheet("January".into(), Default::default())
+        .load_sheet("January".into(), LoadSheetOrTableOptions::new_for_sheet())
         .context("could not load sheet by name")?;
     let mut sheet_by_idx = reader
-        .load_sheet(0.into(), Default::default())
+        .load_sheet(0.into(), LoadSheetOrTableOptions::new_for_sheet())
         .context("could not load sheet by index")?;
 
     assert_eq!(sheet_by_name.name(), sheet_by_idx.name());
@@ -130,7 +131,7 @@ fn test_single_sheet_with_types() -> Result<()> {
             .context("could not read excel file")?;
 
     let mut sheet = excel_reader
-        .load_sheet(0.into(), Default::default())
+        .load_sheet(0.into(), LoadSheetOrTableOptions::new_for_sheet())
         .context("could not load sheet")?;
 
     assert_eq!(sheet.name(), "Sheet1");
@@ -180,7 +181,7 @@ fn test_multiple_sheets() -> Result<()> {
         .context("could not read excel file")?;
 
     let sheet_0 = excel_reader
-        .load_sheet(0.into(), Default::default())
+        .load_sheet(0.into(), LoadSheetOrTableOptions::new_for_sheet())
         .context("could not load sheet 0 by idx")?;
     let expected_columns_sheet_0 = fe_columns!("Month" => [1.0], "Year" => [2019.0]);
     let sheet_0_columns = sheet_0
@@ -189,7 +190,7 @@ fn test_multiple_sheets() -> Result<()> {
     assert_eq!(sheet_0_columns, expected_columns_sheet_0);
 
     let sheet_1 = excel_reader
-        .load_sheet(1.into(), Default::default())
+        .load_sheet(1.into(), LoadSheetOrTableOptions::new_for_sheet())
         .context("could not load sheet 1 by idx")?;
     let expected_columns_sheet_1 =
         fe_columns!("Month" => [2.0, 3.0, 4.0], "Year" => [2019.0, 2021.0, 2022.0]);
@@ -199,7 +200,10 @@ fn test_multiple_sheets() -> Result<()> {
     assert_eq!(sheet_1_columns, expected_columns_sheet_1);
 
     let sheet_unnamed_columns = excel_reader
-        .load_sheet("With unnamed columns".into(), Default::default())
+        .load_sheet(
+            "With unnamed columns".into(),
+            LoadSheetOrTableOptions::new_for_sheet(),
+        )
         .context("could not load sheet \"With unnamed columns\" by idx")?;
     let expected_columns_sheet_unnamed_columns = fe_columns!(
         "col1" => [2.0, 3.0],
@@ -260,11 +264,17 @@ fn test_sheet_with_header_row_diff_from_zero() -> Result<()> {
     );
 
     let mut sheet_by_name = excel_reader
-        .load_sheet("Sheet1".into(), LoadSheetOptions::new().header_row(1))
+        .load_sheet(
+            "Sheet1".into(),
+            LoadSheetOrTableOptions::new_for_sheet().header_row(1),
+        )
         .context("could not load sheet \"Sheet1\" by name")?;
 
     let mut sheet_by_idx = excel_reader
-        .load_sheet(0.into(), LoadSheetOptions::new().header_row(1))
+        .load_sheet(
+            0.into(),
+            LoadSheetOrTableOptions::new_for_sheet().header_row(1),
+        )
         .context("could not load sheet 0 by index")?;
 
     assert_eq!(sheet_by_name.name(), sheet_by_idx.name());
@@ -316,7 +326,7 @@ fn test_sheet_with_pagination_and_without_headers() -> Result<()> {
         fastexcel::read_excel(path_for_fixture("fixture-single-sheet-with-types.xlsx"))
             .context("could not read excel file")?;
 
-    let opts = LoadSheetOptions::new()
+    let opts = LoadSheetOrTableOptions::new_for_sheet()
         .n_rows(1)
         .skip_rows(1)
         .no_header_row()
@@ -384,10 +394,10 @@ fn test_header_row_and_skip_rows(
     let mut excel_reader = fastexcel::read_excel(path_for_fixture("no-header.xlsx"))
         .context("could not read excel file")?;
 
-    let opts = LoadSheetOptions {
+    let opts = LoadSheetOrTableOptions {
         header_row,
         skip_rows,
-        ..Default::default()
+        ..LoadSheetOrTableOptions::new_for_sheet()
     };
     let sheet = excel_reader
         .load_sheet(0.into(), opts)
@@ -421,10 +431,10 @@ fn test_header_row_and_skip_rows_polars(
     let mut excel_reader = fastexcel::read_excel(path_for_fixture("no-header.xlsx"))
         .context("could not read excel file")?;
 
-    let opts = LoadSheetOptions {
+    let opts = LoadSheetOrTableOptions {
         header_row,
         skip_rows,
-        ..Default::default()
+        ..LoadSheetOrTableOptions::new_for_sheet()
     };
     let sheet = excel_reader
         .load_sheet(0.into(), opts)
