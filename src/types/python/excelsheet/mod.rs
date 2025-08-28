@@ -199,6 +199,14 @@ pub(crate) enum SelectedColumns {
     All,
     Selection(Vec<IdxOrName>),
     DynamicSelection(PyObject),
+    DeferredSelection(Vec<DeferredColumnSelection>),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) enum DeferredColumnSelection {
+    Fixed(IdxOrName),
+    OpenEndedRange(usize), // start column index, end is determined by sheet width
+    FromBeginningRange(usize), // end column index, start is 0
 }
 
 impl std::fmt::Debug for SelectedColumns {
@@ -210,6 +218,7 @@ impl std::fmt::Debug for SelectedColumns {
                 let addr = func as *const _ as usize;
                 write!(f, "DynamicSelection({addr})")
             }
+            Self::DeferredSelection(deferred) => write!(f, "DeferredSelection({deferred:?})"),
         }
     }
 }
@@ -222,6 +231,9 @@ impl PartialEq for SelectedColumns {
                 selection == other_selection
             }
             (Self::DynamicSelection(f1), Self::DynamicSelection(f2)) => std::ptr::eq(f1, f2),
+            (Self::DeferredSelection(deferred1), Self::DeferredSelection(deferred2)) => {
+                deferred1 == deferred2
+            }
             _ => false,
         }
     }
@@ -293,6 +305,33 @@ impl SelectedColumns {
                     )
                     .collect()
             }),
+            SelectedColumns::DeferredSelection(deferred_selection) => {
+                // First, resolve all deferred selections into concrete column indices
+                let mut resolved_indices = Vec::new();
+                let max_col_index = available_columns.len().saturating_sub(1);
+
+                for deferred in deferred_selection {
+                    match deferred {
+                        DeferredColumnSelection::Fixed(idx_or_name) => {
+                            resolved_indices.push(idx_or_name.clone());
+                        }
+                        DeferredColumnSelection::OpenEndedRange(start_idx) => {
+                            // Add all columns from start_idx to the end
+                            resolved_indices
+                                .extend((*start_idx..=max_col_index).map(IdxOrName::Idx));
+                        }
+                        DeferredColumnSelection::FromBeginningRange(end_idx) => {
+                            // Add all columns from 0 to end_idx (inclusive)
+                            let actual_end = (*end_idx).min(max_col_index);
+                            resolved_indices.extend((0..=actual_end).map(IdxOrName::Idx));
+                        }
+                    }
+                }
+
+                // Now use the same logic as Selection but with resolved indices
+                let concrete_selection = SelectedColumns::Selection(resolved_indices);
+                concrete_selection.select_columns(available_columns)
+            }
         }
     }
 
@@ -351,11 +390,74 @@ impl SelectedColumns {
         if col_elements.len() == 2 {
             let start = Self::col_idx_for_col_as_letter(col_elements[0])
                 .with_context(|| format!("invalid start element for range \"{col_range}\""))?;
+
+            // Check if this is an open-ended range (empty end element)
+            if col_elements[1].is_empty() {
+                // For open-ended ranges, we can't return concrete indices yet
+                // This will be handled differently in the parsing logic
+                return Err(InvalidParameters(format!(
+                    "open-ended range detected: \"{col_range}\". This should be handled by col_selection_for_letter_range"
+                ))
+                .into());
+            }
+
             let end = Self::col_idx_for_col_as_letter(col_elements[1])
                 .with_context(|| format!("invalid end element for range \"{col_range}\""))?;
 
             match start.cmp(&end) {
                 cmp::Ordering::Less => Ok((start..=end).collect()),
+                cmp::Ordering::Greater => Err(InvalidParameters(format!(
+                    "end of range is before start: \"{col_range}\""
+                ))
+                .into()),
+                cmp::Ordering::Equal => {
+                    Err(InvalidParameters(format!("empty range: \"{col_range}\"")).into())
+                }
+            }
+        } else {
+            Err(InvalidParameters(format!(
+                "expected range to contain exactly 2 elements, got {n_elements}: \"{col_range}\"",
+                n_elements = col_elements.len()
+            ))
+            .into())
+        }
+    }
+
+    fn col_selection_for_letter_range(
+        col_range: &str,
+    ) -> FastExcelResult<Vec<DeferredColumnSelection>> {
+        use FastExcelErrorKind::InvalidParameters;
+
+        let col_elements = col_range.split(':').collect::<Vec<_>>();
+        if col_elements.len() == 2 {
+            // Check if this is a from-beginning range (empty start element)
+            if col_elements[0].is_empty() {
+                if col_elements[1].is_empty() {
+                    return Err(InvalidParameters(format!(
+                        "cannot have both start and end empty in range: \"{col_range}\""
+                    ))
+                    .into());
+                }
+                let end = Self::col_idx_for_col_as_letter(col_elements[1])
+                    .with_context(|| format!("invalid end element for range \"{col_range}\""))?;
+                return Ok(vec![DeferredColumnSelection::FromBeginningRange(end)]);
+            }
+
+            let start = Self::col_idx_for_col_as_letter(col_elements[0])
+                .with_context(|| format!("invalid start element for range \"{col_range}\""))?;
+
+            // Check if this is an open-ended range (empty end element)
+            if col_elements[1].is_empty() {
+                return Ok(vec![DeferredColumnSelection::OpenEndedRange(start)]);
+            }
+
+            let end = Self::col_idx_for_col_as_letter(col_elements[1])
+                .with_context(|| format!("invalid end element for range \"{col_range}\""))?;
+
+            match start.cmp(&end) {
+                cmp::Ordering::Less => Ok((start..=end)
+                    .map(|idx| DeferredColumnSelection::Fixed(IdxOrName::Idx(idx)))
+                    .collect()),
                 cmp::Ordering::Greater => Err(InvalidParameters(format!(
                     "end of range is before start: \"{col_range}\""
                 ))
@@ -378,25 +480,54 @@ impl FromStr for SelectedColumns {
     type Err = FastExcelError;
 
     fn from_str(s: &str) -> FastExcelResult<Self> {
-        let unique_col_indices: HashSet<usize> = s
-            .to_uppercase()
-            .split(',')
-            .map(|col_or_range| {
-                if col_or_range.contains(':') {
-                    Self::col_indices_for_letter_range(col_or_range)
-                } else {
-                    Self::col_idx_for_col_as_letter(col_or_range).map(|idx| vec![idx])
-                }
-            })
-            .collect::<FastExcelResult<Vec<_>>>()?
-            .into_iter()
-            .flatten()
-            .collect();
-        let mut sorted_col_indices: Vec<usize> = unique_col_indices.into_iter().collect();
-        sorted_col_indices.sort();
-        Ok(Self::Selection(
-            sorted_col_indices.into_iter().map(IdxOrName::Idx).collect(),
-        ))
+        let uppercase_s = s.to_uppercase();
+        let parts: Vec<&str> = uppercase_s.split(',').collect();
+        let has_open_ended = parts
+            .iter()
+            .any(|p| p.contains(':') && (p.ends_with(':') || p.starts_with(':')));
+
+        if has_open_ended {
+            // Use deferred selection logic
+            let deferred_selections = parts
+                .iter()
+                .map(|part| {
+                    if part.contains(':') {
+                        Self::col_selection_for_letter_range(part).map(|mut selections| {
+                            std::mem::take(&mut selections)
+                                .into_iter()
+                                .collect::<Vec<_>>()
+                        })
+                    } else {
+                        Self::col_idx_for_col_as_letter(part)
+                            .map(|idx| vec![DeferredColumnSelection::Fixed(IdxOrName::Idx(idx))])
+                    }
+                })
+                .collect::<Result<Vec<Vec<_>>, _>>()?
+                .into_iter()
+                .flatten()
+                .collect();
+            Ok(Self::DeferredSelection(deferred_selections))
+        } else {
+            // Use the original immediate resolution logic for backwards compatibility
+            let unique_col_indices: HashSet<usize> = parts
+                .iter()
+                .map(|col_or_range| {
+                    if col_or_range.contains(':') {
+                        Self::col_indices_for_letter_range(col_or_range)
+                    } else {
+                        Self::col_idx_for_col_as_letter(col_or_range).map(|idx| vec![idx])
+                    }
+                })
+                .collect::<FastExcelResult<Vec<_>>>()?
+                .into_iter()
+                .flatten()
+                .collect();
+            let mut sorted_col_indices: Vec<usize> = unique_col_indices.into_iter().collect();
+            sorted_col_indices.sort();
+            Ok(Self::Selection(
+                sorted_col_indices.into_iter().map(IdxOrName::Idx).collect(),
+            ))
+        }
     }
 }
 
@@ -905,16 +1036,33 @@ mod tests {
     }
 
     #[rstest]
+    #[case("B:")]
+    #[case("A,C:")]
+    #[case("A:")]
+    #[case(":E")]
+    #[case(":C")]
+    #[case(":A")]
+    #[case(":C,E:")]
+    fn selected_columns_from_valid_open_ended_ranges(#[case] raw: &str) {
+        Python::with_gil(|py| {
+            let input = PyString::new(py, raw);
+
+            let range = TryInto::<SelectedColumns>::try_into(Some(input.as_ref()))
+                .expect("expected a valid column selection");
+
+            assert!(matches!(range, SelectedColumns::DeferredSelection(_)));
+        })
+    }
+
+    #[rstest]
     // Standard unique columns
     #[case("", "at least one character")]
     // empty range
     #[case("a:a,b:d,e", "empty range")]
     // end before start
     #[case("b:a", "end of range is before start")]
-    // no start
-    #[case(":a", "at least one character, got none")]
-    // no end
-    #[case("a:", "at least one character, got none")]
+    // both start and end empty
+    #[case(":", "cannot have both start and end empty")]
     // too many elements
     #[case("a:b:e", "exactly 2 elements, got 3")]
     fn selected_columns_from_invalid_ranges(#[case] raw: &str, #[case] message: &str) {
