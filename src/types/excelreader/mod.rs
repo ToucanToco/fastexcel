@@ -147,6 +147,58 @@ impl LoadSheetOptions {
     fn pagination<CT: CellType>(&self, range: &Range<CT>) -> FastExcelResult<Pagination> {
         Pagination::try_new(self.skip_rows.unwrap_or(0), self.n_rows, range)
     }
+
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn header_row(mut self, header_row: usize) -> Self {
+        self.header_row = Some(header_row);
+        self
+    }
+
+    pub fn no_header_row(mut self) -> Self {
+        self.header_row = None;
+        self
+    }
+
+    pub fn column_names<I: IntoIterator<Item = impl Into<String>>>(
+        mut self,
+        column_names: I,
+    ) -> Self {
+        self.column_names = Some(column_names.into_iter().map(Into::into).collect());
+        self
+    }
+
+    pub fn skip_rows(mut self, skip_rows: usize) -> Self {
+        self.skip_rows = Some(skip_rows);
+        self
+    }
+
+    pub fn n_rows(mut self, n_rows: usize) -> Self {
+        self.n_rows = Some(n_rows);
+        self
+    }
+
+    pub fn schema_sample_rows(mut self, schema_sample_rows: usize) -> Self {
+        self.schema_sample_rows = Some(schema_sample_rows);
+        self
+    }
+
+    pub fn dtype_coercion(mut self, dtype_coercion: DTypeCoercion) -> Self {
+        self.dtype_coercion = dtype_coercion;
+        self
+    }
+
+    pub fn selected_columns(mut self, selected_columns: SelectedColumns) -> Self {
+        self.selected_columns = selected_columns;
+        self
+    }
+
+    pub fn with_dtypes(mut self, dtypes: DTypes) -> Self {
+        self.dtypes = Some(dtypes);
+        self
+    }
 }
 
 #[cfg_attr(feature = "python", pyclass(name = "_ExcelReader"))]

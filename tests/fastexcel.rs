@@ -266,33 +266,21 @@ fn test_sheet_with_header_row_diff_from_zero() -> Result<()> {
     );
 
     let mut sheet_by_name = excel_reader
-        .load_sheet(
-            "Sheet1".into(),
-            LoadSheetOptions {
-                header_row: Some(1),
-                ..Default::default()
-            },
-        )
+        .load_sheet("Sheet1".into(), LoadSheetOptions::new().header_row(1))
         .context("could not load sheet \"Sheet1\" by name")?;
 
     let mut sheet_by_idx = excel_reader
-        .load_sheet(
-            0.into(),
-            LoadSheetOptions {
-                header_row: Some(1),
-                ..Default::default()
-            },
-        )
+        .load_sheet(0.into(), LoadSheetOptions::new().header_row(1))
         .context("could not load sheet 0 by index")?;
 
     assert_eq!(sheet_by_name.name(), sheet_by_idx.name());
-    assert_eq!(sheet_by_name.name(), "Sheet2");
+    assert_eq!(sheet_by_name.name(), "Sheet1");
 
     assert_eq!(sheet_by_name.height(), sheet_by_idx.height());
     assert_eq!(sheet_by_name.height(), 2);
 
     assert_eq!(sheet_by_name.width(), sheet_by_idx.width());
-    assert_eq!(sheet_by_name.width(), 3);
+    assert_eq!(sheet_by_name.width(), 2);
 
     let expected_columns = fe_columns!(
         "Month" => [1.0, 2.0],
@@ -325,6 +313,62 @@ fn test_sheet_with_header_row_diff_from_zero() -> Result<()> {
 
         assert!(df_by_name.equals_missing(&df_by_idx));
         assert!(expected_df.equals_missing(&df_by_name));
+    }
+
+    Ok(())
+}
+
+#[test]
+fn test_sheet_with_pagination_and_without_headers() -> Result<()> {
+    let mut excel_reader =
+        fastexcel::read_excel(path_for_fixture("fixture-single-sheet-with-types.xlsx"))
+            .context("could not read excel file")?;
+
+    let opts = LoadSheetOptions::new()
+        .n_rows(1)
+        .skip_rows(1)
+        .no_header_row()
+        .column_names(["This", "Is", "Amazing", "Stuff"]);
+    let mut sheet = excel_reader
+        .load_sheet(0.into(), opts)
+        .context("could not load sheet 0")?;
+
+    assert_eq!(sheet.name(), "Sheet1");
+    assert_eq!(sheet.height(), 1);
+    assert_eq!(sheet.width(), 4);
+
+    let naive_dt = NaiveDate::from_ymd_opt(2022, 3, 2)
+        .unwrap()
+        .and_hms_opt(5, 43, 4)
+        .unwrap();
+
+    let expected_columns = fe_columns!(
+        "This" => [0.0],
+        "Is" => [true],
+        "Amazing" => [naive_dt],
+        "Stuff" => [12.35],
+    );
+
+    let sheet_columns = sheet
+        .to_columns()
+        .context("could not convert sheet to columns")?;
+    assert_eq!(&sheet_columns, &expected_columns);
+
+    #[cfg(feature = "polars")]
+    {
+        use polars_core::df;
+
+        let df = sheet
+            .to_polars()
+            .context("could not convert sheet to DataFrame")?;
+        let expected_df = df!(
+            "This" => [0.0],
+            "Is" => [true],
+            "Amazing" => [naive_dt],
+            "Stuff" => [12.35],
+        )?;
+
+        assert!(df.equals_missing(&expected_df));
     }
 
     Ok(())
