@@ -327,8 +327,12 @@ class ExcelReader:
                             - A list of strings and ints, the column names and/or indices
                               (starting at 0)
                             - A string, a comma separated list of Excel column letters and column
-                              ranges (e.g. `“A:E”` or `“A,C,E:F”`, which would result in
-                              `A,B,C,D,E` and `A,C,E,F`)
+                              ranges (e.g. `"A:E"` or `"A,C,E:F"`, which would result in
+                              `A,B,C,D,E` and `A,C,E,F`). Also supports open-ended ranges
+                              (e.g. `"B:"` to select all columns from B onwards) and from-beginning
+                              ranges (e.g. `":C"` to select columns from A to C). These can be
+                              combined for "except" patterns (e.g. `":C,E:"` to select everything
+                              except column D)
                             - A callable, a function that takes a column and returns a boolean
                               indicating whether the column should be used
         :param dtypes: An optional dtype (for all columns)
@@ -443,8 +447,12 @@ class ExcelReader:
                             - A list of strings and ints, the column names and/or indices
                               (starting at 0)
                             - A string, a comma separated list of Excel column letters and column
-                              ranges (e.g. `“A:E”` or `“A,C,E:F”`, which would result in
-                              `A,B,C,D,E` and `A,C,E,F`)
+                              ranges (e.g. `"A:E"` or `"A,C,E:F"`, which would result in
+                              `A,B,C,D,E` and `A,C,E,F`). Also supports open-ended ranges
+                              (e.g. `"B:"` to select all columns from B onwards) and from-beginning
+                              ranges (e.g. `":C"` to select columns from A to C). These can be
+                              combined for "except" patterns (e.g. `":C,E:"` to select everything
+                              except column D)
                             - A callable, a function that takes a column and returns a boolean
                               indicating whether the column should be used
         :param dtypes: An optional dtype (for all columns)
