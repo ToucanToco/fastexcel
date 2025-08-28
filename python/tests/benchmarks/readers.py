@@ -9,16 +9,16 @@ def pyxl_read(test_file_path: str):
         rows = ws.iter_rows()
         rows = ws.values
         for row in rows:
-            for value in row:
-                value
+            for _ in row:
+                pass
 
 
 def xlrd_read(test_file_path: str):
     wb = open_workbook(test_file_path)
     for ws in wb.sheets():
         for idx in range(ws.nrows):
-            for value in ws.row_values(idx):
-                value
+            for _ in ws.row_values(idx):
+                pass
 
 
 def fastexcel_read(test_file_path: str):
