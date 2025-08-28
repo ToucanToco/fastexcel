@@ -94,10 +94,12 @@ pub enum SelectedColumns {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) enum DeferredColumnSelection {
+pub enum DeferredColumnSelection {
     Fixed(IdxOrName),
-    OpenEndedRange(usize), // start column index, end is determined by sheet width
-    FromBeginningRange(usize), // end column index, start is 0
+    /// start column index, end is determined by sheet width
+    OpenEndedRange(usize),
+    /// end column index, start is 0
+    FromBeginningRange(usize),
 }
 
 impl std::fmt::Debug for SelectedColumns {
