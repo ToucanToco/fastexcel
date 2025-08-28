@@ -25,17 +25,17 @@ name = "fastexcel"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
+arrow-array = { version = "^56.1.0", features = ["ffi"], optional = true }
+arrow-pyarrow = { version = "^56.1.0", optional = true }
+arrow-schema = { version = "^56.1.0", optional = true }
+calamine = { version = "^0.30.0", features = ["dates"] }
+chrono = { version = "^0.4.41", default-features = false }
+log = "^0.4.27"
 polars-core = { version = "^0.50", default-features = false, features = [
     "dtype-date",
     "dtype-datetime",
     "dtype-duration",
 ], optional = true }
-arrow-schema = "^56.1.0"
-arrow-array = { version = "^56.1.0", features = ["ffi"] }
-arrow-pyarrow = { version = "^56.1.0", optional = true }
-calamine = { version = "^0.30.0", features = ["dates"] }
-chrono = { version = "^0.4.41", default-features = false }
-log = "^0.4.27"
 pyo3 = { version = "^0.25", features = ["abi3-py39"], optional = true }
 pyo3-arrow = { version = "0.11", default-features = false, optional = true }
 pyo3-log = { version = "^0.12.4", optional = true }
@@ -49,7 +49,8 @@ rstest = { version = "^0.26.1", default-features = false }
 # https://pyo3.rs/v0.22.3/faq.html#i-cant-run-cargo-test-or-i-cant-build-in-a-cargo-workspace-im-having-linker-issues-like-symbol-not-found-or-undefined-reference-to-_pyexc_systemerror
 [features]
 default = []
-python = ["dep:arrow-pyarrow", "dep:pyo3", "dep:pyo3-log", "dep:pyo3-arrow"]
+__arrow = ["dep:arrow-schema", "dep:arrow-array"]
+python = ["__arrow", "dep:pyo3", "dep:pyo3-log", "dep:pyo3-arrow"]
 extension-module = ["pyo3/extension-module"]
 polars = ["dep:polars-core"]
 pyarrow = ["dep:arrow-pyarrow", "python"]
