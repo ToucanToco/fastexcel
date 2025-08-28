@@ -225,6 +225,10 @@ impl FastExcelColumn {
         self.len
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.len == 0
+    }
+
     pub fn name(&self) -> &str {
         &self.name
     }
