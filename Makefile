@@ -28,12 +28,12 @@ rebuild-lockfiles: .uv
 
 .PHONY: build-dev  ## Build the development version of the package
 build-dev:
-	uv run maturin build
+	uv run maturin build --features __maturin
 
 .PHONY: build-wheel  ## Build production wheel and install it
 build-wheel:
 	@rm -rf target/wheels/
-	uv run maturin build --release
+	uv run maturin build --release --features __maturin
 	@wheel=$$(ls target/wheels/*.whl); uv pip install --force-reinstall "$$wheel[pandas,polars]"
 
 .PHONY: lint-python  ## Lint python source files
@@ -45,7 +45,12 @@ lint-python:
 .PHONY: lint-rust  ## Lint rust source files
 lint-rust:
 	cargo fmt --all -- --check
-	cargo clippy --all-features --tests
+	# Rust
+	cargo clippy --tests
+	# Python-related code
+	cargo clippy --features __maturin --tests
+	# Rust+polars
+	cargo clippy --features polars --tests
 
 .PHONY: lint  ## Lint rust and python source files
 lint: lint-python lint-rust
