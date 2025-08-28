@@ -1,7 +1,7 @@
 import argparse
 from enum import Enum
 
-from readers import fastexcel_read, pyxl_read, xlrd_read
+from .readers import fastexcel_read, pyxl_read, xlrd_read
 
 
 class Engine(str, Enum):
