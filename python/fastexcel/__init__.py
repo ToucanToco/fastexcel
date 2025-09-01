@@ -49,7 +49,9 @@ from ._fastexcel import read_excel as _read_excel
 DType = Literal["null", "int", "float", "string", "boolean", "datetime", "date", "duration"]
 DTypeMap: TypeAlias = "dict[str | int, DType]"
 ColumnNameFrom: TypeAlias = Literal["provided", "looked_up", "generated"]
-DTypeFrom: TypeAlias = Literal["provided_by_index", "provided_by_name", "guessed"]
+DTypeFrom: TypeAlias = Literal[
+    "provided_for_all", "provided_by_index", "provided_by_name", "guessed"
+]
 SheetVisible: TypeAlias = Literal["visible", "hidden", "veryhidden"]
 
 
@@ -372,7 +374,7 @@ class ExcelReader:
         *,
         header_row: int | None = None,
         column_names: list[str] | None = None,
-        skip_rows: int = 0,
+        skip_rows: int | None = None,
         n_rows: int | None = None,
         schema_sample_rows: int | None = 1_000,
         dtype_coercion: Literal["coerce", "strict"] = "coerce",
@@ -392,7 +394,7 @@ class ExcelReader:
         *,
         header_row: int | None = None,
         column_names: list[str] | None = None,
-        skip_rows: int = 0,
+        skip_rows: int | None = None,
         n_rows: int | None = None,
         schema_sample_rows: int | None = 1_000,
         dtype_coercion: Literal["coerce", "strict"] = "coerce",
@@ -411,7 +413,7 @@ class ExcelReader:
         *,
         header_row: int | None = None,
         column_names: list[str] | None = None,
-        skip_rows: int = 0,
+        skip_rows: int | None = None,
         n_rows: int | None = None,
         schema_sample_rows: int | None = 1_000,
         dtype_coercion: Literal["coerce", "strict"] = "coerce",

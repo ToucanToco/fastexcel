@@ -10,12 +10,12 @@ export CARGO_TERM_COLOR=$(shell (test -t 0 && echo "always") || echo "auto")
 .PHONY: install  ## Install the package & dependencies with debug build
 install: .uv
 	uv sync --frozen --group all
-	uv run maturin develop --uv -E pandas,polars
+	uv run maturin develop --features __maturin --uv -E pandas,polars
 
 .PHONY: install-prod  ## Install the package & dependencies with release build
 install-prod: .uv
 	uv sync --frozen --group all
-	uv run maturin develop --uv --release -E pandas,polars
+	uv run maturin develop --features __maturin --uv --release -E pandas,polars
 
 .PHONY: setup-dev  ## First-time setup: install + pre-commit hooks
 setup-dev: install
@@ -28,12 +28,12 @@ rebuild-lockfiles: .uv
 
 .PHONY: build-dev  ## Build the development version of the package
 build-dev:
-	uv run maturin develop --uv -E pandas,polars
+	uv run maturin build --features __maturin
 
 .PHONY: build-wheel  ## Build production wheel and install it
 build-wheel:
 	@rm -rf target/wheels/
-	uv run maturin build --release
+	uv run maturin build --release --features __maturin
 	@wheel=$$(ls target/wheels/*.whl); uv pip install --force-reinstall "$$wheel[pandas,polars]"
 
 .PHONY: lint-python  ## Lint python source files
@@ -45,7 +45,12 @@ lint-python:
 .PHONY: lint-rust  ## Lint rust source files
 lint-rust:
 	cargo fmt --all -- --check
-	cargo clippy
+	# Rust
+	cargo clippy --tests
+	# Python-related code
+	cargo clippy --features __maturin --tests
+	# Rust+polars
+	cargo clippy --features polars --tests
 
 .PHONY: lint  ## Lint rust and python source files
 lint: lint-python lint-rust
@@ -57,19 +62,31 @@ format-python:
 
 .PHONY: format-rust  ## Auto-format rust source files
 format-rust:
-	cargo fmt
-	cargo clippy --fix --lib -p fastexcel --allow-dirty --allow-staged
+	cargo fmt --all
+	cargo clippy --all-features --tests --fix --lib -p fastexcel --allow-dirty --allow-staged
 
 .PHONY: format  ## Auto-format python and rust source files
 format: format-rust format-python
 
 .PHONY: test-python  ## Run python tests
-test-python: build-dev
+test-python: install
 	uv run pytest
 
+.PHONY: test-rust-pyo3  ## Run PyO3 rust tests
+test-rust-pyo3:
+	# --lib to skip integration tests
+	cargo test --no-default-features --features __pyo3-tests --lib
+
+.PHONY: test-rust-standalone  ## Run standalone rust tests
+test-rust-standalone:
+	cargo test --no-default-features --features __rust-tests-standalone
+
+.PHONY: test-rust-polars  ## Run polars rust tests
+test-rust-polars:
+	cargo test --no-default-features --features __rust-tests-polars
+
 .PHONY: test-rust  ## Run rust tests
-test-rust:
-	cargo test --no-default-features --features tests
+test-rust: test-rust-pyo3 test-rust-standalone test-rust-polars
 
 .PHONY: test  ## Run all tests
 test: test-rust test-python
@@ -81,6 +98,7 @@ doc-serve: build-dev
 .PHONY: doc  ## Build documentation
 doc: build-dev
 	uv run pdoc -o docs python/fastexcel
+	cargo doc --no-deps --lib -p fastexcel --features polars
 
 .PHONY: all  ## Run the standard set of checks performed in CI
 all: format build-dev lint test

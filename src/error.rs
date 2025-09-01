@@ -3,7 +3,7 @@ use calamine::XlsxError;
 use std::{error::Error, fmt::Display};
 
 #[derive(Debug)]
-pub(crate) enum FastExcelErrorKind {
+pub enum FastExcelErrorKind {
     UnsupportedColumnTypeCombination(String),
     CannotRetrieveCellData(usize, usize),
     CalamineCellError(calamine::CellErrorType),
@@ -14,6 +14,7 @@ pub(crate) enum FastExcelErrorKind {
     // the actual type has not much value for us, so we just store a string context
     ArrowError(String),
     InvalidParameters(String),
+    InvalidColumn(String),
     Internal(String),
 }
 
@@ -42,15 +43,16 @@ impl Display for FastExcelErrorKind {
             }
             FastExcelErrorKind::ArrowError(err) => write!(f, "arrow error: {err}"),
             FastExcelErrorKind::InvalidParameters(err) => write!(f, "invalid parameters: {err}"),
+            FastExcelErrorKind::InvalidColumn(err) => write!(f, "invalid column: {err}"),
             FastExcelErrorKind::Internal(err) => write!(f, "fastexcel error: {err}"),
         }
     }
 }
 
 #[derive(Debug)]
-pub(crate) struct FastExcelError {
+pub struct FastExcelError {
     pub kind: FastExcelErrorKind,
-    context: Vec<String>,
+    pub context: Vec<String>,
 }
 
 pub(crate) trait ErrorContext {
@@ -122,6 +124,7 @@ impl<T> ErrorContext for FastExcelResult<T> {
 }
 
 /// Contains Python versions of our custom errors
+#[cfg(feature = "python")]
 pub(crate) mod py_errors {
     use super::FastExcelErrorKind;
     use crate::error;
@@ -190,6 +193,13 @@ pub(crate) mod py_errors {
         FastExcelError,
         "Provided parameters are invalid"
     );
+    // Invalid column
+    create_exception!(
+        _fastexcel,
+        InvalidColumnError,
+        FastExcelError,
+        "Column is invalid"
+    );
     // Internal error
     create_exception!(
         _fastexcel,
@@ -216,6 +226,7 @@ pub(crate) mod py_errors {
                 FastExcelErrorKind::InvalidParameters(_) => {
                     InvalidParametersError::new_err(message)
                 }
+                FastExcelErrorKind::InvalidColumn(_) => InvalidColumnError::new_err(message),
                 FastExcelErrorKind::Internal(_) => ArrowError::new_err(message),
             }
         }
