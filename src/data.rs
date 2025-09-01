@@ -128,15 +128,15 @@ pub(crate) fn generate_row_selector(
             // Call the Python function for each row to determine if it should be skipped
             // The callable should receive data-relative row indices (0, 1, 2, ...)
             pyo3::Python::with_gil(|py| {
-                (offset..limit)
-                    .enumerate()
-                    .try_fold(Vec::new(), |mut acc, (data_row_idx, absolute_row_idx)| {
-                        if !skip_rows.should_skip_row(data_row_idx, py)? {
-                            acc.push(absolute_row_idx);
-                        }
-                        Ok(acc)
-                    })
-                    .map(RowSelector::Filtered)
+                Ok(RowSelector::Filtered(
+                    (offset..limit)
+                        .enumerate()
+                        .filter_map(|(data_row_idx, absolute_row_idx)| {
+                            (!skip_rows.should_skip_row(data_row_idx, py).unwrap_or(false))
+                                .then_some(absolute_row_idx)
+                        })
+                        .collect(),
+                ))
             })
         }
     }
