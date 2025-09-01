@@ -78,6 +78,9 @@ impl<'a> From<Range<CalDataRef<'a>>> for ExcelSheetData<'a> {
     }
 }
 
+/// A container for a typed vector of values. Used to represent a column of data in an Excel sheet.
+/// These should only be used when you need to work on the raw data. Otherwise, you should use a
+/// `FastExcelColumn`.
 #[derive(Debug, Clone, PartialEq)]
 pub enum FastExcelSeries {
     Null,
@@ -90,8 +93,27 @@ pub enum FastExcelSeries {
     Duration(Vec<Option<Duration>>),
 }
 
-macro_rules! from_vec_or_array {
-    ($type:ty, $variant:ident) => {
+impl FastExcelSeries {
+    pub fn dtype(&self) -> DType {
+        match self {
+            FastExcelSeries::Null => DType::Null,
+            FastExcelSeries::Bool(_) => DType::Bool,
+            FastExcelSeries::String(_) => DType::String,
+            FastExcelSeries::Int(_) => DType::Int,
+            FastExcelSeries::Float(_) => DType::Float,
+            FastExcelSeries::Datetime(_) => DType::DateTime,
+            FastExcelSeries::Date(_) => DType::Date,
+            FastExcelSeries::Duration(_) => DType::Duration,
+        }
+    }
+
+    pub fn is_null(&self) -> bool {
+        matches!(self, FastExcelSeries::Null)
+    }
+}
+
+macro_rules! impl_series_variant {
+    ($type:ty, $variant:ident, $into_fn:ident) => {
         impl From<Vec<Option<$type>>> for FastExcelSeries {
             fn from(vec: Vec<Option<$type>>) -> Self {
                 Self::$variant(vec)
@@ -115,16 +137,31 @@ macro_rules! from_vec_or_array {
                 Self::$variant(arr.into_iter().map(|it| Some(it.to_owned())).collect())
             }
         }
+
+        // Not implementing is_empty here, because we have no len information for null Series
+        impl FastExcelSeries {
+            pub fn $into_fn(self) -> FastExcelResult<Vec<Option<$type>>> {
+                if let Self::$variant(vec) = self {
+                    Ok(vec)
+                } else {
+                    Err(FastExcelErrorKind::InvalidParameters(format!(
+                        "{self:?} cannot be converted to {type_name}",
+                        type_name = std::any::type_name::<$type>()
+                    ))
+                    .into())
+                }
+            }
+        }
     };
 }
 
-from_vec_or_array!(bool, Bool);
-from_vec_or_array!(String, String);
-from_vec_or_array!(i64, Int);
-from_vec_or_array!(f64, Float);
-from_vec_or_array!(NaiveDateTime, Datetime);
-from_vec_or_array!(NaiveDate, Date);
-from_vec_or_array!(Duration, Duration);
+impl_series_variant!(bool, Bool, into_bools);
+impl_series_variant!(String, String, into_strings);
+impl_series_variant!(i64, Int, into_ints);
+impl_series_variant!(f64, Float, into_floats);
+impl_series_variant!(NaiveDateTime, Datetime, into_datetimes);
+impl_series_variant!(NaiveDate, Date, into_dates);
+impl_series_variant!(Duration, Duration, into_durations);
 
 // Conflicting impls when using `From<AsRef<[&str]>>`
 impl<const N: usize> From<[Option<&str>; N]> for FastExcelSeries {
@@ -139,6 +176,7 @@ impl<const N: usize> From<[&str; N]> for FastExcelSeries {
     }
 }
 
+/// A column in a sheet or table. A wrapper around a `FastExcelSeries` and a name.
 #[derive(Debug, Clone, PartialEq)]
 pub struct FastExcelColumn {
     pub name: String,
@@ -245,5 +283,15 @@ impl FastExcelColumn {
 
     pub fn name(&self) -> &str {
         &self.name
+    }
+
+    pub fn data(&self) -> &FastExcelSeries {
+        &self.data
+    }
+}
+
+impl From<FastExcelColumn> for FastExcelSeries {
+    fn from(column: FastExcelColumn) -> Self {
+        column.data
     }
 }
