@@ -9,16 +9,16 @@ Docs available [here](https://fastexcel.toucantoco.dev/).
 ## Installation
 
 ```bash
-# Lightweight installation (no pyarrow dependency)
+# Lightweight installation (no PyArrow dependency)
 pip install fastexcel
 
-# With Polars support only (no pyarrow needed)
+# With Polars support only (no PyArrow needed)
 pip install fastexcel[polars]
 
-# With pandas support (includes pyarrow)
+# With Pandas support (includes PyArrow)
 pip install fastexcel[pandas]
 
-# With pyarrow support
+# With PyArrow support
 pip install fastexcel[pyarrow]
 
 # With all integrations
