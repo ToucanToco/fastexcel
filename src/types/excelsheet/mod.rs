@@ -1,38 +1,28 @@
 pub(crate) mod column_info;
+#[cfg(feature = "polars")]
+mod polars;
+#[cfg(feature = "python")]
+mod python;
 pub(crate) mod table;
 
-use arrow_schema::Field;
-use calamine::{CellType, Range, Sheet as CalamineSheet, SheetVisible as CalamineSheetVisible};
-use column_info::{AvailableColumns, ColumnInfoNoDtype};
-use pyo3::types::{PyCapsule, PyTuple};
-use pyo3_arrow::ffi::{to_array_pycapsules, to_schema_pycapsule};
-use std::sync::Arc;
 use std::{cmp, collections::HashSet, fmt::Debug, str::FromStr};
 
-use arrow_array::{RecordBatch, StructArray};
-#[cfg(feature = "pyarrow")]
-use arrow_pyarrow::ToPyArrow;
+use calamine::{CellType, Range, Sheet as CalamineSheet, SheetVisible as CalamineSheetVisible};
+use column_info::{AvailableColumns, ColumnInfoNoDtype};
+#[cfg(feature = "polars")]
+use polars_core::frame::DataFrame;
+#[cfg(feature = "python")]
+use pyo3::{Py, PyAny, Python, pyclass};
 
-use pyo3::{
-    Bound, FromPyObject, IntoPyObject, IntoPyObjectExt, PyAny, PyObject, PyResult,
-    prelude::{PyAnyMethods, Python, pyclass, pymethods},
-    types::{PyList, PyString},
-};
-
-use crate::data::selected_columns_to_schema;
+use self::column_info::{ColumnInfo, build_available_columns_info, finalize_column_info};
 use crate::{
-    data::{
-        ExcelSheetData, record_batch_from_data_and_columns_with_errors,
-        record_batch_from_data_and_columns_with_skip_rows,
-    },
-    error::{
-        ErrorContext, FastExcelError, FastExcelErrorKind, FastExcelResult, py_errors::IntoPyResult,
-    },
+    data::{ExcelSheetData, FastExcelColumn},
+    error::{ErrorContext, FastExcelError, FastExcelErrorKind, FastExcelResult},
     types::{dtype::DTypes, idx_or_name::IdxOrName},
 };
 use crate::{types::dtype::DTypeCoercion, utils::schema::get_schema_sample_rows};
-
-use self::column_info::{ColumnInfo, build_available_columns_info, finalize_column_info};
+#[cfg(feature = "python")]
+pub(crate) use python::{CellError, CellErrors};
 
 #[derive(Debug)]
 pub(crate) enum Header {
@@ -62,70 +52,28 @@ impl Header {
 }
 
 #[derive(Debug)]
-pub(crate) enum SkipRows {
+#[cfg_attr(not(feature = "python"), derive(Clone, PartialEq, Eq))]
+pub(crate) struct Pagination {
+    skip_rows: SkipRows,
+    n_rows: Option<usize>,
+}
+
+/// How rows should be skipped.
+#[derive(Debug, Default)]
+#[cfg_attr(not(feature = "python"), derive(Clone, PartialEq, Eq))]
+pub enum SkipRows {
+    /// Skip a fixed number of rows.
     Simple(usize),
+    /// Skip rows based on a list of row indices.
     List(HashSet<usize>),
-    Callable(PyObject),
+    #[cfg(feature = "python")]
+    Callable(Py<PyAny>),
+    /// Skip empty rows at the beginning of the filer (default).
+    #[default]
     SkipEmptyRowsAtBeginning,
 }
 
-impl FromPyObject<'_> for SkipRows {
-    fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
-        // Handle None case
-        if obj.is_none() {
-            return Ok(SkipRows::SkipEmptyRowsAtBeginning);
-        }
-
-        // Try to extract as int first
-        if let Ok(skip_count) = obj.extract::<usize>() {
-            return Ok(SkipRows::Simple(skip_count));
-        }
-
-        // Try to extract as list of integers
-        if let Ok(skip_list) = obj.extract::<Vec<usize>>() {
-            let skip_set: HashSet<usize> = skip_list.into_iter().collect();
-            return Ok(SkipRows::List(skip_set));
-        }
-
-        // Check if it's callable
-        if obj.hasattr("__call__").unwrap_or(false) {
-            return Ok(SkipRows::Callable(obj.clone().into()));
-        }
-
-        Err(FastExcelErrorKind::InvalidParameters(
-            "skip_rows must be int, list of int, callable, or None".to_string(),
-        )
-        .into())
-        .into_pyresult()
-    }
-}
-
 impl SkipRows {
-    pub(crate) fn should_skip_row(&self, row_idx: usize, py: Python) -> FastExcelResult<bool> {
-        match self {
-            SkipRows::Simple(offset) => Ok(row_idx < *offset),
-            SkipRows::List(skip_set) => Ok(skip_set.contains(&row_idx)),
-            SkipRows::Callable(func) => {
-                let result = func.call1(py, (row_idx,)).map_err(|e| {
-                    FastExcelErrorKind::InvalidParameters(format!(
-                        "Error calling skip_rows function for row {row_idx}: {e}"
-                    ))
-                })?;
-                result.extract::<bool>(py).map_err(|e| {
-                    FastExcelErrorKind::InvalidParameters(format!(
-                        "skip_rows callable must return bool, got error: {e}"
-                    ))
-                    .into()
-                })
-            }
-            SkipRows::SkipEmptyRowsAtBeginning => {
-                // This is handled by calamine's FirstNonEmptyRow in the header logic
-                // For array creation, we don't need additional filtering
-                Ok(false)
-            }
-        }
-    }
-
     pub(crate) fn simple_offset(&self) -> Option<usize> {
         match self {
             SkipRows::Simple(offset) => Some(*offset),
@@ -135,13 +83,8 @@ impl SkipRows {
     }
 }
 
-pub(crate) struct Pagination {
-    skip_rows: SkipRows,
-    n_rows: Option<usize>,
-}
-
 impl Pagination {
-    pub(crate) fn new<CT: CellType>(
+    pub(crate) fn try_new<CT: CellType>(
         skip_rows: SkipRows,
         n_rows: Option<usize>,
         range: &Range<CT>,
@@ -172,39 +115,23 @@ impl Pagination {
     }
 }
 
-impl TryFrom<&Bound<'_, PyList>> for SelectedColumns {
-    type Error = FastExcelError;
-
-    fn try_from(py_list: &Bound<'_, PyList>) -> FastExcelResult<Self> {
-        use FastExcelErrorKind::InvalidParameters;
-
-        if py_list.is_empty().map_err(|err| {
-            FastExcelErrorKind::InvalidParameters(format!("invalid list object: {err}"))
-        })? {
-            Err(InvalidParameters("list of selected columns is empty".to_string()).into())
-        } else if let Ok(selection) = py_list.extract::<Vec<IdxOrName>>() {
-            Ok(Self::Selection(selection))
-        } else {
-            Err(
-                InvalidParameters(format!("expected list[int] | list[str], got {py_list:?}"))
-                    .into(),
-            )
-        }
-    }
-}
-
-pub(crate) enum SelectedColumns {
+#[derive(Default)]
+pub enum SelectedColumns {
+    #[default]
     All,
     Selection(Vec<IdxOrName>),
-    DynamicSelection(PyObject),
+    #[cfg(feature = "python")]
+    DynamicSelection(Py<PyAny>),
     DeferredSelection(Vec<DeferredColumnSelection>),
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) enum DeferredColumnSelection {
+pub enum DeferredColumnSelection {
     Fixed(IdxOrName),
-    OpenEndedRange(usize), // start column index, end is determined by sheet width
-    FromBeginningRange(usize), // end column index, start is 0
+    /// start column index, end is determined by sheet width
+    OpenEndedRange(usize),
+    /// end column index, start is 0
+    FromBeginningRange(usize),
 }
 
 impl std::fmt::Debug for SelectedColumns {
@@ -212,6 +139,7 @@ impl std::fmt::Debug for SelectedColumns {
         match self {
             Self::All => write!(f, "All"),
             Self::Selection(selection) => write!(f, "Selection({selection:?})"),
+            #[cfg(feature = "python")]
             Self::DynamicSelection(func) => {
                 let addr = func as *const _ as usize;
                 write!(f, "DynamicSelection({addr})")
@@ -228,6 +156,7 @@ impl PartialEq for SelectedColumns {
             (Self::Selection(selection), Self::Selection(other_selection)) => {
                 selection == other_selection
             }
+            #[cfg(feature = "python")]
             (Self::DynamicSelection(f1), Self::DynamicSelection(f2)) => std::ptr::eq(f1, f2),
             (Self::DeferredSelection(deferred1), Self::DeferredSelection(deferred2)) => {
                 deferred1 == deferred2
@@ -282,6 +211,7 @@ impl SelectedColumns {
                 // And finally, we drop the positions
                 Ok(cols.into_iter().map(|(_pos, elem)| elem).collect())
             }
+            #[cfg(feature = "python")]
             SelectedColumns::DynamicSelection(use_col_func) => Python::with_gil(|py| {
                 available_columns
                     .into_iter()
@@ -529,102 +459,28 @@ impl FromStr for SelectedColumns {
     }
 }
 
-impl TryFrom<Option<&Bound<'_, PyAny>>> for SelectedColumns {
-    type Error = FastExcelError;
-
-    fn try_from(py_any_opt: Option<&Bound<'_, PyAny>>) -> FastExcelResult<Self> {
-        match py_any_opt {
-            None => Ok(Self::All),
-            Some(py_any) => {
-                // Not trying to downcast to PyNone here as we assume that this would result in
-                // py_any_opt being None
-                if let Ok(py_str) = py_any.extract::<String>() {
-                    py_str.parse()
-                } else if let Ok(py_list) = py_any.downcast::<PyList>() {
-                    py_list.try_into()
-                } else if let Ok(py_function) = py_any.extract::<PyObject>() {
-                    Ok(Self::DynamicSelection(py_function))
-                } else {
-                    Err(FastExcelErrorKind::InvalidParameters(format!(
-                        "unsupported object type {object_type}",
-                        object_type = py_any.get_type()
-                    ))
-                    .into())
-                }
-            }
-            .with_context(|| {
-                format!("could not determine selected columns from provided object: {py_any}")
-            }),
-        }
-    }
-}
-
-#[derive(Clone, Debug)]
-struct SheetVisible(CalamineSheetVisible);
-
-impl<'py> IntoPyObject<'py> for &SheetVisible {
-    type Target = PyString;
-
-    type Output = Bound<'py, Self::Target>;
-
-    type Error = FastExcelError;
-
-    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        Ok(PyString::new(
-            py,
-            match self.0 {
-                CalamineSheetVisible::Visible => "visible",
-                CalamineSheetVisible::Hidden => "hidden",
-                CalamineSheetVisible::VeryHidden => "veryhidden",
-            },
-        ))
-    }
+/// Visibility of a sheet.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SheetVisible {
+    Visible,
+    Hidden,
+    VeryHidden,
 }
 
 impl From<CalamineSheetVisible> for SheetVisible {
     fn from(value: CalamineSheetVisible) -> Self {
-        Self(value)
+        match value {
+            CalamineSheetVisible::Visible => SheetVisible::Visible,
+            CalamineSheetVisible::Hidden => SheetVisible::Hidden,
+            CalamineSheetVisible::VeryHidden => SheetVisible::VeryHidden,
+        }
     }
 }
 
-#[derive(Debug, Clone)]
-#[pyclass]
-pub(crate) struct CellError {
-    /// `(int, int)`. The original row and column of the error
-    #[pyo3(get)]
-    pub position: (usize, usize),
-    /// `int`. The row offset
-    #[pyo3(get)]
-    pub row_offset: usize,
-    /// `str`. The error message
-    #[pyo3(get)]
-    pub detail: String,
-}
-
-#[pymethods]
-impl CellError {
-    #[getter]
-    pub fn offset_position(&self) -> (usize, usize) {
-        let (row, col) = self.position;
-        (row - self.row_offset, col)
-    }
-}
-
-#[pyclass]
-pub(crate) struct CellErrors {
-    pub errors: Vec<CellError>,
-}
-
-#[pymethods]
-impl CellErrors {
-    #[getter]
-    pub fn errors<'p>(&'p self, _py: Python<'p>) -> Vec<CellError> {
-        self.errors.clone()
-    }
-}
-
-#[pyclass(name = "_ExcelSheet")]
-pub(crate) struct ExcelSheet {
+/// A single sheet in an Excel file.
+#[derive(Debug)]
+#[cfg_attr(feature = "python", pyclass(name = "_ExcelSheet"))]
+pub struct ExcelSheet {
     sheet_meta: CalamineSheet,
     header: Header,
     pagination: Pagination,
@@ -733,26 +589,7 @@ impl ExcelSheet {
     pub(crate) fn schema_sample_rows(&self) -> usize {
         get_schema_sample_rows(self.schema_sample_rows, self.offset(), self.limit())
     }
-}
 
-impl TryFrom<&ExcelSheet> for RecordBatch {
-    type Error = FastExcelError;
-
-    fn try_from(sheet: &ExcelSheet) -> FastExcelResult<Self> {
-        record_batch_from_data_and_columns_with_skip_rows(
-            &sheet.selected_columns,
-            &sheet.data,
-            sheet.pagination.skip_rows(),
-            sheet.offset(),
-            sheet.limit(),
-        )
-        .with_context(|| format!("could not convert sheet {} to RecordBatch", sheet.name()))
-    }
-}
-
-#[pymethods]
-impl ExcelSheet {
-    #[getter]
     pub fn width(&mut self) -> usize {
         self.width.unwrap_or_else(|| {
             let width = self.data.width();
@@ -761,7 +598,6 @@ impl ExcelSheet {
         })
     }
 
-    #[getter]
     pub fn height(&mut self) -> usize {
         self.height.unwrap_or_else(|| {
             use crate::data::generate_row_selector;
@@ -774,7 +610,6 @@ impl ExcelSheet {
         })
     }
 
-    #[getter]
     pub fn total_height(&mut self) -> usize {
         self.total_height.unwrap_or_else(|| {
             let total_height = self.data.height() - self.header.offset();
@@ -783,146 +618,67 @@ impl ExcelSheet {
         })
     }
 
-    #[getter]
     pub fn offset(&self) -> usize {
         self.header.offset() + self.pagination.offset()
     }
 
-    #[getter]
-    pub fn selected_columns<'p>(&'p self, _py: Python<'p>) -> Vec<ColumnInfo> {
-        self.selected_columns.clone()
+    pub fn selected_columns(&self) -> &Vec<ColumnInfo> {
+        &self.selected_columns
     }
 
-    pub fn available_columns<'p>(
-        &'p mut self,
-        _py: Python<'p>,
-    ) -> FastExcelResult<Vec<ColumnInfo>> {
+    pub fn available_columns(&mut self) -> FastExcelResult<Vec<ColumnInfo>> {
         self.load_available_columns().map(|cols| cols.to_vec())
     }
 
-    #[getter]
-    pub fn specified_dtypes(&self, _py: Python<'_>) -> Option<&DTypes> {
+    pub fn specified_dtypes(&self) -> Option<&DTypes> {
         self.dtypes.as_ref()
     }
 
-    #[getter]
     pub fn name(&self) -> &str {
         &self.sheet_meta.name
     }
 
-    #[getter]
-    pub fn visible<'py>(&'py self, py: Python<'py>) -> FastExcelResult<Bound<'py, PyString>> {
-        let visible: SheetVisible = self.sheet_meta.visible.into();
-        (&visible).into_pyobject(py)
+    pub fn visible(&self) -> SheetVisible {
+        self.sheet_meta.visible.into()
     }
 
-    #[cfg(feature = "pyarrow")]
-    pub fn to_arrow<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        RecordBatch::try_from(self)
-            .with_context(|| {
-                format!(
-                    "could not create RecordBatch from sheet \"{}\"",
-                    self.name()
-                )
+    pub fn to_columns(&self) -> FastExcelResult<Vec<FastExcelColumn>> {
+        self.selected_columns
+            .iter()
+            .map(|column_info| {
+                let offset = self.offset();
+                let limit = self.limit();
+
+                match self.data() {
+                    ExcelSheetData::Owned(range) => {
+                        FastExcelColumn::try_from_column_info(column_info, range, offset, limit)
+                    }
+                    ExcelSheetData::Ref(range) => {
+                        FastExcelColumn::try_from_column_info(column_info, range, offset, limit)
+                    }
+                }
             })
-            .and_then(|rb| {
-                rb.to_pyarrow(py)
-                    .map_err(|err| FastExcelErrorKind::ArrowError(err.to_string()).into())
-            })
-            .with_context(|| {
-                format!(
-                    "could not convert RecordBatch to pyarrow for sheet \"{}\"",
-                    self.name()
-                )
-            })
-            .into_pyresult()
-            .and_then(|obj| obj.into_bound_py_any(py))
+            .collect()
     }
 
-    #[cfg(feature = "pyarrow")]
-    pub fn to_arrow_with_errors<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        let offset = self.offset();
-        let limit = self.limit();
-
-        let (rb, errors) = record_batch_from_data_and_columns_with_errors(
-            &self.selected_columns,
-            self.data(),
-            offset,
-            limit,
-        )
-        .with_context(|| {
-            format!(
-                "could not create RecordBatch from sheet \"{}\"",
-                self.name()
-            )
-        })?;
-
-        let rb = rb
-            .to_pyarrow(py)
-            .map_err(|err| FastExcelErrorKind::ArrowError(err.to_string()).into())
-            .with_context(|| {
-                format!(
-                    "could not convert RecordBatch to pyarrow for sheet \"{}\"",
-                    self.name()
-                )
-            })?;
-        (rb, errors).into_bound_py_any(py)
-    }
-
-    /// Export the schema as an [`ArrowSchema`] [`PyCapsule`].
-    ///
-    /// <https://arrow.apache.org/docs/format/CDataInterface/PyCapsuleInterface.html#arrowschema-export>
-    ///
-    /// [`ArrowSchema`]: arrow_array::ffi::FFI_ArrowSchema
-    /// [`PyCapsule`]: pyo3::types::PyCapsule
-    pub fn __arrow_c_schema__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyCapsule>> {
-        let schema = selected_columns_to_schema(&self.selected_columns);
-        Ok(to_schema_pycapsule(py, &schema)?)
-    }
-
-    /// Export the schema and data as a pair of [`ArrowSchema`] and [`ArrowArray`] [`PyCapsules`]
-    ///
-    /// The optional `requested_schema` parameter allows for potential schema conversion.
-    ///
-    /// <https://arrow.apache.org/docs/format/CDataInterface/PyCapsuleInterface.html#arrowarray-export>
-    ///
-    /// [`ArrowSchema`]: arrow_array::ffi::FFI_ArrowSchema
-    /// [`ArrowArray`]: arrow_array::ffi::FFI_ArrowArray
-    /// [`PyCapsules`]: pyo3::types::PyCapsule
-    pub fn __arrow_c_array__<'py>(
-        &self,
-        py: Python<'py>,
-        requested_schema: Option<Bound<'py, PyCapsule>>,
-    ) -> PyResult<Bound<'py, PyTuple>> {
-        let record_batch = RecordBatch::try_from(self)
-            .with_context(|| {
-                format!(
-                    "could not create RecordBatch from sheet \"{}\"",
-                    self.name()
-                )
-            })
-            .into_pyresult()?;
-
-        let field = Field::new_struct("", record_batch.schema_ref().fields().clone(), false);
-        let array = Arc::new(StructArray::from(record_batch));
-        Ok(to_array_pycapsules(
-            py,
-            field.into(),
-            array.as_ref(),
-            requested_schema,
-        )?)
-    }
-
-    pub fn __repr__(&self) -> String {
-        format!("ExcelSheet<{}>", self.name())
+    #[cfg(feature = "polars")]
+    pub fn to_polars(&self) -> FastExcelResult<DataFrame> {
+        let pl_columns = self.to_columns()?.into_iter().map(Into::into).collect();
+        DataFrame::new(pl_columns).map_err(|err| {
+            FastExcelErrorKind::Internal(format!("could not create DataFrame: {err:?}")).into()
+        })
     }
 }
 
+#[cfg(feature = "__pyo3-tests")]
 #[cfg(test)]
 mod tests {
     use super::*;
     use pretty_assertions::assert_eq;
-    use pyo3::{prelude::PyListMethods, types::PyString};
+    use pyo3::{
+        prelude::PyListMethods,
+        types::{PyList, PyString},
+    };
     use rstest::rstest;
 
     #[test]

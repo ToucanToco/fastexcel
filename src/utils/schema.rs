@@ -17,6 +17,7 @@ pub(crate) fn get_schema_sample_rows(
     min(sample_rows, limit)
 }
 
+#[cfg(feature = "__pyo3-tests")]
 #[cfg(test)]
 mod tests {
     use super::get_schema_sample_rows;

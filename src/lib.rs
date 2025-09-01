@@ -3,18 +3,34 @@ mod error;
 mod types;
 mod utils;
 
-use error::{ErrorContext, py_errors};
+use std::fmt::Display;
+
+#[cfg(feature = "python")]
+use error::py_errors;
+#[cfg(feature = "python")]
 use pyo3::prelude::*;
-use types::python::{
-    ExcelReader, ExcelSheet,
-    excelsheet::column_info::{ColumnInfo, ColumnInfoNoDtype},
-    excelsheet::{CellError, CellErrors},
-    table::ExcelTable,
+#[cfg(feature = "python")]
+use types::excelsheet::{CellError, CellErrors};
+
+pub use data::{FastExcelColumn, FastExcelSeries};
+pub use types::{
+    ColumnInfo, ColumnNameFrom, DType, DTypeCoercion, DTypeFrom, DTypes, ExcelReader, ExcelSheet,
+    ExcelTable, IdxOrName, LoadSheetOrTableOptions, SelectedColumns, SheetVisible, SkipRows,
 };
 
-/// Reads an excel file and returns an object allowing to access its sheets and a bit of metadata
-#[pyfunction]
-fn read_excel(source: &Bound<'_, PyAny>) -> PyResult<ExcelReader> {
+use crate::error::{ErrorContext, FastExcelResult};
+
+/// Reads an excel file and returns an object allowing to access its sheets, tables, and a bit of metadata.
+/// This is a wrapper around `ExcelReader::try_from_path`.
+pub fn read_excel<S: AsRef<str> + Display>(path: S) -> FastExcelResult<ExcelReader> {
+    ExcelReader::try_from_path(path.as_ref())
+        .with_context(|| format!("could not load excel file at {path}"))
+}
+
+#[cfg(feature = "python")]
+/// Reads an excel file and returns an object allowing to access its sheets, tables, and a bit of metadata
+#[pyfunction(name = "read_excel")]
+fn py_read_excel(source: &Bound<'_, PyAny>) -> PyResult<ExcelReader> {
     use py_errors::IntoPyResult;
 
     if let Ok(path) = source.extract::<String>() {
@@ -34,7 +50,8 @@ fn read_excel(source: &Bound<'_, PyAny>) -> PyResult<ExcelReader> {
 
 // Taken from pydantic-core:
 // https://github.com/pydantic/pydantic-core/blob/main/src/lib.rs#L24
-fn get_version() -> String {
+#[cfg(feature = "python")]
+fn get_python_version() -> String {
     let version = env!("CARGO_PKG_VERSION").to_string();
     // cargo uses "1.0-alpha1" etc. while python uses "1.0.0a1", this is not full compatibility,
     // but it's good enough for now
@@ -44,12 +61,15 @@ fn get_version() -> String {
     version.replace("-alpha", "a").replace("-beta", "b")
 }
 
+#[cfg(feature = "python")]
 #[pymodule]
 fn _fastexcel(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    use crate::types::excelsheet::column_info::{ColumnInfo, ColumnInfoNoDtype};
+
     pyo3_log::init();
 
     let py = m.py();
-    m.add_function(wrap_pyfunction!(read_excel, m)?)?;
+    m.add_function(wrap_pyfunction!(py_read_excel, m)?)?;
     m.add_class::<ColumnInfo>()?;
     m.add_class::<ColumnInfoNoDtype>()?;
     m.add_class::<CellError>()?;
@@ -57,7 +77,7 @@ fn _fastexcel(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<ExcelSheet>()?;
     m.add_class::<ExcelReader>()?;
     m.add_class::<ExcelTable>()?;
-    m.add("__version__", get_version())?;
+    m.add("__version__", get_python_version())?;
 
     // errors
     [

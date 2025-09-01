@@ -1,3 +1,6 @@
+#[cfg(feature = "python")]
+mod python;
+
 use std::{
     collections::{HashMap, HashSet},
     fmt::{Debug, Display},
@@ -5,20 +8,18 @@ use std::{
     sync::OnceLock,
 };
 
-use arrow_schema::{DataType as ArrowDataType, TimeUnit};
 use calamine::{CellErrorType, CellType, DataType, Range};
 use log::warn;
-use pyo3::{
-    Bound, FromPyObject, IntoPyObject, IntoPyObjectRef, PyAny, PyResult, Python,
-    prelude::PyAnyMethods, types::PyString,
-};
+#[cfg(feature = "python")]
+use pyo3::{IntoPyObject, IntoPyObjectRef};
 
-use crate::error::{FastExcelError, FastExcelErrorKind, FastExcelResult, py_errors::IntoPyResult};
+use crate::error::{FastExcelError, FastExcelErrorKind, FastExcelResult};
 
 use super::idx_or_name::IdxOrName;
 
+/// A column or a cell's data type.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Copy)]
-pub(crate) enum DType {
+pub enum DType {
     Null,
     Int,
     Float,
@@ -65,48 +66,15 @@ impl Display for DType {
     }
 }
 
-impl<'py> IntoPyObject<'py> for DType {
-    type Target = PyString;
+pub type DTypeMap = HashMap<IdxOrName, DType>;
 
-    type Output = Bound<'py, Self::Target>;
-
-    type Error = std::convert::Infallible;
-
-    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        self.to_string().into_pyobject(py)
-    }
-}
-impl<'py> IntoPyObject<'py> for &DType {
-    type Target = PyString;
-
-    type Output = Bound<'py, Self::Target>;
-
-    type Error = std::convert::Infallible;
-
-    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        self.to_string().into_pyobject(py)
-    }
-}
-
-impl FromPyObject<'_> for DType {
-    fn extract_bound(py_dtype: &Bound<'_, PyAny>) -> PyResult<Self> {
-        if let Ok(dtype_pystr) = py_dtype.extract::<String>() {
-            dtype_pystr.parse()
-        } else {
-            Err(FastExcelErrorKind::InvalidParameters(format!(
-                "{py_dtype:?} cannot be converted to str"
-            ))
-            .into())
-        }
-        .into_pyresult()
-    }
-}
-
-pub(crate) type DTypeMap = HashMap<IdxOrName, DType>;
-
-#[derive(IntoPyObject, IntoPyObjectRef)]
-pub(crate) enum DTypes {
+/// Provided data types.
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "python", derive(IntoPyObject, IntoPyObjectRef))]
+pub enum DTypes {
+    /// Coerce all data types to the given type.
     All(DType),
+    /// Coerce data types based on the provided map.
     Map(DTypeMap),
 }
 
@@ -118,35 +86,13 @@ impl FromStr for DTypes {
     }
 }
 
-impl FromPyObject<'_> for DTypes {
-    fn extract_bound(py_dtypes: &Bound<'_, PyAny>) -> PyResult<Self> {
-        if let Ok(py_dtypes_str) = py_dtypes.extract::<String>() {
-            py_dtypes_str.parse()
-        } else {
-            Ok(DTypes::Map(py_dtypes.extract::<DTypeMap>()?))
-        }
-        .into_pyresult()
-    }
-}
-
-impl From<&DType> for ArrowDataType {
-    fn from(dtype: &DType) -> Self {
-        match dtype {
-            DType::Null => ArrowDataType::Null,
-            DType::Int => ArrowDataType::Int64,
-            DType::Float => ArrowDataType::Float64,
-            DType::String => ArrowDataType::Utf8,
-            DType::Bool => ArrowDataType::Boolean,
-            DType::DateTime => ArrowDataType::Timestamp(TimeUnit::Millisecond, None),
-            DType::Date => ArrowDataType::Date32,
-            DType::Duration => ArrowDataType::Duration(TimeUnit::Millisecond),
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Copy)]
-pub(crate) enum DTypeCoercion {
+/// Whether data types should be coerced or not.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Copy, Default)]
+pub enum DTypeCoercion {
+    /// Coerce data types (default).
+    #[default]
     Coerce,
+    /// Strictly enforce data types.
     Strict,
 }
 
@@ -162,20 +108,6 @@ impl FromStr for DTypeCoercion {
             ))
             .into()),
         }
-    }
-}
-
-impl FromPyObject<'_> for DTypeCoercion {
-    fn extract_bound(py_dtype_coercion: &Bound<'_, PyAny>) -> PyResult<Self> {
-        if let Ok(dtype_coercion_pystr) = py_dtype_coercion.extract::<String>() {
-            dtype_coercion_pystr.parse()
-        } else {
-            Err(FastExcelErrorKind::InvalidParameters(format!(
-                "{py_dtype_coercion:?} cannot be converted to str"
-            ))
-            .into())
-        }
-        .into_pyresult()
     }
 }
 
@@ -357,6 +289,7 @@ pub(crate) fn excel_float_to_string(x: f64) -> String {
         .to_string()
 }
 
+#[cfg(feature = "__pyo3-tests")]
 #[cfg(test)]
 mod tests {
     use calamine::{Cell, Data as CalData};

@@ -1,36 +1,31 @@
-use std::sync::Arc;
+#[cfg(feature = "python")]
+mod python;
 
-use arrow_array::{RecordBatch, StructArray};
-#[cfg(feature = "pyarrow")]
-use arrow_pyarrow::ToPyArrow;
-use arrow_schema::Field;
 use calamine::{Data, Range, Table};
-use pyo3::types::{PyCapsule, PyTuple};
-use pyo3::{Bound, PyResult};
-use pyo3::{PyObject, Python, pyclass, pymethods};
-use pyo3_arrow::ffi::{to_array_pycapsules, to_schema_pycapsule};
+#[cfg(feature = "polars")]
+use polars_core::frame::DataFrame;
+#[cfg(feature = "python")]
+use pyo3::pyclass;
 
-use crate::error::py_errors::IntoPyResult;
 use crate::{
-    data::{record_batch_from_data_and_columns_with_skip_rows, selected_columns_to_schema},
-    error::{ErrorContext, FastExcelError, FastExcelErrorKind, FastExcelResult},
+    FastExcelColumn,
+    error::FastExcelResult,
     types::{
         dtype::{DTypeCoercion, DTypes},
-        python::excelsheet::column_info::finalize_column_info,
+        excelsheet::{
+            Header, Pagination, SelectedColumns,
+            column_info::{
+                AvailableColumns, ColumnInfo, build_available_columns_info, finalize_column_info,
+            },
+        },
     },
     utils::schema::get_schema_sample_rows,
 };
 
-use super::excelsheet::{
-    Header, Pagination, SelectedColumns,
-    column_info::{AvailableColumns, ColumnInfo, build_available_columns_info},
-};
-
-#[pyclass(name = "_ExcelTable")]
-pub(crate) struct ExcelTable {
-    #[pyo3(get)]
+/// A single table in an Excel file.
+#[cfg_attr(feature = "python", pyclass(name = "_ExcelTable"))]
+pub struct ExcelTable {
     name: String,
-    #[pyo3(get)]
     sheet_name: String,
     selected_columns: Vec<ColumnInfo>,
     available_columns: AvailableColumns,
@@ -42,6 +37,26 @@ pub(crate) struct ExcelTable {
     height: Option<usize>,
     total_height: Option<usize>,
     width: Option<usize>,
+}
+
+// https://github.com/tafia/calamine/pull/547
+impl std::fmt::Debug for ExcelTable {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ExcelTable")
+            .field("name", &self.name)
+            .field("sheet_name", &self.sheet_name)
+            .field("selected_columns", &self.selected_columns)
+            .field("available_columns", &self.available_columns)
+            .field("table", &"Table<Data>")
+            .field("header", &self.header)
+            .field("pagination", &self.pagination)
+            .field("dtypes", &self.dtypes)
+            .field("dtype_coercion", &self.dtype_coercion)
+            .field("height", &self.height)
+            .field("total_height", &self.total_height)
+            .field("width", &self.width)
+            .finish()
+    }
 }
 
 impl ExcelTable {
@@ -129,39 +144,12 @@ impl ExcelTable {
         self.ensure_available_columns_loaded()?;
         self.available_columns.as_loaded()
     }
-}
 
-impl TryFrom<&ExcelTable> for RecordBatch {
-    type Error = FastExcelError;
-
-    fn try_from(table: &ExcelTable) -> FastExcelResult<Self> {
-        let excel_data = crate::data::ExcelSheetData::Owned(table.data().clone());
-        record_batch_from_data_and_columns_with_skip_rows(
-            &table.selected_columns,
-            &excel_data,
-            table.pagination.skip_rows(),
-            table.offset(),
-            table.limit(),
-        )
-        .with_context(|| {
-            format!(
-                "could not convert table {table} in sheet {sheet} to RecordBatch",
-                table = &table.name,
-                sheet = &table.sheet_name
-            )
-        })
-    }
-}
-
-#[pymethods]
-impl ExcelTable {
-    #[getter]
     pub fn offset(&self) -> usize {
         self.header.offset() + self.pagination.offset()
     }
 
-    #[getter]
-    pub(crate) fn limit(&self) -> usize {
+    pub fn limit(&self) -> usize {
         let upper_bound = self.data().height();
         if let Some(n_rows) = self.pagination.n_rows() {
             let limit = self.offset() + n_rows;
@@ -173,24 +161,18 @@ impl ExcelTable {
         upper_bound
     }
 
-    #[getter]
     pub fn selected_columns(&self) -> Vec<ColumnInfo> {
         self.selected_columns.clone()
     }
 
-    pub fn available_columns<'p>(
-        &'p mut self,
-        _py: Python<'p>,
-    ) -> FastExcelResult<Vec<ColumnInfo>> {
+    pub fn available_columns(&mut self) -> FastExcelResult<Vec<ColumnInfo>> {
         self.load_available_columns().map(|cols| cols.to_vec())
     }
 
-    #[getter]
-    pub fn specified_dtypes(&self, _py: Python<'_>) -> Option<&DTypes> {
+    pub fn specified_dtypes(&self) -> Option<&DTypes> {
         self.dtypes.as_ref()
     }
 
-    #[getter]
     pub fn width(&mut self) -> usize {
         self.width.unwrap_or_else(|| {
             let width = self.data().width();
@@ -199,7 +181,6 @@ impl ExcelTable {
         })
     }
 
-    #[getter]
     pub fn height(&mut self) -> usize {
         self.height.unwrap_or_else(|| {
             let height = self.limit() - self.offset();
@@ -208,7 +189,6 @@ impl ExcelTable {
         })
     }
 
-    #[getter]
     pub fn total_height(&mut self) -> usize {
         self.total_height.unwrap_or_else(|| {
             let total_height = self.data().height() - self.header.offset();
@@ -217,71 +197,35 @@ impl ExcelTable {
         })
     }
 
-    #[cfg(feature = "pyarrow")]
-    pub fn to_arrow(&self, py: Python<'_>) -> FastExcelResult<PyObject> {
-        RecordBatch::try_from(self)
-            .with_context(|| {
-                format!(
-                    "could not create RecordBatch from sheet \"{}\"",
-                    self.name
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    pub fn sheet_name(&self) -> &str {
+        &self.sheet_name
+    }
+
+    pub fn to_columns(&self) -> FastExcelResult<Vec<FastExcelColumn>> {
+        self.selected_columns
+            .iter()
+            .map(|column_info| {
+                FastExcelColumn::try_from_column_info(
+                    column_info,
+                    self.table.data(),
+                    self.offset(),
+                    self.limit(),
                 )
             })
-            .and_then(|rb| {
-                rb.to_pyarrow(py)
-                    .map_err(|err| FastExcelErrorKind::ArrowError(err.to_string()).into())
-            })
-            .with_context(|| {
-                format!(
-                    "could not convert RecordBatch to pyarrow for table \"{table}\" in sheet \"{sheet}\"",
-                    table = self.name, sheet = self.sheet_name
-                )
-            })
+            .collect()
     }
 
-    /// Export the schema as an [`ArrowSchema`] [`PyCapsule`].
-    ///
-    /// <https://arrow.apache.org/docs/format/CDataInterface/PyCapsuleInterface.html#arrowschema-export>
-    ///
-    /// [`ArrowSchema`]: arrow_array::ffi::FFI_ArrowSchema
-    /// [`PyCapsule`]: pyo3::types::PyCapsule
-    pub fn __arrow_c_schema__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyCapsule>> {
-        let schema = selected_columns_to_schema(&self.selected_columns);
-        Ok(to_schema_pycapsule(py, &schema)?)
-    }
+    #[cfg(feature = "polars")]
+    pub fn to_polars(&self) -> FastExcelResult<DataFrame> {
+        use crate::error::FastExcelErrorKind;
 
-    /// Export the schema and data as a pair of [`ArrowSchema`] and [`ArrowArray`] [`PyCapsules`]
-    ///
-    /// The optional `requested_schema` parameter allows for potential schema conversion.
-    ///
-    /// <https://arrow.apache.org/docs/format/CDataInterface/PyCapsuleInterface.html#arrowarray-export>
-    ///
-    /// [`ArrowSchema`]: arrow_array::ffi::FFI_ArrowSchema
-    /// [`ArrowArray`]: arrow_array::ffi::FFI_ArrowArray
-    /// [`PyCapsules`]: pyo3::types::PyCapsule
-    pub fn __arrow_c_array__<'py>(
-        &self,
-        py: Python<'py>,
-        requested_schema: Option<Bound<'py, PyCapsule>>,
-    ) -> PyResult<Bound<'py, PyTuple>> {
-        let record_batch = RecordBatch::try_from(self)
-            .with_context(|| format!("could not create RecordBatch from table \"{}\"", self.name))
-            .into_pyresult()?;
-
-        let field = Field::new_struct("", record_batch.schema_ref().fields().clone(), false);
-        let array = Arc::new(StructArray::from(record_batch));
-        Ok(to_array_pycapsules(
-            py,
-            field.into(),
-            array.as_ref(),
-            requested_schema,
-        )?)
-    }
-
-    pub fn __repr__(&self) -> String {
-        format!(
-            "ExcelTable<{sheet}/{name}>",
-            sheet = self.sheet_name,
-            name = self.name
-        )
+        let pl_columns = self.to_columns()?.into_iter().map(Into::into).collect();
+        DataFrame::new(pl_columns).map_err(|err| {
+            FastExcelErrorKind::Internal(format!("could not create DataFrame: {err:?}")).into()
+        })
     }
 }
