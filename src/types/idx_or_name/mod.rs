@@ -1,6 +1,7 @@
 #[cfg(feature = "python")]
 mod python;
 
+/// A column index or name.
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub enum IdxOrName {
     Idx(usize),

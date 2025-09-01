@@ -217,7 +217,8 @@ impl FastExcelColumn {
         Ok(Self { name, data, len })
     }
 
-    pub fn null<S: Into<String>>(name: S, len: usize) -> Self {
+    /// Create a new null series with the given name and length.
+    pub fn new_null<S: Into<String>>(name: S, len: usize) -> Self {
         Self {
             name: name.into(),
             data: FastExcelSeries::Null,

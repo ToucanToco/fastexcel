@@ -58,13 +58,17 @@ pub(crate) struct Pagination {
     n_rows: Option<usize>,
 }
 
+/// How rows should be skipped.
 #[derive(Debug, Default)]
 #[cfg_attr(not(feature = "python"), derive(Clone, PartialEq, Eq))]
 pub enum SkipRows {
+    /// Skip a fixed number of rows.
     Simple(usize),
+    /// Skip rows based on a list of row indices.
     List(HashSet<usize>),
     #[cfg(feature = "python")]
     Callable(Py<PyAny>),
+    /// Skip empty rows at the beginning of the filer (default).
     #[default]
     SkipEmptyRowsAtBeginning,
 }
@@ -455,6 +459,7 @@ impl FromStr for SelectedColumns {
     }
 }
 
+/// Visibility of a sheet.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SheetVisible {
     Visible,
@@ -472,6 +477,7 @@ impl From<CalamineSheetVisible> for SheetVisible {
     }
 }
 
+/// A single sheet in an Excel file.
 #[derive(Debug)]
 #[cfg_attr(feature = "python", pyclass(name = "_ExcelSheet"))]
 pub struct ExcelSheet {

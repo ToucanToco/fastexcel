@@ -14,19 +14,21 @@ use types::excelsheet::{CellError, CellErrors};
 
 pub use data::{FastExcelColumn, FastExcelSeries};
 pub use types::{
-    ColumnInfo, ColumnNameFrom, DType, DTypeFrom, ExcelReader, ExcelSheet, ExcelTable,
-    LoadSheetOrTableOptions, SheetVisible, SkipRows,
+    ColumnInfo, ColumnNameFrom, DType, DTypeCoercion, DTypeFrom, DTypes, ExcelReader, ExcelSheet,
+    ExcelTable, IdxOrName, LoadSheetOrTableOptions, SelectedColumns, SheetVisible, SkipRows,
 };
 
 use crate::error::{ErrorContext, FastExcelResult};
 
+/// Reads an excel file and returns an object allowing to access its sheets, tables, and a bit of metadata.
+/// This is a wrapper around `ExcelReader::try_from_path`.
 pub fn read_excel<S: AsRef<str> + Display>(path: S) -> FastExcelResult<ExcelReader> {
     ExcelReader::try_from_path(path.as_ref())
         .with_context(|| format!("could not load excel file at {path}"))
 }
 
 #[cfg(feature = "python")]
-/// Reads an excel file and returns an object allowing to access its sheets and a bit of metadata
+/// Reads an excel file and returns an object allowing to access its sheets, tables, and a bit of metadata
 #[pyfunction(name = "read_excel")]
 fn py_read_excel(source: &Bound<'_, PyAny>) -> PyResult<ExcelReader> {
     use py_errors::IntoPyResult;

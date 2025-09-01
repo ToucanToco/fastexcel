@@ -18,10 +18,14 @@ use crate::{
 
 use super::{Header, SelectedColumns};
 
+/// How the column name was determined
 #[derive(Debug, Clone, PartialEq)]
 pub enum ColumnNameFrom {
+    /// The column name was provided by the user.
     Provided,
+    /// The column name was looked up in the sheet or table.
     LookedUp,
+    /// The column name was generated based on the column index.
     Generated,
 }
 
@@ -51,11 +55,16 @@ impl Display for ColumnNameFrom {
     }
 }
 
+/// How the data type was determined.
 #[derive(Debug, Clone, PartialEq)]
 pub enum DTypeFrom {
+    /// The data type was provided for all columns.
     ProvidedForAll,
+    /// The data type was provided via the column's index.
     ProvidedByIndex,
+    /// The data type was provided via the column's name.
     ProvidedByName,
+    /// The data type was guessed based on the column's data.
     Guessed,
 }
 
@@ -88,14 +97,19 @@ impl FromStr for DTypeFrom {
 
 // NOTE: The types for properties unfortunately do not appear in the docs for this class, so we had
 // to specify them via docstrings
-/// This class provides information about a single column in a sheet
+/// Metadata about a single column in a sheet.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "python", pyclass(name = "ColumnInfo"))]
 pub struct ColumnInfo {
+    /// The column's name
     pub name: String,
+    /// The column's index
     pub index: usize,
+    /// The column's data type
     pub dtype: DType,
+    /// How the column name was determined
     pub column_name_from: ColumnNameFrom,
+    /// How the column data type was determined
     pub dtype_from: DTypeFrom,
 }
 

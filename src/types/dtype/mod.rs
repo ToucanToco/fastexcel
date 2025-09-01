@@ -17,6 +17,7 @@ use crate::error::{FastExcelError, FastExcelErrorKind, FastExcelResult};
 
 use super::idx_or_name::IdxOrName;
 
+/// A column or a cell's data type.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Copy)]
 pub enum DType {
     Null,
@@ -67,10 +68,13 @@ impl Display for DType {
 
 pub type DTypeMap = HashMap<IdxOrName, DType>;
 
+/// Provided data types.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "python", derive(IntoPyObject, IntoPyObjectRef))]
 pub enum DTypes {
+    /// Coerce all data types to the given type.
     All(DType),
+    /// Coerce data types based on the provided map.
     Map(DTypeMap),
 }
 
@@ -82,10 +86,13 @@ impl FromStr for DTypes {
     }
 }
 
+/// Whether data types should be coerced or not.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Copy, Default)]
 pub enum DTypeCoercion {
+    /// Coerce data types (default).
     #[default]
     Coerce,
+    /// Strictly enforce data types.
     Strict,
 }
 

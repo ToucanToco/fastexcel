@@ -100,15 +100,25 @@ impl ExcelSheets {
     }
 }
 
+/// Options for loading a sheet or table.
 #[derive(Debug)]
 pub struct LoadSheetOrTableOptions {
+    /// The index of the row containing the column labels. If `None`, the provided headers are used.
+    /// Any row before the header row is skipped.
     pub header_row: Option<usize>,
+    /// The column names to use. If `None`, the column names are inferred from the header row.
     pub column_names: Option<Vec<String>>,
+    /// How rows should be skipped.
     pub skip_rows: SkipRows,
+    /// The number of rows to read. If `None`, all rows are read.
     pub n_rows: Option<usize>,
+    /// The number of rows to sample for schema inference. If `None`, all rows are sampled.
     pub schema_sample_rows: Option<usize>,
+    /// How data types should be coerced.
     pub dtype_coercion: DTypeCoercion,
+    /// The columns to select.
     pub selected_columns: SelectedColumns,
+    /// Override the inferred data types.
     pub dtypes: Option<DTypes>,
 }
 
@@ -208,6 +218,7 @@ impl LoadSheetOrTableOptions {
     }
 }
 
+/// Represents an open Excel file and allows to access its sheets and tables.
 #[cfg_attr(feature = "python", pyclass(name = "_ExcelReader"))]
 pub struct ExcelReader {
     sheets: ExcelSheets,

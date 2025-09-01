@@ -22,6 +22,7 @@ use crate::{
     utils::schema::get_schema_sample_rows,
 };
 
+/// A single table in an Excel file.
 #[cfg_attr(feature = "python", pyclass(name = "_ExcelTable"))]
 pub struct ExcelTable {
     name: String,
