@@ -98,6 +98,7 @@ doc-serve: build-dev
 .PHONY: doc  ## Build documentation
 doc: build-dev
 	uv run pdoc -o docs python/fastexcel
+	cargo doc --no-deps --lib -p fastexcel --features polars
 
 .PHONY: all  ## Run the standard set of checks performed in CI
 all: format build-dev lint test
