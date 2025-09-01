@@ -5,7 +5,7 @@ use anyhow::{Context, Result};
 use chrono::NaiveDate;
 use fastexcel::{FastExcelColumn, LoadSheetOrTableOptions, SkipRows};
 #[cfg(feature = "polars")]
-use polars_core::{df, frame::DataFrame, series::Series};
+use polars_core::{df, frame::DataFrame};
 use pretty_assertions::assert_eq;
 use rstest::rstest;
 use utils::path_for_fixture;
@@ -375,17 +375,66 @@ fn test_sheet_with_pagination_and_without_headers() -> Result<()> {
 }
 
 #[rstest]
-#[case(Some(0), SkipRows::SkipEmptyRowsAtBeginning, fe_columns!("a" => ["b"], "0" => [1.0]))]
-#[case(None, SkipRows::Simple(0), fe_columns!("__UNNAMED__0" => [None, None, Some("a"), Some("b")], "__UNNAMED__1" => [None, None, Some(0.0), Some(1.0)]))]
-#[case(None, SkipRows::SkipEmptyRowsAtBeginning, fe_columns!("__UNNAMED__0" => ["a", "b"], "__UNNAMED__1" => [0.0, 1.0]))]
-#[case(Some(0), SkipRows::Simple(0), fe_columns!("__UNNAMED__0" => [None, Some("a"), Some("b")], "__UNNAMED__1" => [None, Some(0.0), Some(1.0)]))]
-#[case(Some(0), SkipRows::Simple(1), fe_columns!("__UNNAMED__0" => ["a", "b"], "__UNNAMED__1" => [0.0, 1.0]))]
-#[case(None, SkipRows::Simple(2), fe_columns!("__UNNAMED__0" => ["a", "b"], "__UNNAMED__1" => [0.0, 1.0]))]
-#[case(None, SkipRows::Simple(3), fe_columns!("__UNNAMED__0" => ["b"], "__UNNAMED__1" => [1.0]))]
-#[case(Some(1), SkipRows::Simple(0), fe_columns!("__UNNAMED__0" => ["a", "b"], "__UNNAMED__1" => [0.0, 1.0]))]
-#[case(Some(2), SkipRows::Simple(0), fe_columns!("a" => ["b"], "0" => [1.0]))]
-#[case(Some(2), SkipRows::SkipEmptyRowsAtBeginning, fe_columns!("a" => ["b"], "0" => [1.0]))]
-#[case(Some(2), SkipRows::Simple(1), vec![FastExcelColumn::null("a", 0), FastExcelColumn::null("0", 0)])]
+#[case(Some(0), SkipRows::SkipEmptyRowsAtBeginning, fe_columns!("a" => ["b", "c", "d", "e", "f"], "0" => [1.0, 2.0, 3.0, 4.0, 5.0]))]
+#[case(
+    None,
+    SkipRows::Simple(0),
+    fe_columns!(
+        "__UNNAMED__0" => [None, None, Some("a"), Some("b"), Some("c"), Some("d"), Some("e"), Some("f")],
+        "__UNNAMED__1" => [None, None, Some(0.0), Some(1.0), Some(2.0), Some(3.0), Some(4.0), Some(5.0)]
+    )
+)]
+#[case(
+    None,
+    SkipRows::SkipEmptyRowsAtBeginning,
+    fe_columns!(
+        "__UNNAMED__0" => ["a", "b", "c", "d", "e", "f"],
+        "__UNNAMED__1" => [0.0, 1.0, 2.0, 3.0, 4.0, 5.0]
+    )
+)]
+#[case(
+    Some(0),
+    SkipRows::Simple(0),
+    fe_columns!(
+        "__UNNAMED__0" => [None, Some("a"), Some("b"), Some("c"), Some("d"), Some("e"), Some("f")],
+        "__UNNAMED__1" => [None, Some(0.0), Some(1.0), Some(2.0), Some(3.0), Some(4.0), Some(5.0)]
+    )
+)]
+#[case(
+    Some(0),
+    SkipRows::Simple(1),
+    fe_columns!(
+        "__UNNAMED__0" => [Some("a"), Some("b"), Some("c"), Some("d"), Some("e"), Some("f")],
+        "__UNNAMED__1" => [Some(0.0), Some(1.0), Some(2.0), Some(3.0), Some(4.0), Some(5.0)]
+    )
+)]
+#[case(
+    None,
+    SkipRows::Simple(2),
+    fe_columns!(
+        "__UNNAMED__0" => [Some("a"), Some("b"), Some("c"), Some("d"), Some("e"), Some("f")],
+        "__UNNAMED__1" => [Some(0.0), Some(1.0), Some(2.0), Some(3.0), Some(4.0), Some(5.0)]
+    )
+)]
+#[case(
+    None,
+    SkipRows::Simple(3),
+    fe_columns!(
+        "__UNNAMED__0" => [Some("b"), Some("c"), Some("d"), Some("e"), Some("f")],
+        "__UNNAMED__1" => [Some(1.0), Some(2.0), Some(3.0), Some(4.0), Some(5.0)]
+    )
+)]
+#[case(
+    Some(1),
+    SkipRows::Simple(0),
+    fe_columns!("__UNNAMED__0" => ["a", "b", "c", "d", "e", "f"], "__UNNAMED__1" => [0.0, 1.0, 2.0, 3.0, 4.0, 5.0])
+)]
+#[case(Some(2), SkipRows::Simple(0), fe_columns!("a" => ["b", "c", "d", "e", "f"], "0" => [1.0, 2.0, 3.0, 4.0, 5.0]))]
+#[case(
+    Some(2),
+    SkipRows::SkipEmptyRowsAtBeginning,
+    fe_columns!("a" => ["b", "c", "d", "e", "f"], "0" => [1.0, 2.0, 3.0, 4.0, 5.0])
+)]
 fn test_header_row_and_skip_rows(
     #[case] header_row: Option<usize>,
     #[case] skip_rows: SkipRows,
@@ -412,17 +461,66 @@ fn test_header_row_and_skip_rows(
 
 #[cfg(feature = "polars")]
 #[rstest]
-#[case(Some(0), SkipRows::SkipEmptyRowsAtBeginning, df!("a" => ["b"], "0" => [1.0])?)]
-#[case(None, SkipRows::Simple(0), df!("__UNNAMED__0" => [None, None, Some("a"), Some("b")], "__UNNAMED__1" => [None, None, Some(0.0), Some(1.0)])?)]
-#[case(None, SkipRows::SkipEmptyRowsAtBeginning, df!("__UNNAMED__0" => ["a", "b"], "__UNNAMED__1" => [0.0, 1.0])?)]
-#[case(Some(0), SkipRows::Simple(0), df!("__UNNAMED__0" => [None, Some("a"), Some("b")], "__UNNAMED__1" => [None, Some(0.0), Some(1.0)])?)]
-#[case(Some(0), SkipRows::Simple(1), df!("__UNNAMED__0" => ["a", "b"], "__UNNAMED__1" => [0.0, 1.0])?)]
-#[case(None, SkipRows::Simple(2), df!("__UNNAMED__0" => ["a", "b"], "__UNNAMED__1" => [0.0, 1.0])?)]
-#[case(None, SkipRows::Simple(3), df!("__UNNAMED__0" => ["b"], "__UNNAMED__1" => [1.0])?)]
-#[case(Some(1), SkipRows::Simple(0), df!("__UNNAMED__0" => ["a", "b"], "__UNNAMED__1" => [0.0, 1.0])?)]
-#[case(Some(2), SkipRows::Simple(0), df!("a" => ["b"], "0" => [1.0])?)]
-#[case(Some(2), SkipRows::SkipEmptyRowsAtBeginning, df!("a" => ["b"], "0" => [1.0])?)]
-#[case(Some(2), SkipRows::Simple(1), df!("a" => Series::new_null("a".into(), 0), "0" => Series::new_null("0".into(), 0))?)]
+#[case(Some(0), SkipRows::SkipEmptyRowsAtBeginning, df!("a" => ["b", "c", "d", "e", "f"], "0" => [1.0, 2.0, 3.0, 4.0, 5.0])?)]
+#[case(
+    None,
+    SkipRows::Simple(0),
+    df!(
+        "__UNNAMED__0" => [None, None, Some("a"), Some("b"), Some("c"), Some("d"), Some("e"), Some("f")],
+        "__UNNAMED__1" => [None, None, Some(0.0), Some(1.0), Some(2.0), Some(3.0), Some(4.0), Some(5.0)]
+    )?
+)]
+#[case(
+    None,
+    SkipRows::SkipEmptyRowsAtBeginning,
+    df!(
+        "__UNNAMED__0" => ["a", "b", "c", "d", "e", "f"],
+        "__UNNAMED__1" => [0.0, 1.0, 2.0, 3.0, 4.0, 5.0]
+    )?
+)]
+#[case(
+    Some(0),
+    SkipRows::Simple(0),
+    df!(
+        "__UNNAMED__0" => [None, Some("a"), Some("b"), Some("c"), Some("d"), Some("e"), Some("f")],
+        "__UNNAMED__1" => [None, Some(0.0), Some(1.0), Some(2.0), Some(3.0), Some(4.0), Some(5.0)]
+    )?
+)]
+#[case(
+    Some(0),
+    SkipRows::Simple(1),
+    df!(
+        "__UNNAMED__0" => [Some("a"), Some("b"), Some("c"), Some("d"), Some("e"), Some("f")],
+        "__UNNAMED__1" => [Some(0.0), Some(1.0), Some(2.0), Some(3.0), Some(4.0), Some(5.0)]
+    )?
+)]
+#[case(
+    None,
+    SkipRows::Simple(2),
+    df!(
+        "__UNNAMED__0" => [Some("a"), Some("b"), Some("c"), Some("d"), Some("e"), Some("f")],
+        "__UNNAMED__1" => [Some(0.0), Some(1.0), Some(2.0), Some(3.0), Some(4.0), Some(5.0)]
+    )?
+)]
+#[case(
+    None,
+    SkipRows::Simple(3),
+    df!(
+        "__UNNAMED__0" => [Some("b"), Some("c"), Some("d"), Some("e"), Some("f")],
+        "__UNNAMED__1" => [Some(1.0), Some(2.0), Some(3.0), Some(4.0), Some(5.0)]
+    )?
+)]
+#[case(
+    Some(1),
+    SkipRows::Simple(0),
+    df!("__UNNAMED__0" => ["a", "b", "c", "d", "e", "f"], "__UNNAMED__1" => [0.0, 1.0, 2.0, 3.0, 4.0, 5.0])?
+)]
+#[case(Some(2), SkipRows::Simple(0), df!("a" => ["b", "c", "d", "e", "f"], "0" => [1.0, 2.0, 3.0, 4.0, 5.0])?)]
+#[case(
+    Some(2),
+    SkipRows::SkipEmptyRowsAtBeginning,
+    df!("a" => ["b", "c", "d", "e", "f"], "0" => [1.0, 2.0, 3.0, 4.0, 5.0])?
+)]
 fn test_header_row_and_skip_rows_polars(
     #[case] header_row: Option<usize>,
     #[case] skip_rows: SkipRows,
