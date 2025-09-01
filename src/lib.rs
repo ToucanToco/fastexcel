@@ -15,7 +15,7 @@ use types::excelsheet::{CellError, CellErrors};
 pub use data::{FastExcelColumn, FastExcelSeries};
 pub use types::{
     ColumnInfo, ColumnNameFrom, DType, DTypeFrom, ExcelReader, ExcelSheet, ExcelTable,
-    LoadSheetOrTableOptions, SheetVisible,
+    LoadSheetOrTableOptions, SheetVisible, SkipRows,
 };
 
 use crate::error::{ErrorContext, FastExcelResult};

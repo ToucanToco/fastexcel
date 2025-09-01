@@ -10,7 +10,7 @@ use crate::{
         dtype::{DTypeCoercion, DTypes},
         excelreader::LoadSheetOrTableOptions,
         excelsheet::{
-            Header, Pagination, SelectedColumns,
+            Header, Pagination, SelectedColumns, SkipRows,
             column_info::{build_available_columns_info, finalize_column_info},
         },
         idx_or_name::IdxOrName,
@@ -58,7 +58,14 @@ impl ExcelReader {
             dtype_coercion,
         )?;
 
-        record_batch_from_data_and_columns(&available_columns, data, offset, limit)
+        match data {
+            ExcelSheetData::Owned(data) => {
+                record_batch_from_data_and_columns(&available_columns, data, offset, limit)
+            }
+            ExcelSheetData::Ref(data) => {
+                record_batch_from_data_and_columns(&available_columns, data, offset, limit)
+            }
+        }
     }
 
     fn build_sheet<'py>(
@@ -82,8 +89,8 @@ impl ExcelReader {
                 .with_header_row(calamine_header_row)
                 .worksheet_range_ref(&sheet_meta.name)
                 .into_pyresult()?;
-            let pagination = Pagination::try_new(opts.skip_rows.unwrap_or(0), opts.n_rows, &range)
-                .into_pyresult()?;
+            let pagination =
+                Pagination::try_new(opts.skip_rows, opts.n_rows, &range).into_pyresult()?;
             let header = Header::new(data_header_row, opts.column_names);
             let rb = Self::load_sheet_eager(
                 &range.into(),
@@ -113,7 +120,8 @@ impl ExcelReader {
                 .with_header_row(calamine_header_row)
                 .worksheet_range(&sheet_meta.name)
                 .into_pyresult()?;
-            let pagination = opts.pagination(&range).into_pyresult()?;
+            let pagination =
+                Pagination::try_new(opts.skip_rows, opts.n_rows, &range).into_pyresult()?;
             let header = Header::new(data_header_row, opts.column_names);
             let sheet = ExcelSheet::try_new(
                 sheet_meta,
@@ -187,7 +195,7 @@ impl ExcelReader {
         *,
         header_row = 0,
         column_names = None,
-        skip_rows = None,
+        skip_rows = SkipRows::SkipEmptyRowsAtBeginning,
         n_rows = None,
         schema_sample_rows = 1_000,
         dtype_coercion = DTypeCoercion::Coerce,
@@ -201,7 +209,7 @@ impl ExcelReader {
         idx_or_name: &Bound<'py, PyAny>,
         header_row: Option<usize>,
         column_names: Option<Vec<String>>,
-        skip_rows: Option<usize>,
+        skip_rows: SkipRows,
         n_rows: Option<usize>,
         schema_sample_rows: Option<usize>,
         dtype_coercion: DTypeCoercion,
@@ -239,7 +247,7 @@ impl ExcelReader {
         *,
         header_row = 0,
         column_names = None,
-        skip_rows = None,
+        skip_rows = SkipRows::SkipEmptyRowsAtBeginning,
         n_rows = None,
         schema_sample_rows = 1_000,
         dtype_coercion = DTypeCoercion::Coerce,
@@ -253,7 +261,7 @@ impl ExcelReader {
         name: &Bound<'py, PyString>,
         header_row: Option<usize>,
         column_names: Option<Vec<String>>,
-        skip_rows: Option<usize>,
+        skip_rows: SkipRows,
         n_rows: Option<usize>,
         schema_sample_rows: Option<usize>,
         dtype_coercion: DTypeCoercion,

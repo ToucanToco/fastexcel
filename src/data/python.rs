@@ -10,101 +10,19 @@ use calamine::{CellType, DataType, Range};
 
 use super::cell_extractors;
 use crate::{
-    data::ExcelSheetData,
+    data::{ExcelSheetData, RowSelector, generate_row_selector},
     error::{ErrorContext, FastExcelErrorKind, FastExcelResult},
     types::{
-        dtype::{DType, DTypeCoercion, get_dtype_for_column},
-        excelsheet::{CellError, CellErrors, column_info::ColumnInfo},
+        dtype::DType,
+        excelsheet::{CellError, CellErrors, SkipRows, column_info::ColumnInfo},
     },
 };
 
-/// Enum for lazy row selection - avoids materializing Vec for simple cases
-#[derive(Debug)]
-pub(crate) enum RowSelector {
-    /// Simple range - no Vec allocation needed
-    Range(std::ops::Range<usize>),
-    /// Pre-filtered list of specific row indices
-    Filtered(Vec<usize>),
-}
-
-impl RowSelector {
-    pub(crate) fn len(&self) -> usize {
-        match self {
-            RowSelector::Range(range) => range.len(),
-            RowSelector::Filtered(vec) => vec.len(),
-        }
-    }
-
-    pub(crate) fn iter(&self) -> Box<dyn Iterator<Item = usize> + '_> {
-        match self {
-            RowSelector::Range(range) => Box::new(range.clone()),
-            RowSelector::Filtered(vec) => Box::new(vec.iter().copied()),
-        }
-    }
-}
-
-/// Generate row selector based on [`SkipRows`] and range limits
-pub(crate) fn generate_row_selector(
-    skip_rows: &SkipRows,
-    offset: usize,
-    limit: usize,
-) -> FastExcelResult<RowSelector> {
-    match skip_rows {
-        SkipRows::Simple(_skip_count) => {
-            // For simple case, the offset has already been adjusted by pagination logic
-            // So we just return the normal range - no Vec allocation!
-            Ok(RowSelector::Range(offset..limit))
-        }
-        SkipRows::SkipEmptyRowsAtBeginning => {
-            // For empty rows at beginning, calamine handles this at the header level
-            // So we just return the normal range - no Vec allocation!
-            Ok(RowSelector::Range(offset..limit))
-        }
-        SkipRows::List(skip_set) => {
-            // Filter out rows that are in the skip set
-            // `skip_set` contains data-relative indices, but we need to work with absolute indices
-            let filtered: Vec<usize> = (offset..limit)
-                .enumerate()
-                .filter_map(|(data_row_idx, absolute_row_idx)| {
-                    (!skip_set.contains(&data_row_idx)).then_some(absolute_row_idx)
-                })
-                .collect();
-            Ok(RowSelector::Filtered(filtered))
-        }
-        SkipRows::Callable(_func) => {
-            // Call the Python function for each row to determine if it should be skipped
-            // The callable should receive data-relative row indices (0, 1, 2, ...)
-            pyo3::Python::with_gil(|py| {
-                Ok(RowSelector::Filtered(
-                    (offset..limit)
-                        .enumerate()
-                        .filter_map(|(data_row_idx, absolute_row_idx)| {
-                            (!skip_rows.should_skip_row(data_row_idx, py).unwrap_or(false))
-                                .then_some(absolute_row_idx)
-                        })
-                        .collect(),
-                ))
-            })
-        }
-    }
-}
-
-mod array_impls {
+mod with_error_impls {
     use super::*;
 
-    pub(crate) fn create_boolean_array<DT: CellType + DataType>(
-        data: &Range<DT>,
-        col: usize,
-        row_iter: impl Iterator<Item = usize>,
-    ) -> Arc<dyn Array> {
-        Arc::new(BooleanArray::from_iter(row_iter.map(|row| {
-            data.get((row, col))
-                .and_then(cell_extractors::extract_boolean)
-        })))
-    }
-
-    pub(crate) fn create_boolean_array_with_errors<DT: CellType + DataType + Debug>(
-        data: &Range<DT>,
+    pub(crate) fn create_boolean_array_with_errors<CT: CellType + DataType + Debug>(
+        data: &Range<CT>,
         col: usize,
         offset: usize,
         limit: usize,
@@ -131,18 +49,8 @@ mod array_impls {
         (arr, cell_errors)
     }
 
-    pub(crate) fn create_int_array<DT: CellType + DataType>(
-        data: &Range<DT>,
-        col: usize,
-        row_iter: impl Iterator<Item = usize>,
-    ) -> Arc<dyn Array> {
-        Arc::new(Int64Array::from_iter((offset..limit).map(|row| {
-            data.get((row, col)).and_then(cell_extractors::extract_int)
-        })))
-    }
-
-    pub(crate) fn create_int_array_with_errors<DT: CellType + DataType + Debug>(
-        data: &Range<DT>,
+    pub(crate) fn create_int_array_with_errors<CT: CellType + DataType + Debug>(
+        data: &Range<CT>,
         col: usize,
         offset: usize,
         limit: usize,
@@ -171,19 +79,8 @@ mod array_impls {
         (arr, cell_errors)
     }
 
-    pub(crate) fn create_float_array<DT: CellType + DataType>(
-        data: &Range<DT>,
-        col: usize,
-        row_iter: impl Iterator<Item = usize>,
-    ) -> Arc<dyn Array> {
-        Arc::new(Float64Array::from_iter((offset..limit).map(|row| {
-            data.get((row, col))
-                .and_then(cell_extractors::extract_float)
-        })))
-    }
-
-    pub(crate) fn create_float_array_with_errors<DT: CellType + DataType + Debug>(
-        data: &Range<DT>,
+    pub(crate) fn create_float_array_with_errors<CT: CellType + DataType + Debug>(
+        data: &Range<CT>,
         col: usize,
         offset: usize,
         limit: usize,
@@ -212,19 +109,8 @@ mod array_impls {
         (arr, cell_errors)
     }
 
-    pub(crate) fn create_string_array<DT: CellType + DataType>(
-        data: &Range<DT>,
-        col: usize,
-        row_iter: impl Iterator<Item = usize>,
-    ) -> Arc<dyn Array> {
-        Arc::new(StringArray::from_iter((offset..limit).map(|row| {
-            data.get((row, col))
-                .and_then(cell_extractors::extract_string)
-        })))
-    }
-
-    pub(crate) fn create_string_array_with_errors<DT: CellType + DataType + Debug>(
-        data: &Range<DT>,
+    pub(crate) fn create_string_array_with_errors<CT: CellType + DataType + Debug>(
+        data: &Range<CT>,
         col: usize,
         offset: usize,
         limit: usize,
@@ -254,19 +140,8 @@ mod array_impls {
         (arr, cell_errors)
     }
 
-    pub(crate) fn create_date_array<DT: CellType + DataType>(
-        data: &Range<DT>,
-        col: usize,
-        row_iter: impl Iterator<Item = usize>,
-    ) -> Arc<dyn Array> {
-        Arc::new(Date32Array::from_iter((offset..limit).map(|row| {
-            data.get((row, col))
-                .and_then(cell_extractors::extract_date_as_num_days)
-        })))
-    }
-
-    pub(crate) fn create_date_array_with_errors<DT: CellType + DataType + Debug>(
-        data: &Range<DT>,
+    pub(crate) fn create_date_array_with_errors<CT: CellType + DataType + Debug>(
+        data: &Range<CT>,
         col: usize,
         offset: usize,
         limit: usize,
@@ -296,21 +171,8 @@ mod array_impls {
         (arr, cell_errors)
     }
 
-    pub(crate) fn create_datetime_array<DT: CellType + DataType>(
-        data: &Range<DT>,
-        col: usize,
-        row_iter: impl Iterator<Item = usize>,
-    ) -> Arc<dyn Array> {
-        Arc::new(TimestampMillisecondArray::from_iter((offset..limit).map(
-            |row| {
-                data.get((row, col))
-                    .and_then(cell_extractors::extract_datetime_as_timestamp_ms)
-            },
-        )))
-    }
-
-    pub(crate) fn create_datetime_array_with_errors<DT: CellType + DataType + Debug>(
-        data: &Range<DT>,
+    pub(crate) fn create_datetime_array_with_errors<CT: CellType + DataType + Debug>(
+        data: &Range<CT>,
         col: usize,
         offset: usize,
         limit: usize,
@@ -340,21 +202,8 @@ mod array_impls {
         (arr, cell_errors)
     }
 
-    pub(crate) fn create_duration_array<DT: CellType + DataType>(
-        data: &Range<DT>,
-        col: usize,
-        row_iter: impl Iterator<Item = usize>,
-    ) -> Arc<dyn Array> {
-        Arc::new(DurationMillisecondArray::from_iter((offset..limit).map(
-            |row| {
-                data.get((row, col))
-                    .and_then(cell_extractors::extract_duration_as_ms)
-            },
-        )))
-    }
-
-    pub(crate) fn create_duration_array_with_errors<DT: CellType + DataType + Debug>(
-        data: &Range<DT>,
+    pub(crate) fn create_duration_array_with_errors<CT: CellType + DataType + Debug>(
+        data: &Range<CT>,
         col: usize,
         offset: usize,
         limit: usize,
@@ -385,20 +234,80 @@ mod array_impls {
     }
 }
 
-/// Creates a function that will dispatch ExcelData to the generic create_x_array implementation using iterators
-macro_rules! create_array_function {
-    ($func_name:ident) => {
-        pub(crate) fn $func_name(
-            data: &ExcelSheetData,
-            col: usize,
-            row_iter: impl Iterator<Item = usize>,
-        ) -> Arc<dyn Array> {
-            match data {
-                ExcelSheetData::Owned(range) => array_impls::$func_name(range, col, row_iter),
-                ExcelSheetData::Ref(range) => array_impls::$func_name(range, col, row_iter),
-            }
-        }
-    };
+pub(crate) fn create_boolean_array<CT: CellType + DataType>(
+    data: &Range<CT>,
+    col: usize,
+    row_iter: impl Iterator<Item = usize>,
+) -> Arc<dyn Array> {
+    Arc::new(BooleanArray::from_iter(row_iter.map(|row| {
+        data.get((row, col))
+            .and_then(cell_extractors::extract_boolean)
+    })))
+}
+
+pub(crate) fn create_int_array<CT: CellType + DataType>(
+    data: &Range<CT>,
+    col: usize,
+    row_iter: impl Iterator<Item = usize>,
+) -> Arc<dyn Array> {
+    Arc::new(Int64Array::from_iter(row_iter.map(|row| {
+        data.get((row, col)).and_then(cell_extractors::extract_int)
+    })))
+}
+
+pub(crate) fn create_float_array<CT: CellType + DataType>(
+    data: &Range<CT>,
+    col: usize,
+    row_iter: impl Iterator<Item = usize>,
+) -> Arc<dyn Array> {
+    Arc::new(Float64Array::from_iter(row_iter.map(|row| {
+        data.get((row, col))
+            .and_then(cell_extractors::extract_float)
+    })))
+}
+
+pub(crate) fn create_string_array<CT: CellType + DataType>(
+    data: &Range<CT>,
+    col: usize,
+    row_iter: impl Iterator<Item = usize>,
+) -> Arc<dyn Array> {
+    Arc::new(StringArray::from_iter(row_iter.map(|row| {
+        data.get((row, col))
+            .and_then(cell_extractors::extract_string)
+    })))
+}
+
+pub(crate) fn create_date_array<CT: CellType + DataType>(
+    data: &Range<CT>,
+    col: usize,
+    row_iter: impl Iterator<Item = usize>,
+) -> Arc<dyn Array> {
+    Arc::new(Date32Array::from_iter(row_iter.map(|row| {
+        data.get((row, col))
+            .and_then(cell_extractors::extract_date_as_num_days)
+    })))
+}
+
+pub(crate) fn create_datetime_array<CT: CellType + DataType>(
+    data: &Range<CT>,
+    col: usize,
+    row_iter: impl Iterator<Item = usize>,
+) -> Arc<dyn Array> {
+    Arc::new(TimestampMillisecondArray::from_iter(row_iter.map(|row| {
+        data.get((row, col))
+            .and_then(cell_extractors::extract_datetime_as_timestamp_ms)
+    })))
+}
+
+pub(crate) fn create_duration_array<CT: CellType + DataType>(
+    data: &Range<CT>,
+    col: usize,
+    row_iter: impl Iterator<Item = usize>,
+) -> Arc<dyn Array> {
+    Arc::new(DurationMillisecondArray::from_iter(row_iter.map(|row| {
+        data.get((row, col))
+            .and_then(cell_extractors::extract_duration_as_ms)
+    })))
 }
 
 macro_rules! create_array_function_with_errors {
@@ -410,20 +319,16 @@ macro_rules! create_array_function_with_errors {
             limit: usize,
         ) -> (Arc<dyn Array>, Vec<CellError>) {
             match data {
-                ExcelSheetData::Owned(range) => array_impls::$func_name(range, col, offset, limit),
-                ExcelSheetData::Ref(range) => array_impls::$func_name(range, col, offset, limit),
+                ExcelSheetData::Owned(range) => {
+                    with_error_impls::$func_name(range, col, offset, limit)
+                }
+                ExcelSheetData::Ref(range) => {
+                    with_error_impls::$func_name(range, col, offset, limit)
+                }
             }
         }
     };
 }
-
-create_array_function!(create_boolean_array);
-create_array_function!(create_string_array);
-create_array_function!(create_int_array);
-create_array_function!(create_float_array);
-create_array_function!(create_datetime_array);
-create_array_function!(create_date_array);
-create_array_function!(create_duration_array);
 
 create_array_function_with_errors!(create_boolean_array_with_errors);
 create_array_function_with_errors!(create_int_array_with_errors);
@@ -468,9 +373,9 @@ pub(crate) fn record_batch_from_name_array_iterator<
 /// * `data`: the sheets data, as an `ExcelSheetData`
 /// * `offset`: the row index at which to start
 /// * `limit`: the row index at which to stop (excluded)
-pub(crate) fn record_batch_from_data_and_columns(
+pub(crate) fn record_batch_from_data_and_columns<CT: CellType + DataType>(
     columns: &[ColumnInfo],
-    data: &ExcelSheetData,
+    data: &Range<CT>,
     offset: usize,
     limit: usize,
 ) -> FastExcelResult<RecordBatch> {
@@ -479,9 +384,9 @@ pub(crate) fn record_batch_from_data_and_columns(
     record_batch_from_data_and_columns_with_row_selector(columns, data, &row_selector)
 }
 
-pub(crate) fn record_batch_from_data_and_columns_with_skip_rows(
+pub(crate) fn record_batch_from_data_and_columns_with_skip_rows<CT: CellType + DataType>(
     columns: &[ColumnInfo],
-    data: &ExcelSheetData,
+    data: &Range<CT>,
     skip_rows: &SkipRows,
     offset: usize,
     limit: usize,
@@ -491,9 +396,9 @@ pub(crate) fn record_batch_from_data_and_columns_with_skip_rows(
     record_batch_from_data_and_columns_with_row_selector(columns, data, &row_selector)
 }
 
-fn record_batch_from_data_and_columns_with_row_selector(
+fn record_batch_from_data_and_columns_with_row_selector<CT: CellType + DataType>(
     columns: &[ColumnInfo],
-    data: &ExcelSheetData,
+    data: &Range<CT>,
     row_selector: &RowSelector,
 ) -> FastExcelResult<RecordBatch> {
     let schema = selected_columns_to_schema(columns);
@@ -557,4 +462,13 @@ pub(crate) fn record_batch_from_data_and_columns_with_errors(
             errors: cell_errors,
         },
     ))
+}
+
+impl RowSelector {
+    pub(crate) fn iter(&self) -> Box<dyn Iterator<Item = usize> + '_> {
+        match self {
+            RowSelector::Range(range) => Box::new(range.clone()),
+            RowSelector::Filtered(vec) => Box::new(vec.iter().copied()),
+        }
+    }
 }

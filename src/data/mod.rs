@@ -16,7 +16,7 @@ use crate::{
     error::{FastExcelErrorKind, FastExcelResult},
     types::{
         dtype::{DType, DTypeCoercion, get_dtype_for_column},
-        excelsheet::column_info::ColumnInfo,
+        excelsheet::{SkipRows, column_info::ColumnInfo},
     },
 };
 
@@ -293,5 +293,70 @@ impl FastExcelColumn {
 impl From<FastExcelColumn> for FastExcelSeries {
     fn from(column: FastExcelColumn) -> Self {
         column.data
+    }
+}
+
+/// Enum for lazy row selection - avoids materializing Vec for simple cases
+#[derive(Debug)]
+pub(crate) enum RowSelector {
+    /// Simple range - no Vec allocation needed
+    Range(std::ops::Range<usize>),
+    /// Pre-filtered list of specific row indices
+    Filtered(Vec<usize>),
+}
+
+impl RowSelector {
+    pub(crate) fn len(&self) -> usize {
+        match self {
+            RowSelector::Range(range) => range.len(),
+            RowSelector::Filtered(vec) => vec.len(),
+        }
+    }
+}
+
+/// Generate row selector based on [`SkipRows`] and range limits
+pub(crate) fn generate_row_selector(
+    skip_rows: &SkipRows,
+    offset: usize,
+    limit: usize,
+) -> FastExcelResult<RowSelector> {
+    match skip_rows {
+        SkipRows::Simple(_skip_count) => {
+            // For simple case, the offset has already been adjusted by pagination logic
+            // So we just return the normal range - no Vec allocation!
+            Ok(RowSelector::Range(offset..limit))
+        }
+        SkipRows::SkipEmptyRowsAtBeginning => {
+            // For empty rows at beginning, calamine handles this at the header level
+            // So we just return the normal range - no Vec allocation!
+            Ok(RowSelector::Range(offset..limit))
+        }
+        SkipRows::List(skip_set) => {
+            // Filter out rows that are in the skip set
+            // `skip_set` contains data-relative indices, but we need to work with absolute indices
+            let filtered: Vec<usize> = (offset..limit)
+                .enumerate()
+                .filter_map(|(data_row_idx, absolute_row_idx)| {
+                    (!skip_set.contains(&data_row_idx)).then_some(absolute_row_idx)
+                })
+                .collect();
+            Ok(RowSelector::Filtered(filtered))
+        }
+        #[cfg(feature = "python")]
+        SkipRows::Callable(_func) => {
+            // Call the Python function for each row to determine if it should be skipped
+            // The callable should receive data-relative row indices (0, 1, 2, ...)
+            pyo3::Python::with_gil(|py| {
+                Ok(RowSelector::Filtered(
+                    (offset..limit)
+                        .enumerate()
+                        .filter_map(|(data_row_idx, absolute_row_idx)| {
+                            (!skip_rows.should_skip_row(data_row_idx, py).unwrap_or(false))
+                                .then_some(absolute_row_idx)
+                        })
+                        .collect(),
+                ))
+            })
+        }
     }
 }

@@ -7,8 +7,8 @@ use std::{
 };
 
 use calamine::{
-    CellType, Data, HeaderRow, Range, Reader, Sheet as CalamineSheet, Sheets, Table,
-    open_workbook_auto, open_workbook_auto_from_rs,
+    Data, HeaderRow, Range, Reader, Sheet as CalamineSheet, Sheets, Table, open_workbook_auto,
+    open_workbook_auto_from_rs,
 };
 #[cfg(feature = "python")]
 use calamine::{DataRef, ReaderRef};
@@ -20,7 +20,7 @@ use crate::{
     error::{ErrorContext, FastExcelError, FastExcelErrorKind, FastExcelResult},
     types::{
         dtype::{DTypeCoercion, DTypes},
-        excelsheet::{Header, Pagination, SelectedColumns},
+        excelsheet::{Header, Pagination, SelectedColumns, SkipRows},
         idx_or_name::IdxOrName,
     },
 };
@@ -104,7 +104,7 @@ impl ExcelSheets {
 pub struct LoadSheetOrTableOptions {
     pub header_row: Option<usize>,
     pub column_names: Option<Vec<String>>,
-    pub skip_rows: Option<usize>,
+    pub skip_rows: SkipRows,
     pub n_rows: Option<usize>,
     pub schema_sample_rows: Option<usize>,
     pub dtype_coercion: DTypeCoercion,
@@ -117,9 +117,9 @@ impl LoadSheetOrTableOptions {
     /// `header_row` can be `None` (meaning there is no header and we should start reading the data
     /// at the beginning of the sheet)
     fn calamine_header_row(&self) -> HeaderRow {
-        match (self.header_row, self.skip_rows) {
-            (None, None) | (Some(0), None) => HeaderRow::FirstNonEmptyRow,
-            (None, Some(_)) => HeaderRow::Row(0),
+        match (self.header_row, &self.skip_rows) {
+            (None | Some(0), SkipRows::SkipEmptyRowsAtBeginning) => HeaderRow::FirstNonEmptyRow,
+            (None, _) => HeaderRow::Row(0),
             (Some(row), _) => HeaderRow::Row(row as u32),
         }
     }
@@ -127,10 +127,6 @@ impl LoadSheetOrTableOptions {
     /// Returns the row number of the first data row to read, if defined
     fn data_header_row(&self) -> Option<usize> {
         self.header_row.and(Some(0))
-    }
-
-    fn pagination<CT: CellType>(&self, range: &Range<CT>) -> FastExcelResult<Pagination> {
-        Pagination::try_new(self.skip_rows.unwrap_or(0), self.n_rows, range)
     }
 
     /// Returns a new `LoadSheetOrTableOptions` instance for loading a sheet. `header_row` is set to
@@ -181,8 +177,8 @@ impl LoadSheetOrTableOptions {
         self
     }
 
-    pub fn skip_rows(mut self, skip_rows: usize) -> Self {
-        self.skip_rows = Some(skip_rows);
+    pub fn skip_rows(mut self, skip_rows: SkipRows) -> Self {
+        self.skip_rows = skip_rows;
         self
     }
 
@@ -279,7 +275,7 @@ impl ExcelReader {
             .with_header_row(calamine_header_row)
             .worksheet_range(&sheet_meta.name)?;
 
-        let pagination = opts.pagination(&range)?;
+        let pagination = Pagination::try_new(opts.skip_rows, opts.n_rows, &range)?;
 
         let header = Header::new(data_header_row, opts.column_names);
 
@@ -302,7 +298,8 @@ impl ExcelReader {
         opts: LoadSheetOrTableOptions,
     ) -> FastExcelResult<ExcelTable> {
         let table = self.sheets.get_table(name)?;
-        let pagination = opts.pagination(table.data())?;
+        let pagination = Pagination::try_new(opts.skip_rows, opts.n_rows, table.data())?;
+
         let header = match (opts.column_names, opts.header_row) {
             (None, None) => Header::With(table.columns().into()),
             (None, Some(row)) => Header::At(row),

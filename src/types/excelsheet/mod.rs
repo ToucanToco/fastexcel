@@ -12,7 +12,7 @@ use column_info::{AvailableColumns, ColumnInfoNoDtype};
 #[cfg(feature = "polars")]
 use polars_core::frame::DataFrame;
 #[cfg(feature = "python")]
-use pyo3::{PyObject, Python, pyclass};
+use pyo3::{Py, PyAny, Python, pyclass};
 
 use self::column_info::{ColumnInfo, build_available_columns_info, finalize_column_info};
 use crate::{
@@ -51,46 +51,25 @@ impl Header {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug)]
+#[cfg_attr(not(feature = "python"), derive(Clone, PartialEq, Eq))]
 pub(crate) struct Pagination {
     skip_rows: SkipRows,
     n_rows: Option<usize>,
 }
 
-#[derive(Debug)]
-pub(crate) enum SkipRows {
+#[derive(Debug, Default)]
+#[cfg_attr(not(feature = "python"), derive(Clone, PartialEq, Eq))]
+pub enum SkipRows {
     Simple(usize),
     List(HashSet<usize>),
-    Callable(PyObject),
+    #[cfg(feature = "python")]
+    Callable(Py<PyAny>),
+    #[default]
     SkipEmptyRowsAtBeginning,
 }
 
 impl SkipRows {
-    pub(crate) fn should_skip_row(&self, row_idx: usize, py: Python) -> FastExcelResult<bool> {
-        match self {
-            SkipRows::Simple(offset) => Ok(row_idx < *offset),
-            SkipRows::List(skip_set) => Ok(skip_set.contains(&row_idx)),
-            SkipRows::Callable(func) => {
-                let result = func.call1(py, (row_idx,)).map_err(|e| {
-                    FastExcelErrorKind::InvalidParameters(format!(
-                        "Error calling skip_rows function for row {row_idx}: {e}"
-                    ))
-                })?;
-                result.extract::<bool>(py).map_err(|e| {
-                    FastExcelErrorKind::InvalidParameters(format!(
-                        "skip_rows callable must return bool, got error: {e}"
-                    ))
-                    .into()
-                })
-            }
-            SkipRows::SkipEmptyRowsAtBeginning => {
-                // This is handled by calamine's FirstNonEmptyRow in the header logic
-                // For array creation, we don't need additional filtering
-                Ok(false)
-            }
-        }
-    }
-
     pub(crate) fn simple_offset(&self) -> Option<usize> {
         match self {
             SkipRows::Simple(offset) => Some(*offset),
@@ -101,7 +80,7 @@ impl SkipRows {
 }
 
 impl Pagination {
-    pub(crate) fn new<CT: CellType>(
+    pub(crate) fn try_new<CT: CellType>(
         skip_rows: SkipRows,
         n_rows: Option<usize>,
         range: &Range<CT>,
@@ -138,7 +117,7 @@ pub enum SelectedColumns {
     All,
     Selection(Vec<IdxOrName>),
     #[cfg(feature = "python")]
-    DynamicSelection(PyObject),
+    DynamicSelection(Py<PyAny>),
     DeferredSelection(Vec<DeferredColumnSelection>),
 }
 

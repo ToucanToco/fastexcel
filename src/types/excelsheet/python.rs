@@ -1,11 +1,11 @@
-use std::sync::Arc;
+use std::{collections::HashSet, sync::Arc};
 
 use arrow_array::{RecordBatch, StructArray};
 use arrow_schema::Field;
 #[cfg(feature = "pyarrow")]
 use pyo3::PyResult;
 use pyo3::{
-    Bound, IntoPyObject, PyAny, PyObject, Python, pyclass, pymethods,
+    Bound, FromPyObject, IntoPyObject, PyAny, PyObject, Python, pyclass, pymethods,
     types::{PyAnyMethods, PyCapsule, PyList, PyListMethods, PyString, PyTuple},
 };
 use pyo3_arrow::ffi::{to_array_pycapsules, to_schema_pycapsule};
@@ -13,7 +13,7 @@ use pyo3_arrow::ffi::{to_array_pycapsules, to_schema_pycapsule};
 use crate::{
     ExcelSheet,
     data::{
-        record_batch_from_data_and_columns, record_batch_from_data_and_columns_with_skip_rows,
+        ExcelSheetData, record_batch_from_data_and_columns_with_skip_rows,
         selected_columns_to_schema,
     },
     error::{
@@ -21,7 +21,7 @@ use crate::{
     },
     types::{
         dtype::DTypes,
-        excelsheet::{SelectedColumns, SheetVisible, column_info::ColumnInfo},
+        excelsheet::{SelectedColumns, SheetVisible, SkipRows, column_info::ColumnInfo},
         idx_or_name::IdxOrName,
     },
 };
@@ -91,6 +91,33 @@ impl<'py> IntoPyObject<'py> for &SheetVisible {
                 SheetVisible::VeryHidden => "veryhidden",
             },
         ))
+    }
+}
+
+impl SkipRows {
+    pub(crate) fn should_skip_row(&self, row_idx: usize, py: Python) -> FastExcelResult<bool> {
+        match self {
+            SkipRows::Simple(offset) => Ok(row_idx < *offset),
+            SkipRows::List(skip_set) => Ok(skip_set.contains(&row_idx)),
+            SkipRows::Callable(func) => {
+                let result = func.call1(py, (row_idx,)).map_err(|e| {
+                    FastExcelErrorKind::InvalidParameters(format!(
+                        "Error calling skip_rows function for row {row_idx}: {e}"
+                    ))
+                })?;
+                result.extract::<bool>(py).map_err(|e| {
+                    FastExcelErrorKind::InvalidParameters(format!(
+                        "skip_rows callable must return bool, got error: {e}"
+                    ))
+                    .into()
+                })
+            }
+            SkipRows::SkipEmptyRowsAtBeginning => {
+                // This is handled by calamine's FirstNonEmptyRow in the header logic
+                // For array creation, we don't need additional filtering
+                Ok(false)
+            }
+        }
     }
 }
 
@@ -168,13 +195,22 @@ impl TryFrom<&ExcelSheet> for RecordBatch {
         let offset = sheet.offset();
         let limit = sheet.limit();
 
-        record_batch_from_data_and_columns_with_skip_rows(
-            &sheet.selected_columns,
-            sheet.data(),
-            sheet.pagination.skip_rows(),
-            offset,
-            limit,
-        )
+        match &sheet.data {
+            ExcelSheetData::Owned(range) => record_batch_from_data_and_columns_with_skip_rows(
+                &sheet.selected_columns,
+                range,
+                sheet.pagination.skip_rows(),
+                offset,
+                limit,
+            ),
+            ExcelSheetData::Ref(range) => record_batch_from_data_and_columns_with_skip_rows(
+                &sheet.selected_columns,
+                range,
+                sheet.pagination.skip_rows(),
+                offset,
+                limit,
+            ),
+        }
         .with_context(|| format!("could not convert sheet {} to RecordBatch", sheet.name()))
     }
 }
