@@ -29,7 +29,7 @@ use crate::{
 use pyo3::types::PyString;
 
 use super::excelsheet::{
-    ExcelSheet, Header, Pagination, SelectedColumns,
+    ExcelSheet, Header, Pagination, SelectedColumns, SkipRows,
     column_info::{build_available_columns_info, finalize_column_info},
 };
 use super::table::ExcelTable;
@@ -178,7 +178,7 @@ impl ExcelReader {
         sheet_meta: CalamineSheet,
         header_row: Option<usize>,
         column_names: Option<Vec<String>>,
-        skip_rows: Option<usize>,
+        skip_rows: SkipRows,
         n_rows: Option<usize>,
         schema_sample_rows: Option<usize>,
         dtype_coercion: DTypeCoercion,
@@ -190,9 +190,9 @@ impl ExcelReader {
         // calamine `header_row` is the first row of the range to be read.
         // For us `header_row` can be `None` (meaning there is no header and we should start reading
         // the data at the beginning)
-        let calamine_header_row = match (header_row, skip_rows) {
-            (None, None) | (Some(0), None) => HeaderRow::FirstNonEmptyRow,
-            (None, Some(_)) => HeaderRow::Row(0),
+        let calamine_header_row = match (header_row, &skip_rows) {
+            (None | Some(0), SkipRows::SkipEmptyRowsAtBeginning) => HeaderRow::FirstNonEmptyRow,
+            (None, _) => HeaderRow::Row(0),
             (Some(row), _) => HeaderRow::Row(row as u32),
         };
         // And our header row is simply the first row of the data if defined.
@@ -207,8 +207,7 @@ impl ExcelReader {
                 .with_header_row(calamine_header_row)
                 .worksheet_range_ref(&sheet_meta.name)
                 .into_pyresult()?;
-            let pagination =
-                Pagination::new(skip_rows.unwrap_or(0), n_rows, &range).into_pyresult()?;
+            let pagination = Pagination::new(skip_rows, n_rows, &range).into_pyresult()?;
             let rb = Self::load_sheet_eager(
                 &range.into(),
                 pagination,
@@ -236,8 +235,7 @@ impl ExcelReader {
                 .with_header_row(calamine_header_row)
                 .worksheet_range(&sheet_meta.name)
                 .into_pyresult()?;
-            let pagination =
-                Pagination::new(skip_rows.unwrap_or(0), n_rows, &range).into_pyresult()?;
+            let pagination = Pagination::new(skip_rows, n_rows, &range).into_pyresult()?;
             let sheet = ExcelSheet::try_new(
                 sheet_meta,
                 range.into(),
@@ -293,7 +291,8 @@ impl ExcelReader {
             }
         };
 
-        let pagination = Pagination::new(skip_rows, n_rows, table.data()).into_pyresult()?;
+        let pagination =
+            Pagination::new(SkipRows::Simple(skip_rows), n_rows, table.data()).into_pyresult()?;
 
         let excel_table = ExcelTable::try_new(
             table,
@@ -356,7 +355,7 @@ impl ExcelReader {
         *,
         header_row = 0,
         column_names = None,
-        skip_rows = None,
+        skip_rows = SkipRows::SkipEmptyRowsAtBeginning,
         n_rows = None,
         schema_sample_rows = 1_000,
         dtype_coercion = DTypeCoercion::Coerce,
@@ -370,7 +369,7 @@ impl ExcelReader {
         idx_or_name: &Bound<'py, PyAny>,
         header_row: Option<usize>,
         column_names: Option<Vec<String>>,
-        skip_rows: Option<usize>,
+        skip_rows: SkipRows,
         n_rows: Option<usize>,
         schema_sample_rows: Option<usize>,
         dtype_coercion: DTypeCoercion,
