@@ -198,7 +198,7 @@ mod array_impls {
                     cell_errors.push(CellError {
                         position: (row, col),
                         row_offset: offset,
-                        detail: format!("Expected boolean but got '{:?}", cell),
+                        detail: format!("Expected boolean but got '{cell:?}"),
                     });
                     None
                 }
@@ -237,7 +237,7 @@ mod array_impls {
                             cell_errors.push(CellError {
                                 position: (row, col),
                                 row_offset: offset,
-                                detail: format!("Expected int but got '{:?}'", cell),
+                                detail: format!("Expected int but got '{cell:?}'"),
                             });
                             None
                         }
@@ -277,7 +277,7 @@ mod array_impls {
                             cell_errors.push(CellError {
                                 position: (row, col),
                                 row_offset: offset,
-                                detail: format!("Expected float but got '{:?}'", cell),
+                                detail: format!("Expected float but got '{cell:?}'"),
                             });
                             None
                         }
@@ -345,7 +345,7 @@ mod array_impls {
                             cell_errors.push(CellError {
                                 position: (row, col),
                                 row_offset: offset,
-                                detail: format!("Expected string but got '{:?}'", cell),
+                                detail: format!("Expected string but got '{cell:?}'"),
                             });
                             None
                         }
@@ -395,7 +395,7 @@ mod array_impls {
                                 cell_errors.push(CellError {
                                     position: (row, col),
                                     row_offset: offset,
-                                    detail: format!("Expected date but got '{:?}'", cell),
+                                    detail: format!("Expected date but got '{cell:?}'"),
                                 });
                                 None
                             }
@@ -440,7 +440,7 @@ mod array_impls {
                                     cell_errors.push(CellError {
                                         position: (row, col),
                                         row_offset: offset,
-                                        detail: format!("Expected datetime but got '{:?}'", cell),
+                                        detail: format!("Expected datetime but got '{cell:?}'"),
                                     });
                                     None
                                 }
@@ -482,7 +482,7 @@ mod array_impls {
                                 cell_errors.push(CellError {
                                     position: (row, col),
                                     row_offset: offset,
-                                    detail: format!("Expected duration but got '{:?}'", cell),
+                                    detail: format!("Expected duration but got '{cell:?}'"),
                                 });
                                 None
                             }

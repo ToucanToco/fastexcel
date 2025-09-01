@@ -108,14 +108,12 @@ impl SkipRows {
             SkipRows::Callable(func) => {
                 let result = func.call1(py, (row_idx,)).map_err(|e| {
                     FastExcelErrorKind::InvalidParameters(format!(
-                        "Error calling skip_rows function for row {}: {}",
-                        row_idx, e
+                        "Error calling skip_rows function for row {row_idx}: {e}"
                     ))
                 })?;
                 result.extract::<bool>(py).map_err(|e| {
                     FastExcelErrorKind::InvalidParameters(format!(
-                        "skip_rows callable must return bool, got error: {}",
-                        e
+                        "skip_rows callable must return bool, got error: {e}"
                     ))
                     .into()
                 })
