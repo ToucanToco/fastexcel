@@ -12,7 +12,10 @@ use pyo3_arrow::ffi::{to_array_pycapsules, to_schema_pycapsule};
 
 use crate::{
     ExcelSheet,
-    data::{record_batch_from_data_and_columns, selected_columns_to_schema},
+    data::{
+        record_batch_from_data_and_columns, record_batch_from_data_and_columns_with_skip_rows,
+        selected_columns_to_schema,
+    },
     error::{
         ErrorContext, FastExcelError, FastExcelErrorKind, FastExcelResult, py_errors::IntoPyResult,
     },
@@ -127,6 +130,37 @@ impl CellErrors {
     }
 }
 
+impl FromPyObject<'_> for SkipRows {
+    fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
+        // Handle None case
+        if obj.is_none() {
+            return Ok(SkipRows::SkipEmptyRowsAtBeginning);
+        }
+
+        // Try to extract as int first
+        if let Ok(skip_count) = obj.extract::<usize>() {
+            return Ok(SkipRows::Simple(skip_count));
+        }
+
+        // Try to extract as list of integers
+        if let Ok(skip_list) = obj.extract::<Vec<usize>>() {
+            let skip_set: HashSet<usize> = skip_list.into_iter().collect();
+            return Ok(SkipRows::List(skip_set));
+        }
+
+        // Check if it's callable
+        if obj.hasattr("__call__").unwrap_or(false) {
+            return Ok(SkipRows::Callable(obj.clone().into()));
+        }
+
+        Err(FastExcelErrorKind::InvalidParameters(
+            "skip_rows must be int, list of int, callable, or None".to_string(),
+        )
+        .into())
+        .into_pyresult()
+    }
+}
+
 impl TryFrom<&ExcelSheet> for RecordBatch {
     type Error = FastExcelError;
 
@@ -134,8 +168,14 @@ impl TryFrom<&ExcelSheet> for RecordBatch {
         let offset = sheet.offset();
         let limit = sheet.limit();
 
-        record_batch_from_data_and_columns(&sheet.selected_columns, sheet.data(), offset, limit)
-            .with_context(|| format!("could not convert sheet {} to RecordBatch", sheet.name()))
+        record_batch_from_data_and_columns_with_skip_rows(
+            &sheet.selected_columns,
+            sheet.data(),
+            sheet.pagination.skip_rows(),
+            offset,
+            limit,
+        )
+        .with_context(|| format!("could not convert sheet {} to RecordBatch", sheet.name()))
     }
 }
 

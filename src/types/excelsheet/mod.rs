@@ -53,33 +53,82 @@ impl Header {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct Pagination {
-    skip_rows: usize,
+    skip_rows: SkipRows,
     n_rows: Option<usize>,
 }
 
+#[derive(Debug)]
+pub(crate) enum SkipRows {
+    Simple(usize),
+    List(HashSet<usize>),
+    Callable(PyObject),
+    SkipEmptyRowsAtBeginning,
+}
+
+impl SkipRows {
+    pub(crate) fn should_skip_row(&self, row_idx: usize, py: Python) -> FastExcelResult<bool> {
+        match self {
+            SkipRows::Simple(offset) => Ok(row_idx < *offset),
+            SkipRows::List(skip_set) => Ok(skip_set.contains(&row_idx)),
+            SkipRows::Callable(func) => {
+                let result = func.call1(py, (row_idx,)).map_err(|e| {
+                    FastExcelErrorKind::InvalidParameters(format!(
+                        "Error calling skip_rows function for row {row_idx}: {e}"
+                    ))
+                })?;
+                result.extract::<bool>(py).map_err(|e| {
+                    FastExcelErrorKind::InvalidParameters(format!(
+                        "skip_rows callable must return bool, got error: {e}"
+                    ))
+                    .into()
+                })
+            }
+            SkipRows::SkipEmptyRowsAtBeginning => {
+                // This is handled by calamine's FirstNonEmptyRow in the header logic
+                // For array creation, we don't need additional filtering
+                Ok(false)
+            }
+        }
+    }
+
+    pub(crate) fn simple_offset(&self) -> Option<usize> {
+        match self {
+            SkipRows::Simple(offset) => Some(*offset),
+            SkipRows::SkipEmptyRowsAtBeginning => Some(0), // Let calamine's FirstNonEmptyRow handle it
+            _ => None,
+        }
+    }
+}
+
 impl Pagination {
-    pub(crate) fn try_new<CT: CellType>(
-        skip_rows: usize,
+    pub(crate) fn new<CT: CellType>(
+        skip_rows: SkipRows,
         n_rows: Option<usize>,
         range: &Range<CT>,
     ) -> FastExcelResult<Self> {
         let max_height = range.height();
-        if max_height < skip_rows {
-            Err(FastExcelErrorKind::InvalidParameters(format!(
-                "Too many rows skipped. Max height is {max_height}"
-            ))
-            .into())
-        } else {
-            Ok(Self { skip_rows, n_rows })
+        // Only validate for simple skip_rows case
+        if let SkipRows::Simple(skip_count) = &skip_rows {
+            if max_height < *skip_count {
+                return Err(FastExcelErrorKind::InvalidParameters(format!(
+                    "Too many rows skipped. Max height is {max_height}"
+                ))
+                .into());
+            }
         }
+        Ok(Self { skip_rows, n_rows })
     }
 
     pub(crate) fn offset(&self) -> usize {
-        self.skip_rows
+        self.skip_rows.simple_offset().unwrap_or(0)
     }
 
     pub(crate) fn n_rows(&self) -> Option<usize> {
         self.n_rows
+    }
+
+    pub(crate) fn skip_rows(&self) -> &SkipRows {
+        &self.skip_rows
     }
 }
 
@@ -566,7 +615,11 @@ impl ExcelSheet {
 
     pub fn height(&mut self) -> usize {
         self.height.unwrap_or_else(|| {
-            let height = self.limit() - self.offset();
+            use crate::data::generate_row_selector;
+            let height =
+                generate_row_selector(self.pagination.skip_rows(), self.offset(), self.limit())
+                    .map(|selector| selector.len())
+                    .unwrap_or_else(|_| self.limit() - self.offset());
             self.height = Some(height);
             height
         })
