@@ -124,7 +124,7 @@ jobs:
         with:
           manylinux: auto
           command: sdist
-          args: "-o dist --features __maturin"
+          args: "-o dist"
       - name: upload sdist
         uses: actions/upload-artifact@v4
         with:
