@@ -21,7 +21,7 @@ jobs:
       with:
         manylinux: auto
         command: build
-        args: "--release -o dist"
+        args: "--release -o dist --features __maturin"
         target: ${{ matrix.architecture == 'aarch64' && 'aarch64-unknown-linux-gnu' || null }}
     - name: Upload wheels
       uses: actions/upload-artifact@v4
@@ -42,7 +42,7 @@ jobs:
       uses: PyO3/maturin-action@v1
       with:
         command: build
-        args: "--release -o dist"
+        args: "--release -o dist --features __maturin"
         target: ${{ matrix.architecture == 'aarch64' && 'aarch64-apple-darwin' || 'x86_64-apple-darwin' }}
     - name: Upload wheels
       uses: actions/upload-artifact@v4
@@ -63,7 +63,7 @@ jobs:
       uses: PyO3/maturin-action@v1
       with:
         command: build
-        args: "--release -o dist"
+        args: "--release -o dist --features __maturin"
     - name: Upload wheels
       uses: actions/upload-artifact@v4
       with:
