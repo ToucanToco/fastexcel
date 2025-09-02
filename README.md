@@ -2,7 +2,9 @@
 
 A fast excel file reader for Python and Rust.
 
-Docs available [here](https://fastexcel.toucantoco.dev/).
+Docs:
+ * [Python](https://fastexcel.toucantoco.dev/).
+ * [Rust](https://docs.rs/fastexcel).
 
 ## Stability
 
