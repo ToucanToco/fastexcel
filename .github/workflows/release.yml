@@ -95,6 +95,7 @@ jobs:
     needs: [linux, macos, windows, sdist]
     permissions:
       id-token: write     # Required for OIDC token exchange with crates.io
+      contents: write     # Required to be able to create a GitHub release
     steps:
     - uses: actions/checkout@v5
     - uses: dtolnay/rust-toolchain@stable
