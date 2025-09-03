@@ -105,7 +105,7 @@ jobs:
         with:
           manylinux: auto
           command: build
-          args: "-o dist --features __maturin"
+          args: "-o dist"
           target: ${{ steps.target.outputs.target }}
 
       - name: Upload wheels
