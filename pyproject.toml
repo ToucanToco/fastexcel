@@ -64,7 +64,7 @@ Issues = "https://github.com/ToucanToco/fastexcel"
 [tool.maturin]
 python-source = "python"
 module-name = "fastexcel._fastexcel"
-features = ["pyo3/extension-module", "__maturin"]
+features = ["__maturin"]
 
 [tool.mypy]
 python_version = "3.9"
