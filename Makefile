@@ -10,12 +10,12 @@ export CARGO_TERM_COLOR=$(shell (test -t 0 && echo "always") || echo "auto")
 .PHONY: install  ## Install the package & dependencies with debug build
 install: .uv
 	uv sync --frozen --group all
-	uv run maturin develop --features __maturin --uv -E pyarrow,pandas,polars
+	uv run maturin develop --uv -E pyarrow,pandas,polars
 
 .PHONY: install-prod  ## Install the package & dependencies with release build
 install-prod: .uv
 	uv sync --frozen --group all
-	uv run maturin develop --features __maturin --uv --release -E pyarrow,pandas,polars
+	uv run maturin develop --uv --release -E pyarrow,pandas,polars
 
 .PHONY: setup-dev  ## First-time setup: install + pre-commit hooks
 setup-dev: install
@@ -28,12 +28,12 @@ rebuild-lockfiles: .uv
 
 .PHONY: build-dev  ## Build the development version of the package
 build-dev:
-	uv run maturin build --features __maturin
+	uv run maturin build
 
 .PHONY: build-wheel  ## Build production wheel and install it
 build-wheel:
 	@rm -rf target/wheels/
-	uv run maturin build --release --features __maturin
+	uv run maturin build --release
 	@wheel=$$(ls target/wheels/*.whl); uv pip install --force-reinstall "$$wheel[pandas,polars]"
 
 .PHONY: lint-python  ## Lint python source files
