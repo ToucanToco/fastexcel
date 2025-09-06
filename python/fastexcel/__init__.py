@@ -474,7 +474,7 @@ class ExcelReader:
         :param eager: Specifies whether ExcelTable is to be loaded eagerly.
                       `False` (default) will load the ExcelTable lazily using PyCapsule interface,
                       whereas `True` will trigger eager loading of the ExcelTable.
-                      
+
                       Eager loading requires `pyarrow` or `pandas` extra to be installed.
         """
         if eager:
