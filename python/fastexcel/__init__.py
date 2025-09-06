@@ -472,7 +472,7 @@ class ExcelReader:
         :param dtypes: An optional dtype (for all columns)
                        or dict of dtypes with keys as column indices or names.
         :param eager: Specifies whether ExcelTable is to be loaded eagerly.
-                      `False` (the default) will load the ExcelTable lazily using PyCapsule interface,
+                      `False` (default) will load the ExcelTable lazily using PyCapsule interface,
                       whereas `True` will trigger eager loading of the ExcelTable.
                       
                       Eager loading requires `pyarrow` or `pandas` extra to be installed.
