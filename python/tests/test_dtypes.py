@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
-from typing import Any, Literal
+from typing import Any, Literal, TypedDict
 
 import fastexcel
 import numpy as np
@@ -204,11 +204,14 @@ def test_dtype_coercion_behavior__coerce(
 ) -> None:
     excel_reader = fastexcel.read_excel(path_for_fixture("fixture-multi-dtypes-columns.xlsx"))
 
-    kwargs = {"dtype_coercion": dtype_coercion} if dtype_coercion else {}
+    class SheetKwargs(TypedDict, total=False):
+        dtype_coercion: Literal["coerce", "strict"]
+
+    kwargs: SheetKwargs = {"dtype_coercion": dtype_coercion} if dtype_coercion else {}
     sheet = (
-        excel_reader.load_sheet(0, eager=True, **kwargs)  # type:ignore[arg-type]
+        excel_reader.load_sheet(0, eager=True, **kwargs)
         if eager
-        else excel_reader.load_sheet(0, **kwargs).to_arrow()  # type:ignore[arg-type]
+        else excel_reader.load_sheet(0, **kwargs).to_arrow()
     )
 
     pd_df = sheet.to_pandas()
