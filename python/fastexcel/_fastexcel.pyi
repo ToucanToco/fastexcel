@@ -84,12 +84,17 @@ class _ExcelSheet:
     def visible(self) -> SheetVisible:
         """The visibility of the sheet"""
     def to_arrow(self) -> "pa.RecordBatch":
-        """Converts the sheet to a pyarrow `RecordBatch`"""
+        """Converts the sheet to a pyarrow `RecordBatch`
+
+        Requires the `pyarrow` extra to be installed.
+        """
     def to_arrow_with_errors(self) -> "tuple[pa.RecordBatch, CellErrors]":
         """Converts the sheet to a pyarrow `RecordBatch` with error information.
 
         Stores the positions of any values that cannot be parsed as the specified type and were
         therefore converted to None.
+
+        Requires the `pyarrow` extra to be installed.
         """
     def __arrow_c_schema__(self) -> object:
         """Export the schema as an `ArrowSchema` `PyCapsule`.
@@ -138,7 +143,10 @@ class _ExcelTable:
     def specified_dtypes(self) -> DTypeMap | None:
         """The dtypes specified for the table"""
     def to_arrow(self) -> "pa.RecordBatch":
-        """Converts the table to a pyarrow `RecordBatch`"""
+        """Converts the table to a pyarrow `RecordBatch`
+
+        Requires the `pyarrow` extra to be installed.
+        """
     def __arrow_c_schema__(self) -> object:
         """Export the schema as an `ArrowSchema` `PyCapsule`.
 
