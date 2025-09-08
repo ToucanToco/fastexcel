@@ -101,7 +101,10 @@ class ExcelSheet:
         return self._sheet.visible
 
     def to_arrow(self) -> "pa.RecordBatch":
-        """Converts the sheet to a pyarrow `RecordBatch`"""
+        """Converts the sheet to a pyarrow `RecordBatch`
+
+        Requires the `pyarrow` extra to be installed.
+        """
         if not _PYARROW_AVAILABLE:
             raise ImportError(
                 "pyarrow is required for to_arrow(). Install with: pip install 'fastexcel[pyarrow]'"
@@ -113,6 +116,8 @@ class ExcelSheet:
 
         Stores the positions of any values that cannot be parsed as the specified type and were
         therefore converted to None.
+
+        Requires the `pyarrow` extra to be installed.
         """
         if not _PYARROW_AVAILABLE:
             raise ImportError(
@@ -220,7 +225,10 @@ class ExcelTable:
         return self._table.specified_dtypes
 
     def to_arrow(self) -> "pa.RecordBatch":
-        """Converts the table to a pyarrow `RecordBatch`"""
+        """Converts the table to a pyarrow `RecordBatch`
+
+        Requires the `pyarrow` extra to be installed.
+        """
         if not _PYARROW_AVAILABLE:
             raise ImportError(
                 "pyarrow is required for to_arrow(). Install with: pip install 'fastexcel[pyarrow]'"
@@ -463,6 +471,11 @@ class ExcelReader:
                               indicating whether the column should be used
         :param dtypes: An optional dtype (for all columns)
                        or dict of dtypes with keys as column indices or names.
+        :param eager: Specifies whether the table should be loaded eagerly.
+                      `False` (default) will load the table lazily using the `PyCapsule` interface,
+                      whereas `True` will load it eagerly via `pyarrow`.
+
+                      Eager loading requires the `pyarrow` extra to be installed.
         """
         if eager:
             return self._reader.load_table(
@@ -512,6 +525,8 @@ class ExcelReader:
         `worksheet_range_ref` under the hood, which returns borrowed types.
 
         Refer to `load_sheet` for parameter documentation
+
+        Requires the `pyarrow` extra to be installed.
         """
         return self._reader.load_sheet(
             idx_or_name=idx_or_name,
@@ -618,6 +633,8 @@ __all__ = (
     "ExcelReader",
     # Excel sheet
     "ExcelSheet",
+    # Excel table
+    "ExcelTable",
     # Column metadata
     "DTypeFrom",
     "ColumnNameFrom",
