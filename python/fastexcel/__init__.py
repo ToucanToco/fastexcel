@@ -103,7 +103,7 @@ class ExcelSheet:
     def to_arrow(self) -> "pa.RecordBatch":
         """Converts the sheet to a pyarrow `RecordBatch`
 
-        Requires `pyarrow` or `pandas` extra to be installed.
+        Requires the `pyarrow` extra to be installed.
         """
         if not _PYARROW_AVAILABLE:
             raise ImportError(
@@ -117,7 +117,7 @@ class ExcelSheet:
         Stores the positions of any values that cannot be parsed as the specified type and were
         therefore converted to None.
 
-        Requires `pyarrow` or `pandas` extra to be installed.
+        Requires the `pyarrow` extra to be installed.
         """
         if not _PYARROW_AVAILABLE:
             raise ImportError(
@@ -227,7 +227,7 @@ class ExcelTable:
     def to_arrow(self) -> "pa.RecordBatch":
         """Converts the table to a pyarrow `RecordBatch`
 
-        Requires `pyarrow` or `pandas` extra to be installed.
+        Requires the `pyarrow` extra to be installed.
         """
         if not _PYARROW_AVAILABLE:
             raise ImportError(
@@ -471,11 +471,11 @@ class ExcelReader:
                               indicating whether the column should be used
         :param dtypes: An optional dtype (for all columns)
                        or dict of dtypes with keys as column indices or names.
-        :param eager: Specifies whether ExcelTable is to be loaded eagerly.
-                      `False` (default) will load the ExcelTable lazily using PyCapsule interface,
-                      whereas `True` will trigger eager loading of the ExcelTable.
+        :param eager: Specifies whether the table should be loaded eagerly.
+                      `False` (default) will load the table lazily using the `PyCapsule` interface,
+                      whereas `True` will load it eagerly via `pyarrow`.
 
-                      Eager loading requires `pyarrow` or `pandas` extra to be installed.
+                      Eager loading requires the `pyarrow` extra to be installed.
         """
         if eager:
             return self._reader.load_table(
@@ -526,7 +526,7 @@ class ExcelReader:
 
         Refer to `load_sheet` for parameter documentation
 
-        Requires `pyarrow` or `pandas` extra to be installed.
+        Requires the `pyarrow` extra to be installed.
         """
         return self._reader.load_sheet(
             idx_or_name=idx_or_name,

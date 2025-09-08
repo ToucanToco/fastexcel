@@ -86,7 +86,7 @@ class _ExcelSheet:
     def to_arrow(self) -> "pa.RecordBatch":
         """Converts the sheet to a pyarrow `RecordBatch`
 
-        Requires `pyarrow` or `pandas` extra to be installed.
+        Requires the `pyarrow` extra to be installed.
         """
     def to_arrow_with_errors(self) -> "tuple[pa.RecordBatch, CellErrors]":
         """Converts the sheet to a pyarrow `RecordBatch` with error information.
@@ -94,7 +94,7 @@ class _ExcelSheet:
         Stores the positions of any values that cannot be parsed as the specified type and were
         therefore converted to None.
 
-        Requires `pyarrow` or `pandas` extra to be installed.
+        Requires the `pyarrow` extra to be installed.
         """
     def __arrow_c_schema__(self) -> object:
         """Export the schema as an `ArrowSchema` `PyCapsule`.
@@ -145,7 +145,7 @@ class _ExcelTable:
     def to_arrow(self) -> "pa.RecordBatch":
         """Converts the table to a pyarrow `RecordBatch`
 
-        Requires `pyarrow` or `pandas` extra to be installed.
+        Requires the `pyarrow` extra to be installed.
         """
     def __arrow_c_schema__(self) -> object:
         """Export the schema as an `ArrowSchema` `PyCapsule`.
