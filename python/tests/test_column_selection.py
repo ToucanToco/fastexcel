@@ -609,19 +609,19 @@ def test_use_columns_with_eager_loading() -> None:
     expected_years = [2019.0, 2020.0]
 
     # default
-    rb = excel_reader.load_sheet_eager(0)
+    rb = excel_reader.load_sheet(0, eager = True)
     assert rb.schema.names == ["Month", "Year"]
     assert rb["Year"].tolist() == expected_years
     assert rb["Month"].tolist() == expected_months
 
     # changing order
-    rb = excel_reader.load_sheet_eager(0, use_columns=["Year", "Month"])
+    rb = excel_reader.load_sheet(0, use_columns=["Year", "Month"], eager = True)
     assert rb.schema.names == ["Year", "Month"]
     assert rb["Year"].tolist() == expected_years
     assert rb["Month"].tolist() == expected_months
 
     # subset
-    rb = excel_reader.load_sheet_eager(0, use_columns=["Year"])
+    rb = excel_reader.load_sheet(0, use_columns=["Year"], eager = True)
     assert rb.schema.names == ["Year"]
     assert rb["Year"].tolist() == expected_years
     assert "Month" not in (field.name for field in rb.schema)
@@ -656,7 +656,7 @@ def test_use_columns_dtypes_eager_loading(
         ],
     ):
         excel_reader = fastexcel.read_excel(path_for_fixture(excel_file))
-        sheet = excel_reader.load_sheet_eager(0, use_columns=use_columns)
+        sheet = excel_reader.load_sheet(0, use_columns=use_columns, eager = True)
         pd_df = sheet.to_pandas()
         pl_df = pl.from_arrow(data=sheet)
         assert isinstance(pl_df, pl.DataFrame)

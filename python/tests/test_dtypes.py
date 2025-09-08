@@ -206,7 +206,7 @@ def test_dtype_coercion_behavior__coerce(
 
     kwargs = {"dtype_coercion": dtype_coercion} if dtype_coercion else {}
     sheet = (
-        excel_reader.load_sheet_eager(0, **kwargs)  # type:ignore[arg-type]
+        excel_reader.load_sheet(0, eager = True, **kwargs)  # type:ignore[arg-type]
         if eager
         else excel_reader.load_sheet(0, **kwargs).to_arrow()  # type:ignore[arg-type]
     )
@@ -229,7 +229,7 @@ def test_dtype_coercion_behavior__strict_sampling_eveything(eager: bool) -> None
         fastexcel.UnsupportedColumnTypeCombinationError, match="type coercion is strict"
     ):
         if eager:
-            excel_reader.load_sheet_eager(0, dtype_coercion="strict")
+            excel_reader.load_sheet(0, dtype_coercion="strict", eager = True)
         else:
             excel_reader.load_sheet(0, dtype_coercion="strict").to_arrow()
 
@@ -239,7 +239,7 @@ def test_dtype_coercion_behavior__strict_sampling_limit(eager: bool) -> None:
     excel_reader = fastexcel.read_excel(path_for_fixture("fixture-multi-dtypes-columns.xlsx"))
 
     sheet = (
-        excel_reader.load_sheet_eager(0, dtype_coercion="strict", schema_sample_rows=5)
+        excel_reader.load_sheet(0, dtype_coercion="strict", schema_sample_rows=5, eager = True)
         if eager
         else excel_reader.load_sheet(0, dtype_coercion="strict", schema_sample_rows=5).to_arrow()
     )
