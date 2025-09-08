@@ -289,6 +289,7 @@ class ExcelReader:
         """The list of sheet names"""
         return self._reader.sheet_names
 
+    @typing.overload
     def load_sheet(
         self,
         idx_or_name: int | str,
@@ -305,8 +306,48 @@ class ExcelReader:
         | Callable[[ColumnInfoNoDtype], bool]
         | None = None,
         dtypes: DType | DTypeMap | None = None,
-    ) -> ExcelSheet:
-        """Loads a sheet lazily by index or name.
+        eager: Literal[False] = ...,
+    ) -> ExcelSheet: ...
+
+    @typing.overload
+    def load_sheet(
+        self,
+        idx_or_name: int | str,
+        *,
+        header_row: int | None = 0,
+        column_names: list[str] | None = None,
+        skip_rows: int | list[int] | Callable[[int], bool] | None = None,
+        n_rows: int | None = None,
+        schema_sample_rows: int | None = 1_000,
+        dtype_coercion: Literal["coerce", "strict"] = "coerce",
+        use_columns: list[str]
+        | list[int]
+        | str
+        | Callable[[ColumnInfoNoDtype], bool]
+        | None = None,
+        dtypes: DType | DTypeMap | None = None,
+        eager: Literal[True] = ...,
+    ) -> "pa.RecordBatch": ...
+
+    def load_sheet(
+        self,
+        idx_or_name: int | str,
+        *,
+        header_row: int | None = 0,
+        column_names: list[str] | None = None,
+        skip_rows: int | list[int] | Callable[[int], bool] | None = None,
+        n_rows: int | None = None,
+        schema_sample_rows: int | None = 1_000,
+        dtype_coercion: Literal["coerce", "strict"] = "coerce",
+        use_columns: list[str]
+        | list[int]
+        | str
+        | Callable[[ColumnInfoNoDtype], bool]
+        | None = None,
+        dtypes: DType | DTypeMap | None = None,
+        eager: bool = False,
+    ) -> "ExcelSheet | pa.RecordBatch":
+        """Loads a sheet by index or name.
 
         :param idx_or_name: The index (starting at 0) or the name of the sheet to load.
         :param header_row: The index of the row containing the column labels, default index is 0.
@@ -349,9 +390,14 @@ class ExcelReader:
                               indicating whether the column should be used
         :param dtypes: An optional dtype (for all columns)
                        or dict of dtypes with keys as column indices or names.
+        :param eager: Specifies whether the sheet should be loaded eagerly.
+                      `False` (default) will load the sheet lazily using the `PyCapsule` interface,
+                      whereas `True` will load it eagerly via `pyarrow`.
+
+                      Eager loading requires the `pyarrow` extra to be installed.
         """
-        return ExcelSheet(
-            self._reader.load_sheet(
+        if eager:
+            return self._reader.load_sheet(
                 idx_or_name=idx_or_name,
                 header_row=header_row,
                 column_names=column_names,
@@ -361,9 +407,23 @@ class ExcelReader:
                 dtype_coercion=dtype_coercion,
                 use_columns=use_columns,
                 dtypes=dtypes,
-                eager=False,
+                eager=True,
             )
-        )
+        else:
+            return ExcelSheet(
+                self._reader.load_sheet(
+                    idx_or_name=idx_or_name,
+                    header_row=header_row,
+                    column_names=column_names,
+                    skip_rows=skip_rows,
+                    n_rows=n_rows,
+                    schema_sample_rows=schema_sample_rows,
+                    dtype_coercion=dtype_coercion,
+                    use_columns=use_columns,
+                    dtypes=dtypes,
+                    eager=False,
+                )
+            )
 
     def table_names(self, sheet_name: str | None = None) -> list[str]:
         """The list of table names.
@@ -505,41 +565,6 @@ class ExcelReader:
                     eager=False,
                 )
             )
-
-    def load_sheet_eager(
-        self,
-        idx_or_name: int | str,
-        *,
-        header_row: int | None = 0,
-        column_names: list[str] | None = None,
-        skip_rows: int | list[int] | Callable[[int], bool] | None = None,
-        n_rows: int | None = None,
-        schema_sample_rows: int | None = 1_000,
-        dtype_coercion: Literal["coerce", "strict"] = "coerce",
-        use_columns: list[str] | list[int] | str | None = None,
-        dtypes: DType | DTypeMap | None = None,
-    ) -> "pa.RecordBatch":
-        """Loads a sheet eagerly by index or name.
-
-        For xlsx files, this will be faster and more memory-efficient, as it will use
-        `worksheet_range_ref` under the hood, which returns borrowed types.
-
-        Refer to `load_sheet` for parameter documentation
-
-        Requires the `pyarrow` extra to be installed.
-        """
-        return self._reader.load_sheet(
-            idx_or_name=idx_or_name,
-            header_row=header_row,
-            column_names=column_names,
-            skip_rows=skip_rows,
-            n_rows=n_rows,
-            schema_sample_rows=schema_sample_rows,
-            dtype_coercion=dtype_coercion,
-            use_columns=use_columns,
-            dtypes=dtypes,
-            eager=True,
-        )
 
     def load_sheet_by_name(
         self,
