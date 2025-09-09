@@ -1,7 +1,7 @@
 .DEFAULT_GOAL := all
 sources = python/fastexcel python/tests
 
-export CARGO_TERM_COLOR=$(shell (test -t 0 && echo "always") || echo "auto")
+export CARGO_TERM_COLOR=$(shell (test -t 0 && echo always) || echo auto)
 
 .PHONY: .uv  ## Check that uv is installed
 .uv:
