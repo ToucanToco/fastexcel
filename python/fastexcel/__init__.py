@@ -566,6 +566,41 @@ class ExcelReader:
                 )
             )
 
+    def load_sheet_eager(
+        self,
+        idx_or_name: int | str,
+        *,
+        header_row: int | None = 0,
+        column_names: list[str] | None = None,
+        skip_rows: int | list[int] | Callable[[int], bool] | None = None,
+        n_rows: int | None = None,
+        schema_sample_rows: int | None = 1_000,
+        dtype_coercion: Literal["coerce", "strict"] = "coerce",
+        use_columns: list[str] | list[int] | str | None = None,
+        dtypes: DType | DTypeMap | None = None,
+    ) -> "pa.RecordBatch":
+        """Loads a sheet eagerly by index or name.
+
+        For xlsx files, this will be faster and more memory-efficient, as it will use
+        `worksheet_range_ref` under the hood, which returns borrowed types.
+
+        Refer to `load_sheet` for parameter documentation
+
+        Requires the `pyarrow` extra to be installed.
+        """
+        return self._reader.load_sheet(
+            idx_or_name=idx_or_name,
+            header_row=header_row,
+            column_names=column_names,
+            skip_rows=skip_rows,
+            n_rows=n_rows,
+            schema_sample_rows=schema_sample_rows,
+            dtype_coercion=dtype_coercion,
+            use_columns=use_columns,
+            dtypes=dtypes,
+            eager=True,
+        )
+
     def load_sheet_by_name(
         self,
         name: str,
