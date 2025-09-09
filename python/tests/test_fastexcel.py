@@ -99,15 +99,15 @@ def test_multiple_sheets():
     assert excel_reader.sheet_names == ["January", "February", "With unnamed columns"]
 
     pd_assert_frame_equal(
-        excel_reader.load_sheet_by_idx(0).to_pandas(),
+        excel_reader.load_sheet(0).to_pandas(),
         pd.DataFrame({"Month": [1.0], "Year": [2019.0]}),
     )
     pd_assert_frame_equal(
-        excel_reader.load_sheet_by_idx(1).to_pandas(),
+        excel_reader.load_sheet(1).to_pandas(),
         pd.DataFrame({"Month": [2.0, 3.0, 4.0], "Year": [2019.0, 2021.0, 2022.0]}),
     )
     pd_assert_frame_equal(
-        excel_reader.load_sheet_by_name("With unnamed columns").to_pandas(),
+        excel_reader.load_sheet("With unnamed columns").to_pandas(),
         pd.DataFrame(
             {
                 "col1": [2.0, 3.0],
@@ -120,15 +120,15 @@ def test_multiple_sheets():
     )
 
     pl_assert_frame_equal(
-        excel_reader.load_sheet_by_idx(0).to_polars(),
+        excel_reader.load_sheet(0).to_polars(),
         pl.DataFrame({"Month": [1.0], "Year": [2019.0]}),
     )
     pl_assert_frame_equal(
-        excel_reader.load_sheet_by_idx(1).to_polars(),
+        excel_reader.load_sheet(1).to_polars(),
         pl.DataFrame({"Month": [2.0, 3.0, 4.0], "Year": [2019.0, 2021.0, 2022.0]}),
     )
     pl_assert_frame_equal(
-        excel_reader.load_sheet_by_name("With unnamed columns").to_polars(),
+        excel_reader.load_sheet("With unnamed columns").to_polars(),
         pl.DataFrame(
             {
                 "col1": [2.0, 3.0],

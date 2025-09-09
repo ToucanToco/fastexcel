@@ -19,7 +19,7 @@ from .utils import path_for_fixture
 
 def test_sheet_with_different_time_types() -> None:
     excel_reader = fastexcel.read_excel(path_for_fixture("dates.ods"))
-    sheet = excel_reader.load_sheet_by_idx(0)
+    sheet = excel_reader.load_sheet(0)
 
     pd_df = sheet.to_pandas()
     pl_df = sheet.to_polars()

@@ -24,5 +24,5 @@ def xlrd_read(test_file_path: str):
 def fastexcel_read(test_file_path: str):
     reader = read_excel(test_file_path)
     for sheet_name in reader.sheet_names:
-        sheet = reader.load_sheet_by_name(sheet_name)
+        sheet = reader.load_sheet(sheet_name)
         sheet.to_arrow()
