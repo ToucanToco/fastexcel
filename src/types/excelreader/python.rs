@@ -115,10 +115,12 @@ impl ExcelReader {
                 ))
             }
         } else {
-            let range = self
-                .sheets
-                .with_header_row(calamine_header_row)
-                .worksheet_range(&sheet_meta.name)
+            let range = py
+                .allow_threads(|| {
+                    self.sheets
+                        .with_header_row(calamine_header_row)
+                        .worksheet_range(&sheet_meta.name)
+                })
                 .into_pyresult()?;
             let pagination =
                 Pagination::try_new(opts.skip_rows, opts.n_rows, &range).into_pyresult()?;
