@@ -23,6 +23,7 @@ use crate::{
 };
 
 /// A single table in an Excel file.
+#[derive(Debug)]
 #[cfg_attr(feature = "python", pyclass(name = "_ExcelTable"))]
 pub struct ExcelTable {
     name: String,
@@ -37,26 +38,6 @@ pub struct ExcelTable {
     height: Option<usize>,
     total_height: Option<usize>,
     width: Option<usize>,
-}
-
-// https://github.com/tafia/calamine/pull/547
-impl std::fmt::Debug for ExcelTable {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("ExcelTable")
-            .field("name", &self.name)
-            .field("sheet_name", &self.sheet_name)
-            .field("selected_columns", &self.selected_columns)
-            .field("available_columns", &self.available_columns)
-            .field("table", &"Table<Data>")
-            .field("header", &self.header)
-            .field("pagination", &self.pagination)
-            .field("dtypes", &self.dtypes)
-            .field("dtype_coercion", &self.dtype_coercion)
-            .field("height", &self.height)
-            .field("total_height", &self.total_height)
-            .field("width", &self.width)
-            .finish()
-    }
 }
 
 impl ExcelTable {
