@@ -477,34 +477,18 @@ class ExcelReader:
 
                       Eager loading requires the `pyarrow` extra to be installed.
         """
-        if eager:
-            return self._reader.load_table(
-                name=name,
-                header_row=header_row,
-                column_names=column_names,
-                skip_rows=skip_rows,
-                n_rows=n_rows,
-                schema_sample_rows=schema_sample_rows,
-                dtype_coercion=dtype_coercion,
-                use_columns=use_columns,
-                dtypes=dtypes,
-                eager=True,
-            )
-        else:
-            return ExcelTable(
-                self._reader.load_table(
-                    name=name,
-                    header_row=header_row,
-                    column_names=column_names,
-                    skip_rows=skip_rows,
-                    n_rows=n_rows,
-                    schema_sample_rows=schema_sample_rows,
-                    dtype_coercion=dtype_coercion,
-                    use_columns=use_columns,
-                    dtypes=dtypes,
-                    eager=False,
-                )
-            )
+        return self._reader.load_table(
+            name=name,
+            header_row=header_row,
+            column_names=column_names,
+            skip_rows=skip_rows,
+            n_rows=n_rows,
+            schema_sample_rows=schema_sample_rows,
+            dtype_coercion=dtype_coercion,
+            use_columns=use_columns,
+            dtypes=dtypes,
+            eager=eager,
+        )
 
     def load_sheet_eager(
         self,
