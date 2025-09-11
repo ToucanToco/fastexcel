@@ -198,16 +198,17 @@ def test_sheet_datetime_conversion(
 
 
 @pytest.mark.parametrize("eager", [True, False])
-@pytest.mark.parametrize("dtype_coercion", ["coerce", "strict"])
+@pytest.mark.parametrize("dtype_coercion", ["coerce", None])
 def test_dtype_coercion_behavior__coerce(
-    dtype_coercion: Literal["coerce", "strict"], eager: bool
+    dtype_coercion: Literal["coerce"] | None, eager: bool
 ) -> None:
     excel_reader = fastexcel.read_excel(path_for_fixture("fixture-multi-dtypes-columns.xlsx"))
 
+    kwargs = {"dtype_coercion": dtype_coercion} if dtype_coercion else {}
     sheet = (
-        excel_reader.load_sheet(0, eager=True, dtype_coercion=dtype_coercion)
+        excel_reader.load_sheet_eager(0, **kwargs)  # type:ignore[arg-type]
         if eager
-        else excel_reader.load_sheet(0, dtype_coercion=dtype_coercion).to_arrow()
+        else excel_reader.load_sheet(0, **kwargs).to_arrow()  # type:ignore[arg-type]
     )
 
     pd_df = sheet.to_pandas()
@@ -228,7 +229,7 @@ def test_dtype_coercion_behavior__strict_sampling_eveything(eager: bool) -> None
         fastexcel.UnsupportedColumnTypeCombinationError, match="type coercion is strict"
     ):
         if eager:
-            excel_reader.load_sheet(0, dtype_coercion="strict", eager=True)
+            excel_reader.load_sheet_eager(0, dtype_coercion="strict")
         else:
             excel_reader.load_sheet(0, dtype_coercion="strict").to_arrow()
 
@@ -238,7 +239,7 @@ def test_dtype_coercion_behavior__strict_sampling_limit(eager: bool) -> None:
     excel_reader = fastexcel.read_excel(path_for_fixture("fixture-multi-dtypes-columns.xlsx"))
 
     sheet = (
-        excel_reader.load_sheet(0, dtype_coercion="strict", schema_sample_rows=5, eager=True)
+        excel_reader.load_sheet_eager(0, dtype_coercion="strict", schema_sample_rows=5)
         if eager
         else excel_reader.load_sheet(0, dtype_coercion="strict", schema_sample_rows=5).to_arrow()
     )
