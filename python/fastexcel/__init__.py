@@ -396,34 +396,19 @@ class ExcelReader:
 
                       Eager loading requires the `pyarrow` extra to be installed.
         """
-        if eager:
-            return self._reader.load_sheet(
-                idx_or_name=idx_or_name,
-                header_row=header_row,
-                column_names=column_names,
-                skip_rows=skip_rows,
-                n_rows=n_rows,
-                schema_sample_rows=schema_sample_rows,
-                dtype_coercion=dtype_coercion,
-                use_columns=use_columns,
-                dtypes=dtypes,
-                eager=True,
-            )
-        else:
-            return ExcelSheet(
-                self._reader.load_sheet(
-                    idx_or_name=idx_or_name,
-                    header_row=header_row,
-                    column_names=column_names,
-                    skip_rows=skip_rows,
-                    n_rows=n_rows,
-                    schema_sample_rows=schema_sample_rows,
-                    dtype_coercion=dtype_coercion,
-                    use_columns=use_columns,
-                    dtypes=dtypes,
-                    eager=False,
-                )
-            )
+        sheet_or_rb = self._reader.load_sheet(
+            idx_or_name=idx_or_name,
+            header_row=header_row,
+            column_names=column_names,
+            skip_rows=skip_rows,
+            n_rows=n_rows,
+            schema_sample_rows=schema_sample_rows,
+            dtype_coercion=dtype_coercion,
+            use_columns=use_columns,
+            dtypes=dtypes,
+            eager=eager,
+        )
+        return sheet_or_rb if eager else ExcelSheet(sheet_or_rb)
 
     def table_names(self, sheet_name: str | None = None) -> list[str]:
         """The list of table names.
