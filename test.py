@@ -42,7 +42,7 @@ def main():
         else:
             for sheet_name in excel_file.sheet_names:
                 if args.eager:
-                    excel_file.load_sheet(sheet_name, use_columns=use_columns, eager = True)
+                    excel_file.load_sheet_eager(sheet_name, use_columns=use_columns)
                 else:
                     excel_file.load_sheet(sheet_name, use_columns=use_columns).to_arrow()
 
