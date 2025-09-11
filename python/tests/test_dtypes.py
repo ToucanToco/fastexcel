@@ -206,9 +206,7 @@ def test_dtype_coercion_behavior__coerce(
 
     kwargs = {"dtype_coercion": dtype_coercion} if dtype_coercion else {}
     sheet = (
-        excel_reader.load_sheet_eager(0, **kwargs)  # type:ignore[arg-type]
-        if eager
-        else excel_reader.load_sheet(0, **kwargs).to_arrow()  # type:ignore[arg-type]
+        excel_reader.load_sheet(0, eager=eager, **kwargs).to_arrow()  # type:ignore[call-overload]
     )
 
     pd_df = sheet.to_pandas()
