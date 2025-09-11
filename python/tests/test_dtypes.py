@@ -205,15 +205,16 @@ def test_dtype_coercion_behavior__coerce(
     excel_reader = fastexcel.read_excel(path_for_fixture("fixture-multi-dtypes-columns.xlsx"))
 
     kwargs = {"dtype_coercion": dtype_coercion} if dtype_coercion else {}
-    sheet = (
-        excel_reader.load_sheet(0, eager=eager, **kwargs).to_arrow()  # type:ignore[call-overload]
+    sheet_or_rb = (
+        excel_reader.load_sheet(0, eager=eager, **kwargs)  # type:ignore[call-overload]
     )
+    rb = sheet_or_rb if eager else sheet_or_rb.to_arrow()
 
-    pd_df = sheet.to_pandas()
+    pd_df = rb.to_pandas()
     assert pd_df["Mixed dates"].dtype == "object"
     assert pd_df["Mixed dates"].to_list() == ["2023-07-21 00:00:00"] * 6 + ["July 23rd"] * 3
 
-    pl_df = pl.from_arrow(data=sheet)
+    pl_df = pl.from_arrow(data=rb)
     assert isinstance(pl_df, pl.DataFrame)
     assert pl_df["Mixed dates"].dtype == pl.Utf8
     assert pl_df["Mixed dates"].to_list() == ["2023-07-21 00:00:00"] * 6 + ["July 23rd"] * 3
