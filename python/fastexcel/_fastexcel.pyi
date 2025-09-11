@@ -209,6 +209,25 @@ class _ExcelReader:
         eager: Literal[True] = ...,
     ) -> pa.RecordBatch: ...
     @typing.overload
+    def load_sheet(
+        self,
+        idx_or_name: str | int,
+        *,
+        header_row: int | None = 0,
+        column_names: list[str] | None = None,
+        skip_rows: int | list[int] | Callable[[int], bool] | None = None,
+        n_rows: int | None = None,
+        schema_sample_rows: int | None = 1_000,
+        dtype_coercion: Literal["coerce", "strict"] = "coerce",
+        use_columns: list[str]
+        | list[int]
+        | str
+        | Callable[[ColumnInfoNoDtype], bool]
+        | None = None,
+        dtypes: DType | DTypeMap | None = None,
+        eager: bool = False,
+    ) -> pa.RecordBatch: ...
+    @typing.overload
     def load_table(
         self,
         name: str,
