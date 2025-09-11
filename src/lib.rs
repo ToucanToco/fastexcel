@@ -30,15 +30,15 @@ pub fn read_excel<S: AsRef<str> + Display>(path: S) -> FastExcelResult<ExcelRead
 #[cfg(feature = "python")]
 /// Reads an excel file and returns an object allowing to access its sheets, tables, and a bit of metadata
 #[pyfunction(name = "read_excel")]
-fn py_read_excel(source: &Bound<'_, PyAny>) -> PyResult<ExcelReader> {
+fn py_read_excel<'py>(source: &Bound<'_, PyAny>, py: Python<'py>) -> PyResult<ExcelReader> {
     use py_errors::IntoPyResult;
 
     if let Ok(path) = source.extract::<String>() {
-        ExcelReader::try_from_path(&path)
+        py.allow_threads(|| ExcelReader::try_from_path(&path))
             .with_context(|| format!("could not load excel file at {path}"))
             .into_pyresult()
     } else if let Ok(bytes) = source.extract::<&[u8]>() {
-        ExcelReader::try_from(bytes)
+        py.allow_threads(|| ExcelReader::try_from(bytes))
             .with_context(|| "could not load excel file for those bytes")
             .into_pyresult()
     } else {
