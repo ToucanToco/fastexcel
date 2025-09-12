@@ -350,24 +350,100 @@ impl ExcelReader {
         self.sheets.defined_names()
     }
 
-    /// Load a specific range from a sheet
-    /// start and end are (row, column) tuples with 0-based indices
     pub fn load_range(
         &mut self,
         sheet_name: &str,
         start: (usize, usize),
         end: (usize, usize),
     ) -> FastExcelResult<ExcelRange> {
-        // Load the entire sheet first
         let range = self.sheets.worksheet_range(sheet_name)?;
-
-        // Extract the subrange
         let subrange = range.range(
             (start.0 as u32, start.1 as u32),
             (end.0 as u32, end.1 as u32),
         );
-
         Ok(ExcelRange::new(subrange, start, end))
+    }
+
+    fn column_letter_to_index(col: &str) -> FastExcelResult<usize> {
+        let mut index = 0;
+        for c in col.chars() {
+            if !c.is_ascii_uppercase() {
+                return Err(FastExcelErrorKind::InvalidParameters(format!(
+                    "Invalid column letter: '{}'",
+                    col
+                ))
+                .into());
+            }
+            let value = (c as usize) - ('A' as usize) + 1;
+            index = index * 26 + value;
+        }
+        Ok(index - 1)
+    }
+
+    fn parse_cell_reference(cell_ref: &str) -> FastExcelResult<(usize, usize)> {
+        let cell_ref = cell_ref.trim();
+        let split_pos = cell_ref
+            .chars()
+            .position(|c| c.is_ascii_digit())
+            .ok_or_else(|| {
+                FastExcelErrorKind::InvalidParameters(format!(
+                    "Invalid cell reference: '{}'",
+                    cell_ref
+                ))
+            })?;
+
+        let col_part = &cell_ref[..split_pos];
+        let row_part = &cell_ref[split_pos..];
+
+        let col_index = Self::column_letter_to_index(col_part)?;
+        let row_index = row_part
+            .parse::<usize>()
+            .map_err(|_| {
+                FastExcelErrorKind::InvalidParameters(format!("Invalid row number: '{}'", cell_ref))
+            })?
+            .checked_sub(1)
+            .ok_or_else(|| {
+                FastExcelErrorKind::InvalidParameters("Row number must be at least 1".to_string())
+            })?;
+
+        Ok((row_index, col_index))
+    }
+
+    fn parse_range(range_str: &str) -> FastExcelResult<((usize, usize), (usize, usize))> {
+        let range_str = range_str.replace('$', "");
+        let parts: Vec<&str> = range_str.split(':').collect();
+        if parts.len() != 2 {
+            return Err(FastExcelErrorKind::InvalidParameters(format!(
+                "Invalid range: '{}'",
+                range_str
+            ))
+            .into());
+        }
+        let start = Self::parse_cell_reference(parts[0])?;
+        let end = Self::parse_cell_reference(parts[1])?;
+        Ok((start, end))
+    }
+
+    pub fn load_range_with_ref(
+        &mut self,
+        sheet_name: &str,
+        range_ref: &str,
+    ) -> FastExcelResult<ExcelRange> {
+        let (start, end) = Self::parse_range(range_ref)?;
+        self.load_range(sheet_name, start, end)
+    }
+
+    pub fn load_full_range(&mut self, full_ref: &str) -> FastExcelResult<ExcelRange> {
+        let full_ref = full_ref.trim();
+        let (sheet_name, range_part) = if let Some(pos) = full_ref.find('!') {
+            (&full_ref[..pos], &full_ref[pos + 1..])
+        } else {
+            return Err(FastExcelErrorKind::InvalidParameters(
+                "Must include sheet name (e.g., 'Sheet1!A1:D10')".to_string(),
+            )
+            .into());
+        };
+        self.load_range_with_ref(sheet_name, range_part)
     }
 }
 

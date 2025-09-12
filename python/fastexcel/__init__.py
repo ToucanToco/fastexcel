@@ -477,26 +477,67 @@ class ExcelReader:
         """
         return self._reader.defined_names()
 
+    @typing.overload
+    def load_range(self, *, range_ref: str) -> ExcelRange:
+        """Load using full reference like 'Sheet1!A1:D10'"""
+        ...
+
+    @typing.overload
+    def load_range(self, *, sheet_name: str, range_ref: str) -> ExcelRange:
+        """Load using sheet name and range like 'A1:D10'"""
+        ...
+
+    @typing.overload
     def load_range(
         self,
+        *,
         sheet_name: str,
         start_row: int,
         start_col: int,
         end_row: int,
         end_col: int,
     ) -> ExcelRange:
+        """Load using numeric indices (0-based)"""
+        ...
+
+    def load_range(
+        self,
+        *,
+        range_ref: str | None = None,
+        sheet_name: str | None = None,
+        start_row: int | None = None,
+        start_col: int | None = None,
+        end_row: int | None = None,
+        end_col: int | None = None,
+    ) -> ExcelRange:
         """Load a specific range from a sheet.
 
-        :param sheet_name: The name of the sheet
-        :param start_row: Starting row index (0-based)
-        :param start_col: Starting column index (0-based)
-        :param end_row: Ending row index (0-based, inclusive)
-        :param end_col: Ending column index (0-based, inclusive)
-        :return: An ExcelRange object containing the specified cells
+        Examples:
+            load_range(range_ref="Portfolio!B72:S97")
+            load_range(sheet_name="Portfolio", range_ref="B72:S97")
+            load_range(sheet_name="Portfolio", start_row=71, start_col=1, end_row=96, end_col=18)
         """
-        return ExcelRange(
-            self._reader.load_range(sheet_name, start_row, start_col, end_row, end_col)
-        )
+        if range_ref and not sheet_name:
+            return ExcelRange(self._reader._load_full_range(range_ref))
+        elif sheet_name and range_ref:
+            return ExcelRange(self._reader._load_range_with_ref(sheet_name, range_ref))
+        elif (
+            sheet_name
+            and start_row is not None
+            and start_col is not None
+            and end_row is not None
+            and end_col is not None
+        ):
+            return ExcelRange(
+                self._reader._load_range(sheet_name, start_row, start_col, end_row, end_col)
+            )
+        else:
+            raise ValueError(
+                "Invalid arguments. Use one of:\n"
+                "  load_range(range_ref='Sheet1!A1:D10')\n"
+                "  load_range(sheet_name='Sheet1', range_ref='A1:D10')\n"
+                "  load_range(sheet_name='Sheet1', start_row=0, start_col=0, end_row=9, end_col=3)"
+            )
 
     @typing.overload
     def load_table(
