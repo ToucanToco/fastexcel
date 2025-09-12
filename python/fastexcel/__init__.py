@@ -40,6 +40,7 @@ from ._fastexcel import (
     SheetNotFoundError,
     UnsupportedColumnTypeCombinationError,
     __version__,
+    _ExcelRange,
     _ExcelReader,
     _ExcelSheet,
     _ExcelTable,
@@ -172,6 +173,52 @@ class ExcelSheet:
 
     def __repr__(self) -> str:
         return self._sheet.__repr__()
+
+
+class ExcelRange:
+    """A class representing a range of cells in an Excel sheet"""
+
+    def __init__(self, range_obj: _ExcelRange) -> None:
+        self._range = range_obj
+
+    @property
+    def width(self) -> int:
+        """The range's width (number of columns)"""
+        return self._range.width
+
+    @property
+    def height(self) -> int:
+        """The range's height (number of rows)"""
+        return self._range.height
+
+    @property
+    def start(self) -> tuple[int, int]:
+        """The starting position (row, column) as 0-based indices"""
+        return self._range.start
+
+    @property
+    def end(self) -> tuple[int, int]:
+        """The ending position (row, column) as 0-based indices"""
+        return self._range.end
+
+    def get_cell(self, row: int, col: int) -> str | None:
+        """Get cell value at position relative to range start
+
+        :param row: Row index relative to range start (0-based)
+        :param col: Column index relative to range start (0-based)
+        :return: The cell value as a string, or None if empty
+        """
+        return self._range.get_cell(row, col)
+
+    def to_list(self) -> list[list[str | None]]:
+        """Convert the range to a list of lists (rows of values)
+
+        :return: A list of rows, where each row is a list of cell values
+        """
+        return self._range.to_list()
+
+    def __repr__(self) -> str:
+        return self._range.__repr__()
 
 
 class ExcelTable:
@@ -419,6 +466,78 @@ class ExcelReader:
         too.
         """
         return self._reader.table_names(sheet_name)
+
+    def defined_names(self) -> list[tuple[str, str]]:
+        """The list of defined names (named ranges) in the workbook.
+
+        Returns a list of tuples containing (name, formula) pairs.
+        The formula is a string representation of the range or expression.
+
+        Will return an empty list if no defined names are found.
+        """
+        return self._reader.defined_names()
+
+    @typing.overload
+    def load_range(self, *, range_ref: str) -> ExcelRange:
+        """Load using full reference like 'Sheet1!A1:D10'"""
+        ...
+
+    @typing.overload
+    def load_range(self, *, sheet_name: str, range_ref: str) -> ExcelRange:
+        """Load using sheet name and range like 'A1:D10'"""
+        ...
+
+    @typing.overload
+    def load_range(
+        self,
+        *,
+        sheet_name: str,
+        start_row: int,
+        start_col: int,
+        end_row: int,
+        end_col: int,
+    ) -> ExcelRange:
+        """Load using numeric indices (0-based)"""
+        ...
+
+    def load_range(
+        self,
+        *,
+        range_ref: str | None = None,
+        sheet_name: str | None = None,
+        start_row: int | None = None,
+        start_col: int | None = None,
+        end_row: int | None = None,
+        end_col: int | None = None,
+    ) -> ExcelRange:
+        """Load a specific range from a sheet.
+
+        Examples:
+            load_range(range_ref="Portfolio!B72:S97")
+            load_range(sheet_name="Portfolio", range_ref="B72:S97")
+            load_range(sheet_name="Portfolio", start_row=71, start_col=1, end_row=96, end_col=18)
+        """
+        if range_ref and not sheet_name:
+            return ExcelRange(self._reader._load_full_range(range_ref))
+        elif sheet_name and range_ref:
+            return ExcelRange(self._reader._load_range_with_ref(sheet_name, range_ref))
+        elif (
+            sheet_name
+            and start_row is not None
+            and start_col is not None
+            and end_row is not None
+            and end_col is not None
+        ):
+            return ExcelRange(
+                self._reader._load_range(sheet_name, start_row, start_col, end_row, end_col)
+            )
+        else:
+            raise ValueError(
+                "Invalid arguments. Use one of:\n"
+                "  load_range(range_ref='Sheet1!A1:D10')\n"
+                "  load_range(sheet_name='Sheet1', range_ref='A1:D10')\n"
+                "  load_range(sheet_name='Sheet1', start_row=0, start_col=0, end_row=9, end_col=3)"
+            )
 
     @typing.overload
     def load_table(
@@ -680,6 +799,8 @@ __all__ = (
     "ExcelSheet",
     # Excel table
     "ExcelTable",
+    # Excel range
+    "ExcelRange",
     # Column metadata
     "DTypeFrom",
     "ColumnNameFrom",

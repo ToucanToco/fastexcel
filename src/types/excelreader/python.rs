@@ -190,6 +190,39 @@ impl ExcelReader {
         self.sheets.table_names(sheet_name).into_pyresult()
     }
 
+    #[pyo3(name = "defined_names")]
+    pub(crate) fn py_defined_names(&mut self) -> PyResult<Vec<(String, String)>> {
+        self.defined_names().into_pyresult()
+    }
+
+    #[pyo3(name = "_load_range")]
+    pub(crate) fn py_load_range(
+        &mut self,
+        sheet_name: &str,
+        start_row: usize,
+        start_col: usize,
+        end_row: usize,
+        end_col: usize,
+    ) -> PyResult<crate::ExcelRange> {
+        self.load_range(sheet_name, (start_row, start_col), (end_row, end_col))
+            .into_pyresult()
+    }
+
+    #[pyo3(name = "_load_range_with_ref")]
+    pub(crate) fn py_load_range_with_ref(
+        &mut self,
+        sheet_name: &str,
+        range_ref: &str,
+    ) -> PyResult<crate::ExcelRange> {
+        self.load_range_with_ref(sheet_name, range_ref)
+            .into_pyresult()
+    }
+
+    #[pyo3(name = "_load_full_range")]
+    pub(crate) fn py_load_full_range(&mut self, full_ref: &str) -> PyResult<crate::ExcelRange> {
+        self.load_full_range(full_ref).into_pyresult()
+    }
+
     #[pyo3(name = "load_sheet", signature = (
         idx_or_name,
         *,
