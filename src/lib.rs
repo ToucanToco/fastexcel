@@ -14,8 +14,9 @@ use types::excelsheet::{CellError, CellErrors};
 
 pub use data::{FastExcelColumn, FastExcelSeries};
 pub use types::{
-    ColumnInfo, ColumnNameFrom, DType, DTypeCoercion, DTypeFrom, DTypes, ExcelReader, ExcelSheet,
-    ExcelTable, IdxOrName, LoadSheetOrTableOptions, SelectedColumns, SheetVisible, SkipRows,
+    ColumnInfo, ColumnNameFrom, DType, DTypeCoercion, DTypeFrom, DTypes, ExcelRange, ExcelReader,
+    ExcelSheet, ExcelTable, IdxOrName, LoadSheetOrTableOptions, SelectedColumns, SheetVisible,
+    SkipRows,
 };
 
 use crate::error::{ErrorContext, FastExcelResult};
@@ -77,6 +78,7 @@ fn _fastexcel(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<ExcelSheet>()?;
     m.add_class::<ExcelReader>()?;
     m.add_class::<ExcelTable>()?;
+    m.add_class::<ExcelRange>()?;
     m.add("__version__", get_python_version())?;
 
     // errors

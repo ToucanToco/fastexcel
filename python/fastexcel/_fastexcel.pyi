@@ -115,6 +115,24 @@ class _ExcelSheet:
         Arrow-compatible libraries without requiring PyArrow as a dependency.
         """
 
+class _ExcelRange:
+    @property
+    def width(self) -> int:
+        """The range's width (number of columns)"""
+    @property
+    def height(self) -> int:
+        """The range's height (number of rows)"""
+    @property
+    def start(self) -> tuple[int, int]:
+        """The starting position (row, column) as 0-based indices"""
+    @property
+    def end(self) -> tuple[int, int]:
+        """The ending position (row, column) as 0-based indices"""
+    def get_cell(self, row: int, col: int) -> str | None:
+        """Get cell value at position relative to range start"""
+    def to_list(self) -> list[list[str | None]]:
+        """Convert the range to a list of lists (rows of values)"""
+
 class _ExcelTable:
     @property
     def name(self) -> str:
@@ -269,6 +287,14 @@ class _ExcelReader:
     def sheet_names(self) -> list[str]: ...
     def table_names(self, sheet_name: str | None = None) -> list[str]: ...
     def defined_names(self) -> list[tuple[str, str]]: ...
+    def load_range(
+        self,
+        sheet_name: str,
+        start_row: int,
+        start_col: int,
+        end_row: int,
+        end_col: int,
+    ) -> _ExcelRange: ...
 
 def read_excel(source: str | bytes) -> _ExcelReader:
     """Reads an excel file and returns an ExcelReader"""

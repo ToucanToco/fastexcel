@@ -16,7 +16,7 @@ use calamine::{DataRef, ReaderRef};
 use pyo3::pyclass;
 
 use crate::{
-    ExcelSheet, ExcelTable,
+    ExcelRange, ExcelSheet, ExcelTable,
     error::{ErrorContext, FastExcelError, FastExcelErrorKind, FastExcelResult},
     types::{
         dtype::{DTypeCoercion, DTypes},
@@ -348,6 +348,26 @@ impl ExcelReader {
 
     pub fn defined_names(&mut self) -> FastExcelResult<Vec<(String, String)>> {
         self.sheets.defined_names()
+    }
+
+    /// Load a specific range from a sheet
+    /// start and end are (row, column) tuples with 0-based indices
+    pub fn load_range(
+        &mut self,
+        sheet_name: &str,
+        start: (usize, usize),
+        end: (usize, usize),
+    ) -> FastExcelResult<ExcelRange> {
+        // Load the entire sheet first
+        let range = self.sheets.worksheet_range(sheet_name)?;
+
+        // Extract the subrange
+        let subrange = range.range(
+            (start.0 as u32, start.1 as u32),
+            (end.0 as u32, end.1 as u32),
+        );
+
+        Ok(ExcelRange::new(subrange, start, end))
     }
 }
 

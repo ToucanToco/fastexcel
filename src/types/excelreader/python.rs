@@ -195,6 +195,19 @@ impl ExcelReader {
         self.defined_names().into_pyresult()
     }
 
+    #[pyo3(name = "load_range")]
+    pub(crate) fn py_load_range(
+        &mut self,
+        sheet_name: &str,
+        start_row: usize,
+        start_col: usize,
+        end_row: usize,
+        end_col: usize,
+    ) -> PyResult<crate::ExcelRange> {
+        self.load_range(sheet_name, (start_row, start_col), (end_row, end_col))
+            .into_pyresult()
+    }
+
     #[pyo3(name = "load_sheet", signature = (
         idx_or_name,
         *,

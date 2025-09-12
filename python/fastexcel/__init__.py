@@ -40,6 +40,7 @@ from ._fastexcel import (
     SheetNotFoundError,
     UnsupportedColumnTypeCombinationError,
     __version__,
+    _ExcelRange,
     _ExcelReader,
     _ExcelSheet,
     _ExcelTable,
@@ -172,6 +173,52 @@ class ExcelSheet:
 
     def __repr__(self) -> str:
         return self._sheet.__repr__()
+
+
+class ExcelRange:
+    """A class representing a range of cells in an Excel sheet"""
+
+    def __init__(self, range_obj: _ExcelRange) -> None:
+        self._range = range_obj
+
+    @property
+    def width(self) -> int:
+        """The range's width (number of columns)"""
+        return self._range.width
+
+    @property
+    def height(self) -> int:
+        """The range's height (number of rows)"""
+        return self._range.height
+
+    @property
+    def start(self) -> tuple[int, int]:
+        """The starting position (row, column) as 0-based indices"""
+        return self._range.start
+
+    @property
+    def end(self) -> tuple[int, int]:
+        """The ending position (row, column) as 0-based indices"""
+        return self._range.end
+
+    def get_cell(self, row: int, col: int) -> str | None:
+        """Get cell value at position relative to range start
+
+        :param row: Row index relative to range start (0-based)
+        :param col: Column index relative to range start (0-based)
+        :return: The cell value as a string, or None if empty
+        """
+        return self._range.get_cell(row, col)
+
+    def to_list(self) -> list[list[str | None]]:
+        """Convert the range to a list of lists (rows of values)
+
+        :return: A list of rows, where each row is a list of cell values
+        """
+        return self._range.to_list()
+
+    def __repr__(self) -> str:
+        return self._range.__repr__()
 
 
 class ExcelTable:
@@ -429,6 +476,27 @@ class ExcelReader:
         Will return an empty list if no defined names are found.
         """
         return self._reader.defined_names()
+
+    def load_range(
+        self,
+        sheet_name: str,
+        start_row: int,
+        start_col: int,
+        end_row: int,
+        end_col: int,
+    ) -> ExcelRange:
+        """Load a specific range from a sheet.
+
+        :param sheet_name: The name of the sheet
+        :param start_row: Starting row index (0-based)
+        :param start_col: Starting column index (0-based)
+        :param end_row: Ending row index (0-based, inclusive)
+        :param end_col: Ending column index (0-based, inclusive)
+        :return: An ExcelRange object containing the specified cells
+        """
+        return ExcelRange(
+            self._reader.load_range(sheet_name, start_row, start_col, end_row, end_col)
+        )
 
     @typing.overload
     def load_table(
@@ -690,6 +758,8 @@ __all__ = (
     "ExcelSheet",
     # Excel table
     "ExcelTable",
+    # Excel range
+    "ExcelRange",
     # Column metadata
     "DTypeFrom",
     "ColumnNameFrom",
