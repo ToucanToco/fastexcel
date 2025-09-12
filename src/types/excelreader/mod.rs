@@ -25,7 +25,7 @@ use crate::{
     },
 };
 
-use super::excelsheet::table::{extract_table_names, extract_table_range};
+use super::excelsheet::table::{extract_defined_names, extract_table_names, extract_table_range};
 
 enum ExcelSheets {
     File(Sheets<BufReader<File>>),
@@ -56,6 +56,13 @@ impl ExcelSheets {
             Self::Bytes(sheets) => extract_table_names(sheets, sheet_name),
         }?;
         Ok(names.into_iter().map(String::as_str).collect())
+    }
+
+    fn defined_names(&mut self) -> FastExcelResult<Vec<(String, String)>> {
+        match self {
+            Self::File(sheets) => extract_defined_names(sheets),
+            Self::Bytes(sheets) => extract_defined_names(sheets),
+        }
     }
 
     #[cfg(feature = "python")]
@@ -337,6 +344,10 @@ impl ExcelReader {
 
     pub fn table_names(&mut self, sheet_name: Option<&str>) -> FastExcelResult<Vec<&str>> {
         self.sheets.table_names(sheet_name)
+    }
+
+    pub fn defined_names(&mut self) -> FastExcelResult<Vec<(String, String)>> {
+        self.sheets.defined_names()
     }
 }
 
