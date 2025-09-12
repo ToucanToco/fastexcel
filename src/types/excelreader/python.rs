@@ -190,6 +190,11 @@ impl ExcelReader {
         self.sheets.table_names(sheet_name).into_pyresult()
     }
 
+    #[pyo3(name = "defined_names")]
+    pub(crate) fn py_defined_names(&mut self) -> PyResult<Vec<(String, String)>> {
+        self.defined_names().into_pyresult()
+    }
+
     #[pyo3(name = "load_sheet", signature = (
         idx_or_name,
         *,

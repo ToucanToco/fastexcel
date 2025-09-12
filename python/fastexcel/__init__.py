@@ -420,6 +420,16 @@ class ExcelReader:
         """
         return self._reader.table_names(sheet_name)
 
+    def defined_names(self) -> list[tuple[str, str]]:
+        """The list of defined names (named ranges) in the workbook.
+
+        Returns a list of tuples containing (name, formula) pairs.
+        The formula is a string representation of the range or expression.
+
+        Will return an empty list if no defined names are found.
+        """
+        return self._reader.defined_names()
+
     @typing.overload
     def load_table(
         self,
