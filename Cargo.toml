@@ -31,7 +31,7 @@ arrow-pyarrow = { version = "^56.1.0", optional = true }
 arrow-schema = { version = "^56.1.0", optional = true }
 calamine = { version = "^0.30.1", features = ["dates"] }
 chrono = { version = "^0.4.42", default-features = false }
-log = "^0.4.28"
+log = "^0.4"
 polars-core = { version = ">=0.50", default-features = false, features = [
     "dtype-date",
     "dtype-datetime",
