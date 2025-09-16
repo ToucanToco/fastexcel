@@ -83,15 +83,14 @@ impl ExcelReader {
             .into_pyresult()?
             .to_owned();
 
-        let range = py
-            .allow_threads(|| {
-                self.sheets
-                    .with_header_row(calamine_header_row)
-                    .worksheet_range(&sheet_meta.name)
-            })
-            .into_pyresult()?;
-
         if eager && self.sheets.supports_by_ref() {
+            let range = py
+                .allow_threads(|| {
+                    self.sheets
+                        .with_header_row(calamine_header_row)
+                        .worksheet_range(&sheet_meta.name)
+                })
+                .into_pyresult()?;
             let pagination =
                 Pagination::try_new(opts.skip_rows, opts.n_rows, &range).into_pyresult()?;
             let header = Header::new(data_header_row, opts.column_names);
@@ -118,6 +117,13 @@ impl ExcelReader {
                 ))
             }
         } else {
+            let range = py
+                .allow_threads(|| {
+                    self.sheets
+                        .with_header_row(calamine_header_row)
+                        .worksheet_range(&sheet_meta.name)
+                })
+                .into_pyresult()?;
             let pagination =
                 Pagination::try_new(opts.skip_rows, opts.n_rows, &range).into_pyresult()?;
             let header = Header::new(data_header_row, opts.column_names);
@@ -158,7 +164,9 @@ impl ExcelReader {
         eager: bool,
         py: Python<'py>,
     ) -> PyResult<Bound<'py, PyAny>> {
-        let excel_table = self.load_table(name, opts).into_pyresult()?;
+        let excel_table = py
+            .allow_threads(|| self.load_table(name, opts))
+            .into_pyresult()?;
 
         if eager {
             #[cfg(feature = "pyarrow")]
