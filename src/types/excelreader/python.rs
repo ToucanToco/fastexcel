@@ -88,7 +88,7 @@ impl ExcelReader {
                 .allow_threads(|| {
                     self.sheets
                         .with_header_row(calamine_header_row)
-                        .worksheet_range(&sheet_meta.name)
+                        .worksheet_range_ref(&sheet_meta.name)
                 })
                 .into_pyresult()?;
             let pagination =
