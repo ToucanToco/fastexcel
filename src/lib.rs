@@ -13,12 +13,12 @@ use pyo3::prelude::*;
 use types::excelsheet::{CellError, CellErrors};
 
 pub use data::{FastExcelColumn, FastExcelSeries};
+use error::ErrorContext;
+pub use error::{FastExcelError, FastExcelErrorKind, FastExcelResult};
 pub use types::{
     ColumnInfo, ColumnNameFrom, DType, DTypeCoercion, DTypeFrom, DTypes, ExcelReader, ExcelSheet,
     ExcelTable, IdxOrName, LoadSheetOrTableOptions, SelectedColumns, SheetVisible, SkipRows,
 };
-
-use crate::error::{ErrorContext, FastExcelResult};
 
 /// Reads an excel file and returns an object allowing to access its sheets, tables, and a bit of metadata.
 /// This is a wrapper around `ExcelReader::try_from_path`.

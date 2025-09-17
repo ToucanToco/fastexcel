@@ -2,6 +2,7 @@ use crate::types::idx_or_name::IdxOrName;
 use calamine::XlsxError;
 use std::{error::Error, fmt::Display};
 
+/// The kind of a fastexcel error.
 #[derive(Debug)]
 pub enum FastExcelErrorKind {
     UnsupportedColumnTypeCombination(String),
@@ -49,6 +50,10 @@ impl Display for FastExcelErrorKind {
     }
 }
 
+/// A `fastexcel` error.
+///
+/// Contains a kind and a context. Use the `Display` trait to format the
+/// error message with its context.
 #[derive(Debug)]
 pub struct FastExcelError {
     pub kind: FastExcelErrorKind,
@@ -109,7 +114,7 @@ impl From<XlsxError> for FastExcelError {
     }
 }
 
-pub(crate) type FastExcelResult<T> = Result<T, FastExcelError>;
+pub type FastExcelResult<T> = Result<T, FastExcelError>;
 
 impl<T> ErrorContext for FastExcelResult<T> {
     fn with_context<S: ToString, F>(self, ctx_fn: F) -> Self
