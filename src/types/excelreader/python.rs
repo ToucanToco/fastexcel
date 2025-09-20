@@ -94,16 +94,19 @@ impl ExcelReader {
             let pagination =
                 Pagination::try_new(opts.skip_rows, opts.n_rows, &range).into_pyresult()?;
             let header = Header::new(data_header_row, opts.column_names);
-            let rb = Self::load_sheet_eager(
-                &range.into(),
-                pagination,
-                header,
-                opts.schema_sample_rows,
-                &opts.selected_columns,
-                opts.dtypes.as_ref(),
-                &opts.dtype_coercion,
-            )
-            .into_pyresult()?;
+            let rb = py
+                .allow_threads(|| {
+                    Self::load_sheet_eager(
+                        &range.into(),
+                        pagination,
+                        header,
+                        opts.schema_sample_rows,
+                        &opts.selected_columns,
+                        opts.dtypes.as_ref(),
+                        &opts.dtype_coercion,
+                    )
+                })
+                .into_pyresult()?;
 
             #[cfg(feature = "pyarrow")]
             {
