@@ -272,7 +272,7 @@ impl ExcelSheet {
 
         use crate::error::py_errors::IntoPyResult;
 
-        RecordBatch::try_from(self)
+        py.allow_threads(|| RecordBatch::try_from(self))
             .with_context(|| {
                 format!(
                     "could not create RecordBatch from sheet \"{}\"",
@@ -305,18 +305,21 @@ impl ExcelSheet {
         let offset = self.offset();
         let limit = self.limit();
 
-        let (rb, errors) = record_batch_from_data_and_columns_with_errors(
-            &self.selected_columns,
-            self.data(),
-            offset,
-            limit,
-        )
-        .with_context(|| {
-            format!(
-                "could not create RecordBatch from sheet \"{}\"",
-                self.name()
-            )
-        })?;
+        let (rb, errors) = py
+            .allow_threads(|| {
+                record_batch_from_data_and_columns_with_errors(
+                    &self.selected_columns,
+                    self.data(),
+                    offset,
+                    limit,
+                )
+            })
+            .with_context(|| {
+                format!(
+                    "could not create RecordBatch from sheet \"{}\"",
+                    self.name()
+                )
+            })?;
 
         let rb = rb
             .into_pyarrow(py)
