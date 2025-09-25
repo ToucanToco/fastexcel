@@ -26,6 +26,8 @@ jobs:
           python-version: "${{ env.MIN_PYTHON_VERSION }}"
       - name: Set up rust toolchain
         uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
       - name: Set up rustfmt
         run: rustup component add rustfmt
 
