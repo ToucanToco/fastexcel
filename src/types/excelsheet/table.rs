@@ -1,5 +1,5 @@
 use crate::error::{FastExcelErrorKind, FastExcelResult};
-use calamine::{Data, Sheets, Table};
+use calamine::{Data, Reader, Sheets, Table};
 use std::io::{Read, Seek};
 
 pub(crate) fn extract_table_names<'a, RS: Read + Seek>(
@@ -21,6 +21,13 @@ pub(crate) fn extract_table_names<'a, RS: Read + Seek>(
         )
         .into()),
     }
+}
+
+pub(crate) fn extract_defined_names<RS: Read + Seek>(
+    sheets: &mut Sheets<RS>,
+) -> FastExcelResult<Vec<(String, String)>> {
+    let defined_names = sheets.defined_names().to_vec();
+    Ok(defined_names)
 }
 
 pub(crate) fn extract_table_range<RS: Read + Seek>(
