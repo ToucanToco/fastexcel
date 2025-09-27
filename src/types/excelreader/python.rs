@@ -1,7 +1,8 @@
 use arrow_array::RecordBatch;
 use pyo3::{Bound, IntoPyObjectExt, PyAny, PyResult, Python, pymethods, types::PyString};
 
-use super::ExcelReader;
+use super::{DefinedName, ExcelReader};
+
 use crate::{
     ExcelSheet,
     data::{ExcelSheetData, record_batch_from_data_and_columns},
@@ -199,6 +200,11 @@ impl ExcelReader {
         self.sheets.table_names(sheet_name).into_pyresult()
     }
 
+    #[pyo3(name = "defined_names")]
+    pub(crate) fn py_defined_names(&mut self) -> PyResult<Vec<DefinedName>> {
+        self.defined_names().into_pyresult()
+    }
+
     #[pyo3(name = "load_sheet", signature = (
         idx_or_name,
         *,
@@ -306,5 +312,18 @@ impl ExcelReader {
     #[getter("sheet_names")]
     pub(crate) fn py_sheet_names(&self) -> Vec<&str> {
         self.sheet_names()
+    }
+}
+
+#[pymethods]
+impl DefinedName {
+    #[getter("name")]
+    pub fn py_name(&self) -> &str {
+        &self.name
+    }
+
+    #[getter("formula")]
+    pub fn py_formula(&self) -> &str {
+        &self.formula
     }
 }
