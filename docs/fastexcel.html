@@ -165,6 +165,9 @@
                     <a class="class" href="#ColumnInfo">ColumnInfo</a>
                             <ul class="memberlist">
                         <li>
+                                <a class="variable" href="#ColumnInfo.column_name_from">column_name_from</a>
+                        </li>
+                        <li>
                                 <a class="variable" href="#ColumnInfo.dtype_from">dtype_from</a>
                         </li>
                         <li>
@@ -172,9 +175,6 @@
                         </li>
                         <li>
                                 <a class="variable" href="#ColumnInfo.name">name</a>
-                        </li>
-                        <li>
-                                <a class="variable" href="#ColumnInfo.column_name_from">column_name_from</a>
                         </li>
                         <li>
                                 <a class="variable" href="#ColumnInfo.dtype">dtype</a>
@@ -186,16 +186,16 @@
                     <a class="class" href="#CellError">CellError</a>
                             <ul class="memberlist">
                         <li>
-                                <a class="variable" href="#CellError.position">position</a>
+                                <a class="variable" href="#CellError.row_offset">row_offset</a>
                         </li>
                         <li>
-                                <a class="variable" href="#CellError.row_offset">row_offset</a>
+                                <a class="variable" href="#CellError.detail">detail</a>
                         </li>
                         <li>
                                 <a class="variable" href="#CellError.offset_position">offset_position</a>
                         </li>
                         <li>
-                                <a class="variable" href="#CellError.detail">detail</a>
+                                <a class="variable" href="#CellError.position">position</a>
                         </li>
                 </ul>
 
@@ -2921,6 +2921,28 @@ Requires the <code>polars</code> extra to be installed.</p>
 </div>
 
 
+                            <div id="ColumnInfo.column_name_from" class="classattr">
+                                <div class="attr variable">
+            <span class="name">column_name_from</span>
+
+        
+    </div>
+    <a class="headerlink" href="#ColumnInfo.column_name_from"></a>
+    
+            <div class="docstring"><p><code><a href="#ColumnNameFrom">fastexcel.ColumnNameFrom</a></code>. How the name of the column was determined.</p>
+
+<p>One of three possible values:</p>
+
+<ul>
+<li><code>"provided"</code>: The column name was provided via the <code>use_columns</code> parameter</li>
+<li><code>"looked_up"</code>: The column name was looked up from the data found in the sheet</li>
+<li><code>"generated"</code>: The column name was generated from the column index, either because
+<code>header_row</code> was <code>None</code>, or because it could not be looked up</li>
+</ul>
+</div>
+
+
+                            </div>
                             <div id="ColumnInfo.dtype_from" class="classattr">
                                 <div class="attr variable">
             <span class="name">dtype_from</span>
@@ -2968,28 +2990,6 @@ Requires the <code>polars</code> extra to be installed.</p>
 
 
                             </div>
-                            <div id="ColumnInfo.column_name_from" class="classattr">
-                                <div class="attr variable">
-            <span class="name">column_name_from</span>
-
-        
-    </div>
-    <a class="headerlink" href="#ColumnInfo.column_name_from"></a>
-    
-            <div class="docstring"><p><code><a href="#ColumnNameFrom">fastexcel.ColumnNameFrom</a></code>. How the name of the column was determined.</p>
-
-<p>One of three possible values:</p>
-
-<ul>
-<li><code>"provided"</code>: The column name was provided via the <code>use_columns</code> parameter</li>
-<li><code>"looked_up"</code>: The column name was looked up from the data found in the sheet</li>
-<li><code>"generated"</code>: The column name was generated from the column index, either because
-<code>header_row</code> was <code>None</code>, or because it could not be looked up</li>
-</ul>
-</div>
-
-
-                            </div>
                             <div id="ColumnInfo.dtype" class="classattr">
                                 <div class="attr variable">
             <span class="name">dtype</span>
@@ -3016,19 +3016,6 @@ Requires the <code>polars</code> extra to be installed.</p>
     
     
 
-                            <div id="CellError.position" class="classattr">
-                                <div class="attr variable">
-            <span class="name">position</span>
-
-        
-    </div>
-    <a class="headerlink" href="#CellError.position"></a>
-    
-            <div class="docstring"><p><code>(int, int)</code>. The original row and column of the error</p>
-</div>
-
-
-                            </div>
                             <div id="CellError.row_offset" class="classattr">
                                 <div class="attr variable">
             <span class="name">row_offset</span>
@@ -3038,6 +3025,19 @@ Requires the <code>polars</code> extra to be installed.</p>
     <a class="headerlink" href="#CellError.row_offset"></a>
     
             <div class="docstring"><p><code>int</code>. The row offset</p>
+</div>
+
+
+                            </div>
+                            <div id="CellError.detail" class="classattr">
+                                <div class="attr variable">
+            <span class="name">detail</span>
+
+        
+    </div>
+    <a class="headerlink" href="#CellError.detail"></a>
+    
+            <div class="docstring"><p><code>str</code>. The error message</p>
 </div>
 
 
@@ -3053,15 +3053,15 @@ Requires the <code>polars</code> extra to be installed.</p>
     
 
                             </div>
-                            <div id="CellError.detail" class="classattr">
+                            <div id="CellError.position" class="classattr">
                                 <div class="attr variable">
-            <span class="name">detail</span>
+            <span class="name">position</span>
 
         
     </div>
-    <a class="headerlink" href="#CellError.detail"></a>
+    <a class="headerlink" href="#CellError.position"></a>
     
-            <div class="docstring"><p><code>str</code>. The error message</p>
+            <div class="docstring"><p><code>(int, int)</code>. The original row and column of the error</p>
 </div>
 
 
