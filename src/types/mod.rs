@@ -5,7 +5,7 @@ pub(crate) mod exceltable;
 pub(crate) mod idx_or_name;
 
 pub use dtype::{DType, DTypeCoercion, DTypes};
-pub use excelreader::{ExcelReader, LoadSheetOrTableOptions};
+pub use excelreader::{DefinedName, ExcelReader, LoadSheetOrTableOptions};
 pub use excelsheet::{
     ExcelSheet, SelectedColumns, SheetVisible, SkipRows,
     column_info::{ColumnInfo, ColumnNameFrom, DTypeFrom},
