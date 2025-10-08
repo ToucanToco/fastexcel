@@ -48,7 +48,7 @@ linting = [
     { include-group = "dev" },
     "mypy>=1.11.2,<2",
     "pre-commit>=2.20.0,<5",
-    "ruff>=0.12,<0.14",
+    "ruff>=0.12,<0.15",
 ]
 docs = [{ include-group = "dev" }, "pdoc"]
 all = [
