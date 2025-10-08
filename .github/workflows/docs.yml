@@ -19,7 +19,7 @@ jobs:
       - name: Set up rust toolchain
         uses: dtolnay/rust-toolchain@stable
       - name: install uv
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@v7
       - run: |
           git config user.name github-actions
           git config user.email github-actions@github.com
