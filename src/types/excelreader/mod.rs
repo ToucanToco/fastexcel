@@ -65,7 +65,7 @@ impl ExcelSheets {
         }
         .to_vec()
         .into_iter()
-        .map(DefinedName::from)
+        .map(|(name, formula)| DefinedName { name, formula })
         .collect();
         Ok(defined_names)
     }
@@ -111,17 +111,14 @@ impl ExcelSheets {
         }
     }
 }
+
 #[derive(Debug)]
 #[cfg_attr(feature = "python", pyclass(name = "DefinedName"))]
 pub struct DefinedName {
     pub name: String,
     pub formula: String,
 }
-impl From<(String, String)> for DefinedName {
-    fn from((name, formula): (String, String)) -> Self {
-        DefinedName { name, formula }
-    }
-}
+
 /// Options for loading a sheet or table.
 #[derive(Debug)]
 pub struct LoadSheetOrTableOptions {
