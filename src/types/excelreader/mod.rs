@@ -58,6 +58,18 @@ impl ExcelSheets {
         Ok(names.into_iter().map(String::as_str).collect())
     }
 
+    fn defined_names(&mut self) -> FastExcelResult<Vec<DefinedName>> {
+        let defined_names = match self {
+            Self::File(sheets) => sheets.defined_names(),
+            Self::Bytes(sheets) => sheets.defined_names(),
+        }
+        .to_vec()
+        .into_iter()
+        .map(|(name, formula)| DefinedName { name, formula })
+        .collect();
+        Ok(defined_names)
+    }
+
     #[cfg(feature = "python")]
     fn supports_by_ref(&self) -> bool {
         matches!(
@@ -98,6 +110,13 @@ impl ExcelSheets {
             Self::Bytes(sheets) => extract_table_range(name, sheets),
         }
     }
+}
+
+#[derive(Debug)]
+#[cfg_attr(feature = "python", pyclass(name = "DefinedName"))]
+pub struct DefinedName {
+    pub name: String,
+    pub formula: String,
 }
 
 /// Options for loading a sheet or table.
@@ -337,6 +356,10 @@ impl ExcelReader {
 
     pub fn table_names(&mut self, sheet_name: Option<&str>) -> FastExcelResult<Vec<&str>> {
         self.sheets.table_names(sheet_name)
+    }
+
+    pub fn defined_names(&mut self) -> FastExcelResult<Vec<DefinedName>> {
+        self.sheets.defined_names()
     }
 }
 
