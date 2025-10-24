@@ -26,9 +26,9 @@ name = "fastexcel"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-arrow-array = { version = "^56.2.0", features = ["ffi"], optional = true }
+arrow-array = { version = "^57.0.0", features = ["ffi"], optional = true }
 arrow-pyarrow = { version = "^56.2.0", optional = true }
-arrow-schema = { version = "^56.1.0", optional = true }
+arrow-schema = { version = "^57.0.0", optional = true }
 calamine = { version = "^0.31.0", features = ["chrono"] }
 chrono = { version = "^0.4.42", default-features = false }
 log = "^0.4"
