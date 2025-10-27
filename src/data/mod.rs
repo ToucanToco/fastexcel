@@ -347,7 +347,7 @@ pub(crate) fn generate_row_selector(
         SkipRows::Callable(_func) => {
             // Call the Python function for each row to determine if it should be skipped
             // The callable should receive data-relative row indices (0, 1, 2, ...)
-            pyo3::Python::with_gil(|py| {
+            pyo3::Python::attach(|py| {
                 Ok(RowSelector::Filtered(
                     (offset..limit)
                         .enumerate()
