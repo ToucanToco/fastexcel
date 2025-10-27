@@ -7,7 +7,7 @@ use pyo3::{
     types::{PyCapsule, PyTuple},
 };
 #[cfg(feature = "pyarrow")]
-use pyo3::{PyObject, Python};
+use pyo3::{PyAny, Python};
 use pyo3_arrow::ffi::{to_array_pycapsules, to_schema_pycapsule};
 
 use crate::{
@@ -94,7 +94,7 @@ impl ExcelTable {
     }
 
     #[cfg(feature = "pyarrow")]
-    pub fn to_arrow(&self, py: Python<'_>) -> FastExcelResult<PyObject> {
+    pub fn to_arrow<'py>(&self, py: Python<'py>) -> FastExcelResult<Bound<'py, PyAny>> {
         RecordBatch::try_from(self)
             .with_context(|| {
                 format!(

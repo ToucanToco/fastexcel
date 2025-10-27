@@ -334,6 +334,8 @@ def test_fallback_infer_dtypes(mocker: MockerFixture) -> None:
         "Could not determine dtype for column 1, falling back to string",
         mocker.ANY,
         mocker.ANY,
+        mocker.ANY,
+        mocker.ANY,
     )
 
     assert sheet.available_columns() == [
