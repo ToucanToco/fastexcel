@@ -5,7 +5,7 @@ use arrow_schema::Field;
 #[cfg(feature = "pyarrow")]
 use pyo3::PyResult;
 use pyo3::{
-    Bound, FromPyObject, IntoPyObject, PyAny, PyObject, Python, pyclass, pymethods,
+    Bound, FromPyObject, IntoPyObject, Py, PyAny, Python, pyclass, pymethods,
     types::{PyAnyMethods, PyCapsule, PyList, PyListMethods, PyString, PyTuple},
 };
 use pyo3_arrow::ffi::{to_array_pycapsules, to_schema_pycapsule};
@@ -58,7 +58,7 @@ impl TryFrom<Option<&Bound<'_, PyAny>>> for SelectedColumns {
                     py_str.parse()
                 } else if let Ok(py_list) = py_any.downcast::<PyList>() {
                     py_list.try_into()
-                } else if let Ok(py_function) = py_any.extract::<PyObject>() {
+                } else if let Ok(py_function) = py_any.extract::<Py<PyAny>>() {
                     Ok(Self::DynamicSelection(py_function))
                 } else {
                     Err(FastExcelErrorKind::InvalidParameters(format!(
@@ -272,7 +272,7 @@ impl ExcelSheet {
 
         use crate::error::py_errors::IntoPyResult;
 
-        py.allow_threads(|| RecordBatch::try_from(self))
+        py.detach(|| RecordBatch::try_from(self))
             .with_context(|| {
                 format!(
                     "could not create RecordBatch from sheet \"{}\"",
@@ -306,7 +306,7 @@ impl ExcelSheet {
         let limit = self.limit();
 
         let (rb, errors) = py
-            .allow_threads(|| {
+            .detach(|| {
                 record_batch_from_data_and_columns_with_errors(
                     &self.selected_columns,
                     self.data(),

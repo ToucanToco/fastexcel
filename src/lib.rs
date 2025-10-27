@@ -35,11 +35,11 @@ fn py_read_excel<'py>(source: &Bound<'_, PyAny>, py: Python<'py>) -> PyResult<Ex
     use py_errors::IntoPyResult;
 
     if let Ok(path) = source.extract::<String>() {
-        py.allow_threads(|| ExcelReader::try_from_path(&path))
+        py.detach(|| ExcelReader::try_from_path(&path))
             .with_context(|| format!("could not load excel file at {path}"))
             .into_pyresult()
     } else if let Ok(bytes) = source.extract::<&[u8]>() {
-        py.allow_threads(|| ExcelReader::try_from(bytes))
+        py.detach(|| ExcelReader::try_from(bytes))
             .with_context(|| "could not load excel file for those bytes")
             .into_pyresult()
     } else {
