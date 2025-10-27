@@ -112,7 +112,7 @@ impl ExcelReader {
             #[cfg(feature = "pyarrow")]
             {
                 use arrow_pyarrow::ToPyArrow;
-                rb.to_pyarrow(py).map(|py_object| py_object.into_bound(py))
+                rb.to_pyarrow(py)
             }
             #[cfg(not(feature = "pyarrow"))]
             {
@@ -175,7 +175,7 @@ impl ExcelReader {
         if eager {
             #[cfg(feature = "pyarrow")]
             {
-                Ok(excel_table.to_arrow(py)?.into_bound(py))
+                Ok(excel_table.to_arrow(py)?)
             }
             #[cfg(not(feature = "pyarrow"))]
             {
