@@ -212,7 +212,7 @@ impl SelectedColumns {
                 Ok(cols.into_iter().map(|(_pos, elem)| elem).collect())
             }
             #[cfg(feature = "python")]
-            SelectedColumns::DynamicSelection(use_col_func) => Python::with_gil(|py| {
+            SelectedColumns::DynamicSelection(use_col_func) => Python::attach(|py| {
                 available_columns
                     .into_iter()
                     .filter_map(
@@ -691,7 +691,7 @@ mod tests {
 
     #[test]
     fn selected_columns_from_list_of_valid_ints() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let py_list = PyList::new(py, vec![0, 1, 2]).expect("could not create PyList");
             assert_eq!(
                 TryInto::<SelectedColumns>::try_into(Some(py_list.as_ref())).unwrap(),
@@ -702,7 +702,7 @@ mod tests {
 
     #[test]
     fn selected_columns_from_list_of_valid_strings() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let py_list = PyList::new(py, vec!["foo", "bar"]).expect("could not create PyList");
             assert_eq!(
                 TryInto::<SelectedColumns>::try_into(Some(py_list.as_ref())).unwrap(),
@@ -719,7 +719,7 @@ mod tests {
 
     #[test]
     fn selected_columns_from_list_of_valid_strings_and_ints() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let py_list = PyList::new(py, vec!["foo", "bar"]).expect("could not create PyList");
             py_list.append(42).unwrap();
             py_list.append(5).unwrap();
@@ -737,7 +737,7 @@ mod tests {
 
     #[test]
     fn selected_columns_from_invalid_ints() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let py_list = PyList::new(py, vec![0, 2, -1]).expect("could not create PyList");
             let err = TryInto::<SelectedColumns>::try_into(Some(py_list.as_ref())).unwrap_err();
 
@@ -747,7 +747,7 @@ mod tests {
 
     #[test]
     fn selected_columns_from_empty_int_list() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let py_list = PyList::new(py, Vec::<usize>::new()).expect("could not create PyList");
             let err = TryInto::<SelectedColumns>::try_into(Some(py_list.as_ref())).unwrap_err();
 
@@ -757,7 +757,7 @@ mod tests {
 
     #[test]
     fn selected_columns_from_empty_string_list() {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let py_list = PyList::new(py, Vec::<String>::new()).expect("could not create PyList");
             let err = TryInto::<SelectedColumns>::try_into(Some(py_list.as_ref())).unwrap_err();
 
@@ -776,7 +776,7 @@ mod tests {
     #[case("A,y:AB", vec![0, 24, 25, 26, 27])]
     #[case("BB:BE,DDC:DDF", vec![53, 54, 55, 56, 2810, 2811, 2812, 2813])]
     fn selected_columns_from_valid_ranges(#[case] raw: &str, #[case] expected_indices: Vec<usize>) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let expected_range = SelectedColumns::Selection(
                 expected_indices.into_iter().map(IdxOrName::Idx).collect(),
             );
@@ -798,7 +798,7 @@ mod tests {
     #[case(":A")]
     #[case(":C,E:")]
     fn selected_columns_from_valid_open_ended_ranges(#[case] raw: &str) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let input = PyString::new(py, raw);
 
             let range = TryInto::<SelectedColumns>::try_into(Some(input.as_ref()))
@@ -820,7 +820,7 @@ mod tests {
     // too many elements
     #[case("a:b:e", "exactly 2 elements, got 3")]
     fn selected_columns_from_invalid_ranges(#[case] raw: &str, #[case] message: &str) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let input = PyString::new(py, raw);
 
             let err = TryInto::<SelectedColumns>::try_into(Some(input.as_ref()))

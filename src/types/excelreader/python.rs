@@ -86,7 +86,7 @@ impl ExcelReader {
 
         if eager && self.sheets.supports_by_ref() {
             let range = py
-                .allow_threads(|| {
+                .detach(|| {
                     self.sheets
                         .with_header_row(calamine_header_row)
                         .worksheet_range_ref(&sheet_meta.name)
@@ -96,7 +96,7 @@ impl ExcelReader {
                 Pagination::try_new(opts.skip_rows, opts.n_rows, &range).into_pyresult()?;
             let header = Header::new(data_header_row, opts.column_names);
             let rb = py
-                .allow_threads(|| {
+                .detach(|| {
                     Self::load_sheet_eager(
                         &range.into(),
                         pagination,
@@ -122,7 +122,7 @@ impl ExcelReader {
             }
         } else {
             let range = py
-                .allow_threads(|| {
+                .detach(|| {
                     self.sheets
                         .with_header_row(calamine_header_row)
                         .worksheet_range(&sheet_meta.name)
@@ -168,9 +168,7 @@ impl ExcelReader {
         eager: bool,
         py: Python<'py>,
     ) -> PyResult<Bound<'py, PyAny>> {
-        let excel_table = py
-            .allow_threads(|| self.load_table(name, opts))
-            .into_pyresult()?;
+        let excel_table = py.detach(|| self.load_table(name, opts)).into_pyresult()?;
 
         if eager {
             #[cfg(feature = "pyarrow")]
