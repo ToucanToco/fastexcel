@@ -174,13 +174,13 @@
                                 <a class="variable" href="#ColumnInfo.dtype_from">dtype_from</a>
                         </li>
                         <li>
-                                <a class="variable" href="#ColumnInfo.name">name</a>
-                        </li>
-                        <li>
                                 <a class="variable" href="#ColumnInfo.index">index</a>
                         </li>
                         <li>
                                 <a class="variable" href="#ColumnInfo.column_name_from">column_name_from</a>
+                        </li>
+                        <li>
+                                <a class="variable" href="#ColumnInfo.name">name</a>
                         </li>
                 </ul>
 
@@ -189,10 +189,10 @@
                     <a class="class" href="#DefinedName">DefinedName</a>
                             <ul class="memberlist">
                         <li>
-                                <a class="variable" href="#DefinedName.name">name</a>
+                                <a class="variable" href="#DefinedName.formula">formula</a>
                         </li>
                         <li>
-                                <a class="variable" href="#DefinedName.formula">formula</a>
+                                <a class="variable" href="#DefinedName.name">name</a>
                         </li>
                 </ul>
 
@@ -201,16 +201,16 @@
                     <a class="class" href="#CellError">CellError</a>
                             <ul class="memberlist">
                         <li>
-                                <a class="variable" href="#CellError.row_offset">row_offset</a>
+                                <a class="variable" href="#CellError.position">position</a>
                         </li>
                         <li>
                                 <a class="variable" href="#CellError.detail">detail</a>
                         </li>
                         <li>
-                                <a class="variable" href="#CellError.position">position</a>
+                                <a class="variable" href="#CellError.offset_position">offset_position</a>
                         </li>
                         <li>
-                                <a class="variable" href="#CellError.offset_position">offset_position</a>
+                                <a class="variable" href="#CellError.row_offset">row_offset</a>
                         </li>
                 </ul>
 
@@ -3026,19 +3026,6 @@ Requires the <code>polars</code> extra to be installed.</p>
 
 
                             </div>
-                            <div id="ColumnInfo.name" class="classattr">
-                                <div class="attr variable">
-            <span class="name">name</span>
-
-        
-    </div>
-    <a class="headerlink" href="#ColumnInfo.name"></a>
-    
-            <div class="docstring"><p><code>str</code>. The name of the column</p>
-</div>
-
-
-                            </div>
                             <div id="ColumnInfo.index" class="classattr">
                                 <div class="attr variable">
             <span class="name">index</span>
@@ -3074,6 +3061,19 @@ Requires the <code>polars</code> extra to be installed.</p>
 
 
                             </div>
+                            <div id="ColumnInfo.name" class="classattr">
+                                <div class="attr variable">
+            <span class="name">name</span>
+
+        
+    </div>
+    <a class="headerlink" href="#ColumnInfo.name"></a>
+    
+            <div class="docstring"><p><code>str</code>. The name of the column</p>
+</div>
+
+
+                            </div>
                 </section>
                 <section id="DefinedName">
                     <div class="attr class">
@@ -3087,17 +3087,6 @@ Requires the <code>polars</code> extra to be installed.</p>
     
     
 
-                            <div id="DefinedName.name" class="classattr">
-                                <div class="attr variable">
-            <span class="name">name</span>
-
-        
-    </div>
-    <a class="headerlink" href="#DefinedName.name"></a>
-    
-    
-
-                            </div>
                             <div id="DefinedName.formula" class="classattr">
                                 <div class="attr variable">
             <span class="name">formula</span>
@@ -3105,6 +3094,17 @@ Requires the <code>polars</code> extra to be installed.</p>
         
     </div>
     <a class="headerlink" href="#DefinedName.formula"></a>
+    
+    
+
+                            </div>
+                            <div id="DefinedName.name" class="classattr">
+                                <div class="attr variable">
+            <span class="name">name</span>
+
+        
+    </div>
+    <a class="headerlink" href="#DefinedName.name"></a>
     
     
 
@@ -3122,15 +3122,15 @@ Requires the <code>polars</code> extra to be installed.</p>
     
     
 
-                            <div id="CellError.row_offset" class="classattr">
+                            <div id="CellError.position" class="classattr">
                                 <div class="attr variable">
-            <span class="name">row_offset</span>
+            <span class="name">position</span>
 
         
     </div>
-    <a class="headerlink" href="#CellError.row_offset"></a>
+    <a class="headerlink" href="#CellError.position"></a>
     
-            <div class="docstring"><p><code>int</code>. The row offset</p>
+            <div class="docstring"><p><code>(int, int)</code>. The original row and column of the error</p>
 </div>
 
 
@@ -3148,19 +3148,6 @@ Requires the <code>polars</code> extra to be installed.</p>
 
 
                             </div>
-                            <div id="CellError.position" class="classattr">
-                                <div class="attr variable">
-            <span class="name">position</span>
-
-        
-    </div>
-    <a class="headerlink" href="#CellError.position"></a>
-    
-            <div class="docstring"><p><code>(int, int)</code>. The original row and column of the error</p>
-</div>
-
-
-                            </div>
                             <div id="CellError.offset_position" class="classattr">
                                 <div class="attr variable">
             <span class="name">offset_position</span>
@@ -3170,6 +3157,19 @@ Requires the <code>polars</code> extra to be installed.</p>
     <a class="headerlink" href="#CellError.offset_position"></a>
     
     
+
+                            </div>
+                            <div id="CellError.row_offset" class="classattr">
+                                <div class="attr variable">
+            <span class="name">row_offset</span>
+
+        
+    </div>
+    <a class="headerlink" href="#CellError.row_offset"></a>
+    
+            <div class="docstring"><p><code>int</code>. The row offset</p>
+</div>
+
 
                             </div>
                 </section>
