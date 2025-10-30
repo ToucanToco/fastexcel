@@ -39,7 +39,7 @@ polars-core = { version = ">=0.50", default-features = false, features = [
 ], optional = true }
 pyo3 = { version = "^0.26", features = ["abi3-py39"], optional = true }
 pyo3-arrow = { version = "^0.14", default-features = false, optional = true }
-pyo3-log = { version = "^0.13.1", optional = true }
+pyo3-log = { version = "^0.13.2", optional = true }
 
 [dev-dependencies]
 anyhow = "1.0.100"
