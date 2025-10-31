@@ -1,13 +1,8 @@
 from __future__ import annotations
 
-import sys
 import typing
-from typing import TYPE_CHECKING, Callable, Literal
-
-if sys.version_info < (3, 10):
-    from typing_extensions import TypeAlias
-else:
-    from typing import TypeAlias
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Literal, TypeAlias
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -101,7 +96,7 @@ class ExcelSheet:
         """The visibility of the sheet"""
         return self._sheet.visible
 
-    def to_arrow(self) -> "pa.RecordBatch":
+    def to_arrow(self) -> pa.RecordBatch:
         """Converts the sheet to a pyarrow `RecordBatch`
 
         Requires the `pyarrow` extra to be installed.
@@ -112,7 +107,7 @@ class ExcelSheet:
             )
         return self._sheet.to_arrow()
 
-    def to_arrow_with_errors(self) -> "tuple[pa.RecordBatch, CellErrors | None]":
+    def to_arrow_with_errors(self) -> tuple[pa.RecordBatch, CellErrors | None]:
         """Converts the sheet to a pyarrow `RecordBatch` with error information.
 
         Stores the positions of any values that cannot be parsed as the specified type and were
@@ -129,7 +124,7 @@ class ExcelSheet:
             return (rb, None)
         return (rb, cell_errors)
 
-    def to_pandas(self) -> "pd.DataFrame":
+    def to_pandas(self) -> pd.DataFrame:
         """Converts the sheet to a Pandas `DataFrame`.
 
         Requires the `pandas` extra to be installed.
@@ -139,7 +134,7 @@ class ExcelSheet:
         # (see https://pandas.pydata.org/docs/reference/api/pandas.api.interchange.from_dataframe.html)
         return self.to_arrow().to_pandas()
 
-    def to_polars(self) -> "pl.DataFrame":
+    def to_polars(self) -> pl.DataFrame:
         """Converts the sheet to a Polars `DataFrame`.
 
         Uses the Arrow PyCapsule Interface for zero-copy data exchange.
@@ -225,7 +220,7 @@ class ExcelTable:
         """The dtypes specified for the table"""
         return self._table.specified_dtypes
 
-    def to_arrow(self) -> "pa.RecordBatch":
+    def to_arrow(self) -> pa.RecordBatch:
         """Converts the table to a pyarrow `RecordBatch`
 
         Requires the `pyarrow` extra to be installed.
@@ -236,7 +231,7 @@ class ExcelTable:
             )
         return self._table.to_arrow()
 
-    def to_pandas(self) -> "pd.DataFrame":
+    def to_pandas(self) -> pd.DataFrame:
         """Converts the table to a Pandas `DataFrame`.
 
         Requires the `pandas` extra to be installed.
@@ -246,7 +241,7 @@ class ExcelTable:
         # (see https://pandas.pydata.org/docs/reference/api/pandas.api.interchange.from_dataframe.html)
         return self.to_arrow().to_pandas()
 
-    def to_polars(self) -> "pl.DataFrame":
+    def to_polars(self) -> pl.DataFrame:
         """Converts the table to a Polars `DataFrame`.
 
         Uses the Arrow PyCapsule Interface for zero-copy data exchange.
@@ -328,7 +323,7 @@ class ExcelReader:
         | None = None,
         dtypes: DType | DTypeMap | None = None,
         eager: Literal[True] = ...,
-    ) -> "pa.RecordBatch": ...
+    ) -> pa.RecordBatch: ...
 
     def load_sheet(
         self,
@@ -347,7 +342,7 @@ class ExcelReader:
         | None = None,
         dtypes: DType | DTypeMap | None = None,
         eager: bool = False,
-    ) -> "ExcelSheet | pa.RecordBatch":
+    ) -> ExcelSheet | pa.RecordBatch:
         """Loads a sheet by index or name.
 
         :param idx_or_name: The index (starting at 0) or the name of the sheet to load.
@@ -469,7 +464,7 @@ class ExcelReader:
         | None = None,
         dtypes: DType | DTypeMap | None = None,
         eager: Literal[True] = ...,
-    ) -> "pa.RecordBatch": ...
+    ) -> pa.RecordBatch: ...
 
     def load_table(
         self,
@@ -488,7 +483,7 @@ class ExcelReader:
         | None = None,
         dtypes: DType | DTypeMap | None = None,
         eager: bool = False,
-    ) -> "ExcelTable | pa.RecordBatch":
+    ) -> ExcelTable | pa.RecordBatch:
         """Loads a table by name.
 
         :param name: The name of the table to load.
@@ -574,7 +569,7 @@ class ExcelReader:
         dtype_coercion: Literal["coerce", "strict"] = "coerce",
         use_columns: list[str] | list[int] | str | None = None,
         dtypes: DType | DTypeMap | None = None,
-    ) -> "pa.RecordBatch":
+    ) -> pa.RecordBatch:
         """Loads a sheet eagerly by index or name.
 
         For xlsx files, this will be faster and more memory-efficient, as it will use
@@ -672,7 +667,7 @@ def read_excel(source: Path | str | bytes) -> ExcelReader:
 
     :param source: The path to a file or its content as bytes
     """
-    if isinstance(source, (str, Path)):
+    if isinstance(source, str | Path):
         source = expanduser(source)
     return ExcelReader(_read_excel(source))
 

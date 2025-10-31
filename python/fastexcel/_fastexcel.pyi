@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import typing
-from typing import TYPE_CHECKING, Callable, Literal
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Literal
 
 if TYPE_CHECKING:
     import pyarrow as pa
@@ -89,12 +90,12 @@ class _ExcelSheet:
     @property
     def visible(self) -> SheetVisible:
         """The visibility of the sheet"""
-    def to_arrow(self) -> "pa.RecordBatch":
+    def to_arrow(self) -> pa.RecordBatch:
         """Converts the sheet to a pyarrow `RecordBatch`
 
         Requires the `pyarrow` extra to be installed.
         """
-    def to_arrow_with_errors(self) -> "tuple[pa.RecordBatch, CellErrors]":
+    def to_arrow_with_errors(self) -> tuple[pa.RecordBatch, CellErrors]:
         """Converts the sheet to a pyarrow `RecordBatch` with error information.
 
         Stores the positions of any values that cannot be parsed as the specified type and were
@@ -148,7 +149,7 @@ class _ExcelTable:
     @property
     def specified_dtypes(self) -> DTypeMap | None:
         """The dtypes specified for the table"""
-    def to_arrow(self) -> "pa.RecordBatch":
+    def to_arrow(self) -> pa.RecordBatch:
         """Converts the table to a pyarrow `RecordBatch`
 
         Requires the `pyarrow` extra to be installed.

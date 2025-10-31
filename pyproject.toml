@@ -87,7 +87,7 @@ target-version = "py310"
 
 [tool.ruff.lint]
 # Enable Pyflakes `E` and `F` codes by default.
-select = ["E", "F", "I", "Q", "FA102"]
+select = ["E", "F", "I", "Q", "FA102", "UP"]
 
 [tool.uv]
 # this ensures that `uv run` doesn't actually build the package; a `make`
