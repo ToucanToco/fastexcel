@@ -104,7 +104,7 @@ df = pl.DataFrame(table)  # Zero-copy via PyCapsule, no pyarrow needed
 
 You'll need:
 1. **[Rust](https://rustup.rs/)** - Rust stable or nightly
-2. **[uv](https://docs.astral.sh/uv/getting-started/installation/)** - Fast Python package manager (will install Python 3.9+ automatically)
+2. **[uv](https://docs.astral.sh/uv/getting-started/installation/)** - Fast Python package manager (will install Python 3.10+ automatically)
 3. **[git](https://git-scm.com/)** - For version control
 4. **[make](https://www.gnu.org/software/make/)** - For running development commands
 
