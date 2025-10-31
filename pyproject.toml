@@ -7,7 +7,7 @@ name = "fastexcel"
 description = "A fast excel file reader for Python, written in Rust"
 readme = "README.md"
 license = { file = "LICENSE" }
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "License :: OSI Approved :: MIT License",
@@ -16,7 +16,6 @@ classifiers = [
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -68,7 +67,7 @@ module-name = "fastexcel._fastexcel"
 features = ["__maturin"]
 
 [tool.mypy]
-python_version = "3.9"
+python_version = "3.10"
 follow_imports = "silent"
 ignore_missing_imports = true
 # A few custom options
@@ -84,7 +83,7 @@ log_cli_level = "INFO"
 
 [tool.ruff]
 line-length = 100
-target-version = "py39"
+target-version = "py310"
 
 [tool.ruff.lint]
 # Enable Pyflakes `E` and `F` codes by default.
