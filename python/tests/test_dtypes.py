@@ -508,3 +508,44 @@ def test_to_arrow_with_errors(
         assert cell_errors is not None
         error_positions = [err.offset_position for err in cell_errors.errors]
         assert error_positions == expected_error_positions
+
+
+def test_guess_dtypes_with_div0_error() -> None:
+    excel_reader = fastexcel.read_excel(path_for_fixture("div0.xlsx"))
+    sheet = excel_reader.load_sheet(0)
+    assert sheet.available_columns() == [
+        fastexcel.ColumnInfo(
+            name="dividend",
+            index=0,
+            dtype="float",
+            dtype_from="guessed",
+            column_name_from="looked_up",
+        ),
+        fastexcel.ColumnInfo(
+            name="divisor",
+            index=1,
+            dtype="float",
+            dtype_from="guessed",
+            column_name_from="looked_up",
+        ),
+        fastexcel.ColumnInfo(
+            name="quotient",
+            index=2,
+            dtype="float",
+            dtype_from="guessed",
+            column_name_from="looked_up",
+        ),
+    ]
+    expected_data = {
+        "dividend": [42.0, 43.0, 44.0, 45.0],
+        "divisor": [0.0, 1.0, 2.0, 3.0],
+        "quotient": [None, 43.0, 22.0, 15.0],
+    }
+
+    pd_df = sheet.to_pandas()
+    pd_expected_data = pd.DataFrame(expected_data)
+    pd_assert_frame_equal(pd_df, pd_expected_data)
+
+    pl_df = sheet.to_polars()
+    pl_expected_data = pl.DataFrame(expected_data)
+    pl_assert_frame_equal(pl_df, pl_expected_data)
