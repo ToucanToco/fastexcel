@@ -63,7 +63,7 @@ fn get_python_version() -> String {
 }
 
 #[cfg(feature = "python")]
-#[pymodule]
+#[pymodule(gil_used = false)]
 fn _fastexcel(m: &Bound<'_, PyModule>) -> PyResult<()> {
     use crate::types::excelsheet::column_info::{ColumnInfo, ColumnInfoNoDtype};
 
