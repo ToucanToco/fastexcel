@@ -11,6 +11,8 @@ Docs:
 The Python library is considered production-ready. The API is mostly stable, and we avoid breaking changes as much as
 possible. v1.0.0 will be released once the [milestone](https://github.com/ToucanToco/fastexcel/milestone/2) is reached.
 
+> ⚠️ The free-threaded build is still considered experimental
+
 The Rust crate is still experimental, and breaking changes are to be expected.
 
 ## Installation
