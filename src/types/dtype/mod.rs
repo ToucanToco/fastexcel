@@ -175,7 +175,8 @@ fn get_cell_dtype<DT: CellType + Debug + DataType>(
                 | CellErrorType::Value
                 | CellErrorType::Null
                 | CellErrorType::Ref
-                | CellErrorType::Num,
+                | CellErrorType::Num
+                | CellErrorType::Div0,
             ) => Ok(DType::Null),
             Some(err) => Err(FastExcelErrorKind::CalamineCellError(err.to_owned()).into()),
             None => Err(FastExcelErrorKind::Internal(format!(
