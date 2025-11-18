@@ -109,7 +109,7 @@ jobs:
         with:
           manylinux: auto
           command: build
-          args: "-o dist"
+          args: "-o dist -i python${{ matrix.python-version }}"
           target: ${{ steps.target.outputs.target }}
 
       - name: Upload wheels
