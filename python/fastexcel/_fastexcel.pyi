@@ -44,6 +44,12 @@ class ColumnInfo:
     def dtype_from(self) -> DTypeFrom: ...
 
 class DefinedName:
+    def __init__(
+        self,
+        *,
+        name: str,
+        formula: str,
+    ) -> None: ...
     @property
     def name(self) -> str: ...
     @property

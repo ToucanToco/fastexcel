@@ -9,10 +9,10 @@ def test_defined_names(path: str) -> None:
     excel_reader = fastexcel.read_excel(path_for_fixture(path))
     defined_names = excel_reader.defined_names()
 
-    names_dict = {dn.name: dn.formula for dn in defined_names}
+    expected_defined_names = [
+        fastexcel.DefinedName(name="AddingValues", formula="SUM(sheet1!$K$5:$K$6)"),
+        fastexcel.DefinedName(name="DefinedRange", formula="sheet1!$A$5:$D$7"),
+        fastexcel.DefinedName(name="NamedConstant", formula="3.4"),
+    ]
 
-    assert names_dict == {
-        "AddingValues": "SUM(sheet1!$K$5:$K$6)",
-        "DefinedRange": "sheet1!$A$5:$D$7",
-        "NamedConstant": "3.4",
-    }
+    assert defined_names == expected_defined_names
