@@ -112,7 +112,7 @@ impl ExcelSheets {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "python", pyclass(name = "DefinedName"))]
 pub struct DefinedName {
     pub name: String,
