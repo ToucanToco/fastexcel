@@ -168,19 +168,19 @@
                     <a class="class" href="#ColumnInfo">ColumnInfo</a>
                             <ul class="memberlist">
                         <li>
+                                <a class="variable" href="#ColumnInfo.index">index</a>
+                        </li>
+                        <li>
                                 <a class="variable" href="#ColumnInfo.name">name</a>
                         </li>
                         <li>
-                                <a class="variable" href="#ColumnInfo.dtype">dtype</a>
-                        </li>
-                        <li>
-                                <a class="variable" href="#ColumnInfo.index">index</a>
+                                <a class="variable" href="#ColumnInfo.column_name_from">column_name_from</a>
                         </li>
                         <li>
                                 <a class="variable" href="#ColumnInfo.dtype_from">dtype_from</a>
                         </li>
                         <li>
-                                <a class="variable" href="#ColumnInfo.column_name_from">column_name_from</a>
+                                <a class="variable" href="#ColumnInfo.dtype">dtype</a>
                         </li>
                 </ul>
 
@@ -189,10 +189,10 @@
                     <a class="class" href="#DefinedName">DefinedName</a>
                             <ul class="memberlist">
                         <li>
-                                <a class="variable" href="#DefinedName.formula">formula</a>
+                                <a class="variable" href="#DefinedName.name">name</a>
                         </li>
                         <li>
-                                <a class="variable" href="#DefinedName.name">name</a>
+                                <a class="variable" href="#DefinedName.formula">formula</a>
                         </li>
                 </ul>
 
@@ -201,9 +201,6 @@
                     <a class="class" href="#CellError">CellError</a>
                             <ul class="memberlist">
                         <li>
-                                <a class="variable" href="#CellError.offset_position">offset_position</a>
-                        </li>
-                        <li>
                                 <a class="variable" href="#CellError.detail">detail</a>
                         </li>
                         <li>
@@ -211,6 +208,9 @@
                         </li>
                         <li>
                                 <a class="variable" href="#CellError.row_offset">row_offset</a>
+                        </li>
+                        <li>
+                                <a class="variable" href="#CellError.offset_position">offset_position</a>
                         </li>
                 </ul>
 
@@ -2987,32 +2987,6 @@ Requires the <code>polars</code> extra to be installed.</p>
 </div>
 
 
-                            <div id="ColumnInfo.name" class="classattr">
-                                <div class="attr variable">
-            <span class="name">name</span>
-
-        
-    </div>
-    <a class="headerlink" href="#ColumnInfo.name"></a>
-    
-            <div class="docstring"><p><code>str</code>. The name of the column</p>
-</div>
-
-
-                            </div>
-                            <div id="ColumnInfo.dtype" class="classattr">
-                                <div class="attr variable">
-            <span class="name">dtype</span>
-
-        
-    </div>
-    <a class="headerlink" href="#ColumnInfo.dtype"></a>
-    
-            <div class="docstring"><p><code><a href="#DType">fastexcel.DType</a></code>. The dtype of the column</p>
-</div>
-
-
-                            </div>
                             <div id="ColumnInfo.index" class="classattr">
                                 <div class="attr variable">
             <span class="name">index</span>
@@ -3026,23 +3000,15 @@ Requires the <code>polars</code> extra to be installed.</p>
 
 
                             </div>
-                            <div id="ColumnInfo.dtype_from" class="classattr">
+                            <div id="ColumnInfo.name" class="classattr">
                                 <div class="attr variable">
-            <span class="name">dtype_from</span>
+            <span class="name">name</span>
 
         
     </div>
-    <a class="headerlink" href="#ColumnInfo.dtype_from"></a>
+    <a class="headerlink" href="#ColumnInfo.name"></a>
     
-            <div class="docstring"><p><code><a href="#DTypeFrom">fastexcel.DTypeFrom</a></code>. How the dtype of the column was determined.</p>
-
-<p>One of three possible values:</p>
-
-<ul>
-<li><code>"provided_by_index"</code>: The dtype was specified via the column index</li>
-<li><code>"provided_by_name"</code>: The dtype was specified via the column name</li>
-<li><code>"guessed"</code>: The dtype was determined from the content of the column</li>
-</ul>
+            <div class="docstring"><p><code>str</code>. The name of the column</p>
 </div>
 
 
@@ -3069,6 +3035,40 @@ Requires the <code>polars</code> extra to be installed.</p>
 
 
                             </div>
+                            <div id="ColumnInfo.dtype_from" class="classattr">
+                                <div class="attr variable">
+            <span class="name">dtype_from</span>
+
+        
+    </div>
+    <a class="headerlink" href="#ColumnInfo.dtype_from"></a>
+    
+            <div class="docstring"><p><code><a href="#DTypeFrom">fastexcel.DTypeFrom</a></code>. How the dtype of the column was determined.</p>
+
+<p>One of three possible values:</p>
+
+<ul>
+<li><code>"provided_by_index"</code>: The dtype was specified via the column index</li>
+<li><code>"provided_by_name"</code>: The dtype was specified via the column name</li>
+<li><code>"guessed"</code>: The dtype was determined from the content of the column</li>
+</ul>
+</div>
+
+
+                            </div>
+                            <div id="ColumnInfo.dtype" class="classattr">
+                                <div class="attr variable">
+            <span class="name">dtype</span>
+
+        
+    </div>
+    <a class="headerlink" href="#ColumnInfo.dtype"></a>
+    
+            <div class="docstring"><p><code><a href="#DType">fastexcel.DType</a></code>. The dtype of the column</p>
+</div>
+
+
+                            </div>
                 </section>
                 <section id="DefinedName">
                     <div class="attr class">
@@ -3082,17 +3082,6 @@ Requires the <code>polars</code> extra to be installed.</p>
     
     
 
-                            <div id="DefinedName.formula" class="classattr">
-                                <div class="attr variable">
-            <span class="name">formula</span>
-
-        
-    </div>
-    <a class="headerlink" href="#DefinedName.formula"></a>
-    
-    
-
-                            </div>
                             <div id="DefinedName.name" class="classattr">
                                 <div class="attr variable">
             <span class="name">name</span>
@@ -3100,6 +3089,17 @@ Requires the <code>polars</code> extra to be installed.</p>
         
     </div>
     <a class="headerlink" href="#DefinedName.name"></a>
+    
+    
+
+                            </div>
+                            <div id="DefinedName.formula" class="classattr">
+                                <div class="attr variable">
+            <span class="name">formula</span>
+
+        
+    </div>
+    <a class="headerlink" href="#DefinedName.formula"></a>
     
     
 
@@ -3117,17 +3117,6 @@ Requires the <code>polars</code> extra to be installed.</p>
     
     
 
-                            <div id="CellError.offset_position" class="classattr">
-                                <div class="attr variable">
-            <span class="name">offset_position</span>
-
-        
-    </div>
-    <a class="headerlink" href="#CellError.offset_position"></a>
-    
-    
-
-                            </div>
                             <div id="CellError.detail" class="classattr">
                                 <div class="attr variable">
             <span class="name">detail</span>
@@ -3165,6 +3154,17 @@ Requires the <code>polars</code> extra to be installed.</p>
             <div class="docstring"><p><code>int</code>. The row offset</p>
 </div>
 
+
+                            </div>
+                            <div id="CellError.offset_position" class="classattr">
+                                <div class="attr variable">
+            <span class="name">offset_position</span>
+
+        
+    </div>
+    <a class="headerlink" href="#CellError.offset_position"></a>
+    
+    
 
                             </div>
                 </section>
