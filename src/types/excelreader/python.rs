@@ -128,20 +128,7 @@ impl ExcelReader {
                         .worksheet_range(&sheet_meta.name)
                 })
                 .into_pyresult()?;
-            let pagination =
-                Pagination::try_new(opts.skip_rows, opts.n_rows, &range).into_pyresult()?;
-            let header = Header::new(data_header_row, opts.column_names);
-            let sheet = ExcelSheet::try_new(
-                sheet_meta,
-                range.into(),
-                header,
-                pagination,
-                opts.schema_sample_rows,
-                opts.dtype_coercion,
-                opts.selected_columns,
-                opts.dtypes,
-            )
-            .into_pyresult()?;
+            let sheet = ExcelSheet::try_new(sheet_meta, range.into(), opts).into_pyresult()?;
 
             if eager {
                 #[cfg(feature = "pyarrow")]

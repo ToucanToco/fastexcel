@@ -20,7 +20,7 @@ use crate::{
     error::{ErrorContext, FastExcelError, FastExcelErrorKind, FastExcelResult},
     types::{
         dtype::{DTypeCoercion, DTypes},
-        excelsheet::{Header, Pagination, SelectedColumns, SkipRows},
+        excelsheet::{SelectedColumns, SkipRows},
         idx_or_name::IdxOrName,
     },
 };
@@ -154,7 +154,7 @@ impl LoadSheetOrTableOptions {
     }
 
     /// Returns the row number of the first data row to read, if defined
-    fn data_header_row(&self) -> Option<usize> {
+    pub(crate) fn data_header_row(&self) -> Option<usize> {
         self.header_row.and(Some(0))
     }
 
@@ -296,7 +296,6 @@ impl ExcelReader {
         opts: LoadSheetOrTableOptions,
     ) -> FastExcelResult<ExcelSheet> {
         let calamine_header_row = opts.calamine_header_row();
-        let data_header_row = opts.data_header_row();
 
         let sheet_meta = self.find_sheet_meta(idx_or_name)?.to_owned();
 
@@ -305,20 +304,7 @@ impl ExcelReader {
             .with_header_row(calamine_header_row)
             .worksheet_range(&sheet_meta.name)?;
 
-        let pagination = Pagination::try_new(opts.skip_rows, opts.n_rows, &range)?;
-
-        let header = Header::new(data_header_row, opts.column_names);
-
-        ExcelSheet::try_new(
-            sheet_meta,
-            range.into(),
-            header,
-            pagination,
-            opts.schema_sample_rows,
-            opts.dtype_coercion,
-            opts.selected_columns,
-            opts.dtypes,
-        )
+        ExcelSheet::try_new(sheet_meta, range.into(), opts)
     }
 
     /// Load a table from the Excel file.
@@ -328,23 +314,7 @@ impl ExcelReader {
         opts: LoadSheetOrTableOptions,
     ) -> FastExcelResult<ExcelTable> {
         let table = self.sheets.get_table(name)?;
-        let pagination = Pagination::try_new(opts.skip_rows, opts.n_rows, table.data())?;
-
-        let header = match (opts.column_names, opts.header_row) {
-            (None, None) => Header::With(table.columns().into()),
-            (None, Some(row)) => Header::At(row),
-            (Some(column_names), _) => Header::With(column_names),
-        };
-
-        ExcelTable::try_new(
-            table,
-            header,
-            pagination,
-            opts.schema_sample_rows,
-            opts.dtype_coercion,
-            opts.selected_columns,
-            opts.dtypes,
-        )
+        ExcelTable::try_new(table, opts)
     }
 
     pub fn sheet_names(&self) -> Vec<&str> {
