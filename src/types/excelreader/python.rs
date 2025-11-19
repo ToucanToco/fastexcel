@@ -315,6 +315,12 @@ impl ExcelReader {
 
 #[pymethods]
 impl DefinedName {
+    /// Creates a new `DefinedName` object.
+    #[new]
+    pub fn py_new(name: String, formula: String) -> Self {
+        DefinedName { name, formula }
+    }
+
     #[getter("name")]
     pub fn py_name(&self) -> &str {
         &self.name
@@ -323,5 +329,22 @@ impl DefinedName {
     #[getter("formula")]
     pub fn py_formula(&self) -> &str {
         &self.formula
+    }
+
+    pub fn __repr__(&self) -> String {
+        format!(
+            "DefinedName<{name} ({formula})>",
+            name = &self.name,
+            formula = self
+                .formula
+                .get(..10)
+                .map(|s| format!("{}...", s))
+                .as_deref()
+                .unwrap_or(self.formula.as_str())
+        )
+    }
+
+    pub fn __eq__(&self, other: &Self) -> bool {
+        self == other
     }
 }
