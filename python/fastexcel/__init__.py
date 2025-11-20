@@ -304,6 +304,7 @@ class ExcelReader:
         dtypes: DType | DTypeMap | None = None,
         eager: Literal[False] = ...,
         skip_whitespace_tail_rows: bool = False,
+        whitespace_as_null: bool = False,
     ) -> ExcelSheet: ...
 
     @typing.overload
@@ -325,6 +326,7 @@ class ExcelReader:
         dtypes: DType | DTypeMap | None = None,
         eager: Literal[True] = ...,
         skip_whitespace_tail_rows: bool = False,
+        whitespace_as_null: bool = False,
     ) -> pa.RecordBatch: ...
 
     def load_sheet(
@@ -345,6 +347,7 @@ class ExcelReader:
         dtypes: DType | DTypeMap | None = None,
         eager: bool = False,
         skip_whitespace_tail_rows: bool = False,
+        whitespace_as_null: bool = False,
     ) -> ExcelSheet | pa.RecordBatch:
         """Loads a sheet by index or name.
 
@@ -396,6 +399,7 @@ class ExcelReader:
                       Eager loading requires the `pyarrow` extra to be installed.
         :param skip_whitespace_tail_rows: Skip rows at the end of the sheet
                                           containing only whitespace and null values.
+        :param whitespace_as_null: Consider cells containing only whitespace as null values.
         """
         sheet_or_rb = self._reader.load_sheet(
             idx_or_name=idx_or_name,
@@ -409,6 +413,7 @@ class ExcelReader:
             dtypes=dtypes,
             eager=eager,
             skip_whitespace_tail_rows=skip_whitespace_tail_rows,
+            whitespace_as_null=whitespace_as_null,
         )
         return sheet_or_rb if eager else ExcelSheet(sheet_or_rb)
 
@@ -451,6 +456,7 @@ class ExcelReader:
         dtypes: DType | DTypeMap | None = None,
         eager: Literal[False] = ...,
         skip_whitespace_tail_rows: bool = False,
+        whitespace_as_null: bool = False,
     ) -> ExcelTable: ...
 
     @typing.overload
@@ -472,6 +478,7 @@ class ExcelReader:
         dtypes: DType | DTypeMap | None = None,
         eager: Literal[True] = ...,
         skip_whitespace_tail_rows: bool = False,
+        whitespace_as_null: bool = False,
     ) -> pa.RecordBatch: ...
 
     def load_table(
@@ -492,6 +499,7 @@ class ExcelReader:
         dtypes: DType | DTypeMap | None = None,
         eager: bool = False,
         skip_whitespace_tail_rows: bool = False,
+        whitespace_as_null: bool = False,
     ) -> ExcelTable | pa.RecordBatch:
         """Loads a table by name.
 
@@ -538,6 +546,7 @@ class ExcelReader:
                       Eager loading requires the `pyarrow` extra to be installed.
         :param skip_whitespace_tail_rows: Skip rows at the end of the table
                                           containing only whitespace and null values.
+        :param whitespace_as_null: Consider cells containing only whitespace as null values.
         """
         if eager:
             return self._reader.load_table(
@@ -552,6 +561,7 @@ class ExcelReader:
                 dtypes=dtypes,
                 eager=True,
                 skip_whitespace_tail_rows=skip_whitespace_tail_rows,
+                whitespace_as_null=whitespace_as_null,
             )
         else:
             return ExcelTable(
@@ -567,6 +577,7 @@ class ExcelReader:
                     dtypes=dtypes,
                     eager=False,
                     skip_whitespace_tail_rows=skip_whitespace_tail_rows,
+                    whitespace_as_null=whitespace_as_null,
                 )
             )
 
