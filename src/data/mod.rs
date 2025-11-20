@@ -54,14 +54,25 @@ impl ExcelSheetData<'_> {
         end_row: usize,
         col: usize,
         dtype_coercion: &DTypeCoercion,
+        whitespace_as_null: bool,
     ) -> FastExcelResult<DType> {
         match self {
-            ExcelSheetData::Owned(data) => {
-                get_dtype_for_column(data, start_row, end_row, col, dtype_coercion)
-            }
-            ExcelSheetData::Ref(data) => {
-                get_dtype_for_column(data, start_row, end_row, col, dtype_coercion)
-            }
+            ExcelSheetData::Owned(data) => get_dtype_for_column(
+                data,
+                start_row,
+                end_row,
+                col,
+                dtype_coercion,
+                whitespace_as_null,
+            ),
+            ExcelSheetData::Ref(data) => get_dtype_for_column(
+                data,
+                start_row,
+                end_row,
+                col,
+                dtype_coercion,
+                whitespace_as_null,
+            ),
         }
     }
 
@@ -297,6 +308,7 @@ impl FastExcelColumn {
         data: &Range<CT>,
         offset: usize,
         limit: usize,
+        whitespace_as_null: bool,
     ) -> FastExcelResult<Self> {
         let len = limit.checked_sub(offset).ok_or_else(|| {
             FastExcelErrorKind::InvalidParameters(format!(
@@ -311,9 +323,13 @@ impl FastExcelColumn {
             DType::Float => {
                 FastExcelSeries::Float(create_float_vec(data, column_info.index, offset, limit))
             }
-            DType::String => {
-                FastExcelSeries::String(create_string_vec(data, column_info.index, offset, limit))
-            }
+            DType::String => FastExcelSeries::String(create_string_vec(
+                data,
+                column_info.index,
+                offset,
+                limit,
+                whitespace_as_null,
+            )),
             DType::Bool => {
                 FastExcelSeries::Bool(create_boolean_vec(data, column_info.index, offset, limit))
             }

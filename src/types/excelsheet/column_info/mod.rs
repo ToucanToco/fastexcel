@@ -180,6 +180,7 @@ impl ColumnInfoNoDtype {
         end_row: usize,
         specified_dtypes: Option<&DTypes>,
         dtype_coercion: &DTypeCoercion,
+        whitespace_as_null: bool,
     ) -> FastExcelResult<(DType, DTypeFrom)> {
         specified_dtypes
             .and_then(|dtypes| {
@@ -201,8 +202,14 @@ impl ColumnInfoNoDtype {
             .map(FastExcelResult::Ok)
             // If we could not look up a dtype, guess it from the data
             .unwrap_or_else(|| {
-                data.dtype_for_column(start_row, end_row, self.index, dtype_coercion)
-                    .map(|dtype| (dtype, DTypeFrom::Guessed))
+                data.dtype_for_column(
+                    start_row,
+                    end_row,
+                    self.index,
+                    dtype_coercion,
+                    whitespace_as_null,
+                )
+                .map(|dtype| (dtype, DTypeFrom::Guessed))
             })
     }
 
@@ -213,9 +220,17 @@ impl ColumnInfoNoDtype {
         end_row: usize,
         specified_dtypes: Option<&DTypes>,
         dtype_coercion: &DTypeCoercion,
+        whitespace_as_null: bool,
     ) -> FastExcelResult<ColumnInfo> {
         let (dtype, dtype_from) = self
-            .dtype_info(data, start_row, end_row, specified_dtypes, dtype_coercion)
+            .dtype_info(
+                data,
+                start_row,
+                end_row,
+                specified_dtypes,
+                dtype_coercion,
+                whitespace_as_null,
+            )
             .with_context(|| format!("could not determine dtype for column {}", self.name))?;
         Ok(ColumnInfo::new(
             self.name,
@@ -236,6 +251,7 @@ pub(crate) trait CalamineDataProvider {
         end_row: usize,
         col: usize,
         dtype_coercion: &DTypeCoercion,
+        whitespace_as_null: bool,
     ) -> FastExcelResult<DType>;
 }
 
@@ -254,8 +270,9 @@ impl CalamineDataProvider for ExcelSheetData<'_> {
         end_row: usize,
         col: usize,
         dtype_coercion: &DTypeCoercion,
+        whitespace_as_null: bool,
     ) -> FastExcelResult<DType> {
-        self.dtype_for_column(start_row, end_row, col, dtype_coercion)
+        self.dtype_for_column(start_row, end_row, col, dtype_coercion, whitespace_as_null)
     }
 }
 
@@ -274,8 +291,16 @@ impl CalamineDataProvider for calamine::Range<calamine::Data> {
         end_row: usize,
         col: usize,
         dtype_coercion: &DTypeCoercion,
+        whitespace_as_null: bool,
     ) -> FastExcelResult<DType> {
-        get_dtype_for_column(self, start_row, end_row, col, dtype_coercion)
+        get_dtype_for_column(
+            self,
+            start_row,
+            end_row,
+            col,
+            dtype_coercion,
+            whitespace_as_null,
+        )
     }
 }
 
@@ -441,11 +466,19 @@ pub(crate) fn finalize_column_info<D: CalamineDataProvider>(
     end_row: usize,
     specified_dtypes: Option<&DTypes>,
     dtype_coercion: &DTypeCoercion,
+    whitespace_as_null: bool,
 ) -> FastExcelResult<Vec<ColumnInfo>> {
     available_columns_info
         .into_iter()
         .map(|column_info_builder| {
-            column_info_builder.finish(data, start_row, end_row, specified_dtypes, dtype_coercion)
+            column_info_builder.finish(
+                data,
+                start_row,
+                end_row,
+                specified_dtypes,
+                dtype_coercion,
+                whitespace_as_null,
+            )
         })
         .collect()
 }

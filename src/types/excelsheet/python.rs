@@ -202,6 +202,7 @@ impl TryFrom<&ExcelSheet> for RecordBatch {
                 sheet.pagination.skip_rows(),
                 offset,
                 limit,
+                sheet.opts.whitespace_as_null,
             ),
             ExcelSheetData::Ref(range) => record_batch_from_data_and_columns_with_skip_rows(
                 &sheet.selected_columns,
@@ -209,6 +210,7 @@ impl TryFrom<&ExcelSheet> for RecordBatch {
                 sheet.pagination.skip_rows(),
                 offset,
                 limit,
+                sheet.opts.whitespace_as_null,
             ),
         }
         .with_context(|| format!("could not convert sheet {} to RecordBatch", sheet.name()))
@@ -312,6 +314,7 @@ impl ExcelSheet {
                     self.data(),
                     offset,
                     limit,
+                    self.opts.whitespace_as_null,
                 )
             })
             .with_context(|| {

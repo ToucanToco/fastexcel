@@ -92,6 +92,7 @@ impl ExcelTable {
             row_limit,
             excel_table.opts.dtypes.as_ref(),
             &excel_table.opts.dtype_coercion,
+            excel_table.opts.whitespace_as_null,
         )?;
 
         // Figure out dtype for every column
@@ -119,6 +120,7 @@ impl ExcelTable {
                     self.limit(),
                     self.opts.dtypes.as_ref(),
                     &self.opts.dtype_coercion,
+                    self.opts.whitespace_as_null,
                 )?;
                 AvailableColumns::Loaded(final_info)
             }
@@ -210,6 +212,7 @@ impl ExcelTable {
                     self.table.data(),
                     self.offset(),
                     self.limit(),
+                    self.opts.whitespace_as_null,
                 )
             })
             .collect()

@@ -27,6 +27,7 @@ impl TryFrom<&ExcelTable> for RecordBatch {
             table.pagination.skip_rows(),
             table.offset(),
             table.limit(),
+            table.opts.whitespace_as_null,
         )
         .with_context(|| {
             format!(
