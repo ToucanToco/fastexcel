@@ -201,6 +201,7 @@ class _ExcelReader:
         | None = None,
         dtypes: DType | DTypeMap | None = None,
         eager: Literal[False] = ...,
+        skip_whitespace_tail_rows: bool = False,
     ) -> _ExcelSheet: ...
     @typing.overload
     def load_sheet(
@@ -220,6 +221,7 @@ class _ExcelReader:
         | None = None,
         dtypes: DType | DTypeMap | None = None,
         eager: Literal[True] = ...,
+        skip_whitespace_tail_rows: bool = False,
     ) -> pa.RecordBatch: ...
     @typing.overload
     def load_sheet(
@@ -239,6 +241,7 @@ class _ExcelReader:
         | None = None,
         dtypes: DType | DTypeMap | None = None,
         eager: bool = False,
+        skip_whitespace_tail_rows: bool = False,
     ) -> pa.RecordBatch: ...
     @typing.overload
     def load_table(
@@ -258,6 +261,7 @@ class _ExcelReader:
         | None = None,
         dtypes: DType | DTypeMap | None = None,
         eager: Literal[False] = ...,
+        skip_whitespace_tail_rows: bool = False,
     ) -> _ExcelTable: ...
     @typing.overload
     def load_table(
@@ -277,6 +281,7 @@ class _ExcelReader:
         | None = None,
         dtypes: DType | DTypeMap | None = None,
         eager: Literal[True] = ...,
+        skip_whitespace_tail_rows: bool = False,
     ) -> pa.RecordBatch: ...
     @property
     def sheet_names(self) -> list[str]: ...

@@ -177,7 +177,7 @@ impl FromPyObject<'_> for SkipRows {
 
         // Check if it's callable
         if obj.hasattr("__call__").unwrap_or(false) {
-            return Ok(SkipRows::Callable(obj.clone().into()));
+            return Ok(SkipRows::Callable(Arc::new(obj.clone().into())));
         }
 
         Err(FastExcelErrorKind::InvalidParameters(

@@ -294,6 +294,7 @@ pub(crate) fn excel_float_to_string(x: f64) -> String {
 #[cfg(test)]
 mod tests {
     use calamine::{Cell, Data as CalData};
+    use pretty_assertions::assert_eq;
     use rstest::{fixture, rstest};
 
     use super::*;

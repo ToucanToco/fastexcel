@@ -128,20 +128,7 @@ impl ExcelReader {
                         .worksheet_range(&sheet_meta.name)
                 })
                 .into_pyresult()?;
-            let pagination =
-                Pagination::try_new(opts.skip_rows, opts.n_rows, &range).into_pyresult()?;
-            let header = Header::new(data_header_row, opts.column_names);
-            let sheet = ExcelSheet::try_new(
-                sheet_meta,
-                range.into(),
-                header,
-                pagination,
-                opts.schema_sample_rows,
-                opts.dtype_coercion,
-                opts.selected_columns,
-                opts.dtypes,
-            )
-            .into_pyresult()?;
+            let sheet = ExcelSheet::try_new(sheet_meta, range.into(), opts).into_pyresult()?;
 
             if eager {
                 #[cfg(feature = "pyarrow")]
@@ -215,6 +202,7 @@ impl ExcelReader {
         use_columns = None,
         dtypes = None,
         eager = false,
+        skip_whitespace_tail_rows = false,
     ))]
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn py_load_sheet<'py>(
@@ -229,6 +217,7 @@ impl ExcelReader {
         use_columns: Option<&Bound<'py, PyAny>>,
         dtypes: Option<DTypes>,
         eager: bool,
+        skip_whitespace_tail_rows: bool,
         py: Python<'py>,
     ) -> PyResult<Bound<'py, PyAny>> {
         // Cannot use NonZeroUsize in the parameters, as it is not supported by pyo3
@@ -250,6 +239,7 @@ impl ExcelReader {
             dtype_coercion,
             selected_columns,
             dtypes,
+            skip_whitespace_tail_rows,
         };
 
         self.build_sheet(idx_or_name, opts, eager, py)
@@ -267,6 +257,7 @@ impl ExcelReader {
         use_columns = None,
         dtypes = None,
         eager = false,
+        skip_whitespace_tail_rows = false,
     ))]
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn py_load_table<'py>(
@@ -281,6 +272,7 @@ impl ExcelReader {
         use_columns: Option<&Bound<'py, PyAny>>,
         dtypes: Option<DTypes>,
         eager: bool,
+        skip_whitespace_tail_rows: bool,
         py: Python<'py>,
     ) -> PyResult<Bound<'py, PyAny>> {
         // Cannot use NonZeroUsize in the parameters, as it is not supported by pyo3
@@ -302,6 +294,7 @@ impl ExcelReader {
             dtype_coercion,
             selected_columns,
             dtypes,
+            skip_whitespace_tail_rows,
         };
 
         self.build_table(&name.to_string(), opts, eager, py)

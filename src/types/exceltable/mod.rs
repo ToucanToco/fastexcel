@@ -8,12 +8,13 @@ use polars_core::frame::DataFrame;
 use pyo3::pyclass;
 
 use crate::{
-    FastExcelColumn,
+    FastExcelColumn, LoadSheetOrTableOptions,
+    data::height_without_tail_whitespace,
     error::FastExcelResult,
     types::{
-        dtype::{DTypeCoercion, DTypes},
+        dtype::DTypes,
         excelsheet::{
-            Header, Pagination, SelectedColumns,
+            Header, Pagination,
             column_info::{
                 AvailableColumns, ColumnInfo, build_available_columns_info, finalize_column_info,
             },
@@ -33,45 +34,52 @@ pub struct ExcelTable {
     table: Table<Data>,
     header: Header,
     pagination: Pagination,
-    dtypes: Option<DTypes>,
-    dtype_coercion: DTypeCoercion,
+    opts: LoadSheetOrTableOptions,
     height: Option<usize>,
     total_height: Option<usize>,
     width: Option<usize>,
+    limit: usize,
 }
 
 impl ExcelTable {
     pub(crate) fn try_new(
         table: Table<Data>,
-        header: Header,
-        pagination: Pagination,
-        schema_sample_rows: Option<usize>,
-        dtype_coercion: DTypeCoercion,
-        selected_columns: SelectedColumns,
-        dtypes: Option<DTypes>,
+        opts: LoadSheetOrTableOptions,
     ) -> FastExcelResult<Self> {
+        let pagination = Pagination::try_new(opts.skip_rows.clone(), opts.n_rows, table.data())?;
+
+        let header = match (opts.column_names.clone(), opts.header_row) {
+            (None, None) => Header::With(table.columns().into()),
+            (None, Some(row)) => Header::At(row),
+            (Some(column_names), _) => Header::With(column_names),
+        };
+
         let available_columns_info =
-            build_available_columns_info(table.data(), &selected_columns, &header)?;
-        let selected_columns_info = selected_columns.select_columns(available_columns_info)?;
+            build_available_columns_info(table.data(), &opts.selected_columns, &header)?;
+        let selected_columns_info = opts
+            .selected_columns
+            .select_columns(available_columns_info)?;
 
         let mut excel_table = ExcelTable {
             name: table.name().to_owned(),
             sheet_name: table.sheet_name().to_owned(),
-            available_columns: AvailableColumns::Pending(selected_columns),
+            available_columns: AvailableColumns::Pending,
             // Empty vec as it'll be replaced
             selected_columns: Vec::with_capacity(0),
             table,
             header,
             pagination,
-            dtypes,
-            dtype_coercion,
+            opts,
             height: None,
             total_height: None,
             width: None,
+            // Will be replaced
+            limit: 0,
         };
+        excel_table.limit = excel_table.compute_limit();
 
         let row_limit = get_schema_sample_rows(
-            schema_sample_rows,
+            excel_table.opts.schema_sample_rows,
             excel_table.offset(),
             excel_table.limit(),
         );
@@ -82,8 +90,8 @@ impl ExcelTable {
             excel_table.data(),
             excel_table.offset(),
             row_limit,
-            excel_table.dtypes.as_ref(),
-            &excel_table.dtype_coercion,
+            excel_table.opts.dtypes.as_ref(),
+            &excel_table.opts.dtype_coercion,
         )?;
 
         // Figure out dtype for every column
@@ -98,10 +106,10 @@ impl ExcelTable {
 
     fn ensure_available_columns_loaded(&mut self) -> FastExcelResult<()> {
         let available_columns = match &self.available_columns {
-            AvailableColumns::Pending(selected_columns) => {
+            AvailableColumns::Pending => {
                 let available_columns_info = build_available_columns_info(
                     self.table.data(),
-                    selected_columns,
+                    &self.opts.selected_columns,
                     &self.header,
                 )?;
                 let final_info = finalize_column_info(
@@ -109,8 +117,8 @@ impl ExcelTable {
                     self.data(),
                     self.offset(),
                     self.limit(),
-                    self.dtypes.as_ref(),
-                    &self.dtype_coercion,
+                    self.opts.dtypes.as_ref(),
+                    &self.opts.dtype_coercion,
                 )?;
                 AvailableColumns::Loaded(final_info)
             }
@@ -130,16 +138,23 @@ impl ExcelTable {
         self.header.offset() + self.pagination.offset()
     }
 
-    pub fn limit(&self) -> usize {
-        let upper_bound = self.data().height();
+    fn compute_limit(&self) -> usize {
+        let upper_bound = if self.opts.skip_whitespace_tail_rows {
+            height_without_tail_whitespace(self.data()).unwrap_or_else(|| self.data().height())
+        } else {
+            self.data().height()
+        };
         if let Some(n_rows) = self.pagination.n_rows() {
             let limit = self.offset() + n_rows;
             if limit < upper_bound {
                 return limit;
             }
         }
-
         upper_bound
+    }
+
+    pub fn limit(&self) -> usize {
+        self.limit
     }
 
     pub fn selected_columns(&self) -> Vec<ColumnInfo> {
@@ -151,7 +166,7 @@ impl ExcelTable {
     }
 
     pub fn specified_dtypes(&self) -> Option<&DTypes> {
-        self.dtypes.as_ref()
+        self.opts.dtypes.as_ref()
     }
 
     pub fn width(&mut self) -> usize {

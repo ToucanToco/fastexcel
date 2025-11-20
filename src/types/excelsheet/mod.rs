@@ -5,6 +5,8 @@ mod polars;
 mod python;
 pub(crate) mod table;
 
+#[cfg(feature = "python")]
+use std::sync::Arc;
 use std::{cmp, collections::HashSet, fmt::Debug, str::FromStr};
 
 use calamine::{CellType, Range, Sheet as CalamineSheet, SheetVisible as CalamineSheetVisible};
@@ -15,12 +17,13 @@ use polars_core::frame::DataFrame;
 use pyo3::{Py, PyAny, Python, pyclass};
 
 use self::column_info::{ColumnInfo, build_available_columns_info, finalize_column_info};
+use crate::utils::schema::get_schema_sample_rows;
 use crate::{
+    LoadSheetOrTableOptions,
     data::{ExcelSheetData, FastExcelColumn},
     error::{ErrorContext, FastExcelError, FastExcelErrorKind, FastExcelResult},
     types::{dtype::DTypes, idx_or_name::IdxOrName},
 };
-use crate::{types::dtype::DTypeCoercion, utils::schema::get_schema_sample_rows};
 #[cfg(feature = "python")]
 pub(crate) use python::{CellError, CellErrors};
 
@@ -51,24 +54,24 @@ impl Header {
     }
 }
 
-#[derive(Debug)]
-#[cfg_attr(not(feature = "python"), derive(Clone, PartialEq, Eq))]
+#[derive(Debug, Clone)]
+#[cfg_attr(not(feature = "python"), derive(PartialEq, Eq))]
 pub(crate) struct Pagination {
     skip_rows: SkipRows,
     n_rows: Option<usize>,
 }
 
 /// How rows should be skipped.
-#[derive(Debug, Default)]
-#[cfg_attr(not(feature = "python"), derive(Clone, PartialEq, Eq))]
+#[derive(Debug, Default, Clone)]
+#[cfg_attr(not(feature = "python"), derive(PartialEq, Eq))]
 pub enum SkipRows {
     /// Skip a fixed number of rows.
     Simple(usize),
     /// Skip rows based on a list of row indices.
     List(HashSet<usize>),
     #[cfg(feature = "python")]
-    Callable(Py<PyAny>),
-    /// Skip empty rows at the beginning of the filer (default).
+    Callable(Arc<Py<PyAny>>),
+    /// Skip empty rows at the beginning of the file (default).
     #[default]
     SkipEmptyRowsAtBeginning,
 }
@@ -488,11 +491,10 @@ pub struct ExcelSheet {
     height: Option<usize>,
     total_height: Option<usize>,
     width: Option<usize>,
-    schema_sample_rows: Option<usize>,
-    dtype_coercion: DTypeCoercion,
+    limit: usize,
+    opts: LoadSheetOrTableOptions,
     selected_columns: Vec<ColumnInfo>,
     available_columns: AvailableColumns,
-    dtypes: Option<DTypes>,
 }
 
 impl ExcelSheet {
@@ -500,36 +502,43 @@ impl ExcelSheet {
         &self.data
     }
 
-    #[allow(clippy::too_many_arguments)]
     pub(crate) fn try_new(
         sheet_meta: CalamineSheet,
         data: ExcelSheetData<'static>,
-        header: Header,
-        pagination: Pagination,
-        schema_sample_rows: Option<usize>,
-        dtype_coercion: DTypeCoercion,
-        selected_columns: SelectedColumns,
-        dtypes: Option<DTypes>,
+        opts: LoadSheetOrTableOptions,
     ) -> FastExcelResult<Self> {
+        let header = Header::new(opts.data_header_row(), opts.column_names.clone());
         let available_columns_info =
-            build_available_columns_info(&data, &selected_columns, &header)?;
-        let selected_columns_info = selected_columns.select_columns(available_columns_info)?;
+            build_available_columns_info(&data, &opts.selected_columns, &header)?;
+        let selected_columns_info = opts
+            .selected_columns
+            .select_columns(available_columns_info)?;
+
+        let pagination = match &data {
+            ExcelSheetData::Owned(range) => {
+                Pagination::try_new(opts.skip_rows.clone(), opts.n_rows, range)?
+            }
+            ExcelSheetData::Ref(range) => {
+                Pagination::try_new(opts.skip_rows.clone(), opts.n_rows, range)?
+            }
+        };
 
         let mut sheet = ExcelSheet {
             sheet_meta,
             header,
             pagination,
             data,
-            schema_sample_rows,
-            dtype_coercion,
-            dtypes,
+            opts,
             height: None,
             total_height: None,
             width: None,
-            available_columns: AvailableColumns::Pending(selected_columns),
+            // Will be replaced
+            limit: 0,
+            available_columns: AvailableColumns::Pending,
             // Empty vec as It'll be replaced
             selected_columns: Vec::with_capacity(0),
         };
+        sheet.limit = sheet.compute_limit();
 
         // Finalizing column info (figure out dtypes for every column)
         let row_limit = sheet.schema_sample_rows();
@@ -538,8 +547,8 @@ impl ExcelSheet {
             &sheet.data,
             sheet.offset(),
             row_limit,
-            sheet.dtypes.as_ref(),
-            &sheet.dtype_coercion,
+            sheet.opts.dtypes.as_ref(),
+            &sheet.opts.dtype_coercion,
         )?;
 
         sheet.selected_columns = selected_columns;
@@ -549,16 +558,19 @@ impl ExcelSheet {
 
     fn ensure_available_columns_loaded(&mut self) -> FastExcelResult<()> {
         let available_columns = match &self.available_columns {
-            AvailableColumns::Pending(selected_columns) => {
-                let available_columns_info =
-                    build_available_columns_info(&self.data, selected_columns, &self.header)?;
+            AvailableColumns::Pending => {
+                let available_columns_info = build_available_columns_info(
+                    &self.data,
+                    &self.opts.selected_columns,
+                    &self.header,
+                )?;
                 let final_info = finalize_column_info(
                     available_columns_info,
                     self.data(),
                     self.offset(),
                     self.limit(),
-                    self.dtypes.as_ref(),
-                    &self.dtype_coercion,
+                    self.opts.dtypes.as_ref(),
+                    &self.opts.dtype_coercion,
                 )?;
                 AvailableColumns::Loaded(final_info)
             }
@@ -574,20 +586,27 @@ impl ExcelSheet {
         self.available_columns.as_loaded()
     }
 
-    pub(crate) fn limit(&self) -> usize {
-        let upper_bound = self.data.height();
+    fn compute_limit(&self) -> usize {
+        let upper_bound = if self.opts.skip_whitespace_tail_rows {
+            self.data.height_without_tail_whitespace()
+        } else {
+            self.data.height()
+        };
         if let Some(n_rows) = self.pagination.n_rows {
             let limit = self.offset() + n_rows;
             if limit < upper_bound {
                 return limit;
             }
         }
-
         upper_bound
     }
 
+    pub(crate) fn limit(&self) -> usize {
+        self.limit
+    }
+
     pub(crate) fn schema_sample_rows(&self) -> usize {
-        get_schema_sample_rows(self.schema_sample_rows, self.offset(), self.limit())
+        get_schema_sample_rows(self.opts.schema_sample_rows, self.offset(), self.limit())
     }
 
     pub fn width(&mut self) -> usize {
@@ -631,7 +650,7 @@ impl ExcelSheet {
     }
 
     pub fn specified_dtypes(&self) -> Option<&DTypes> {
-        self.dtypes.as_ref()
+        self.opts.dtypes.as_ref()
     }
 
     pub fn name(&self) -> &str {

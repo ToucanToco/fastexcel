@@ -46,11 +46,11 @@ lint-python:
 lint-rust:
 	cargo fmt --all -- --check
 	# Rust
-	cargo clippy --tests
+	cargo clippy --tests -- -D warnings
 	# Python-related code
-	cargo clippy --features __maturin --tests
+	cargo clippy --features __maturin,__pyo3-tests --tests -- -D warnings
 	# Rust+polars
-	cargo clippy --features polars --tests
+	cargo clippy --features polars --tests -- -D warnings
 
 .PHONY: lint  ## Lint rust and python source files
 lint: lint-python lint-rust

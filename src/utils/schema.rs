@@ -21,6 +21,7 @@ pub(crate) fn get_schema_sample_rows(
 #[cfg(test)]
 mod tests {
     use super::get_schema_sample_rows;
+    use pretty_assertions::assert_eq;
     use rstest::rstest;
 
     #[rstest]

@@ -64,6 +64,17 @@ impl ExcelSheetData<'_> {
             }
         }
     }
+
+    pub(crate) fn height_without_tail_whitespace(&self) -> usize {
+        match self {
+            ExcelSheetData::Owned(data) => {
+                height_without_tail_whitespace(data).unwrap_or_else(|| data.height())
+            }
+            ExcelSheetData::Ref(data) => {
+                height_without_tail_whitespace(data).unwrap_or_else(|| data.height())
+            }
+        }
+    }
 }
 
 impl From<Range<CalData>> for ExcelSheetData<'_> {
@@ -76,6 +87,55 @@ impl<'a> From<Range<CalDataRef<'a>>> for ExcelSheetData<'a> {
     fn from(range: Range<CalDataRef<'a>>) -> Self {
         Self::Ref(range)
     }
+}
+
+trait CellIsWhiteSpace {
+    fn is_whitespace(&self) -> bool;
+}
+
+impl<T> CellIsWhiteSpace for T
+where
+    T: DataType,
+{
+    fn is_whitespace(&self) -> bool {
+        if self.is_empty() {
+            true
+        } else if self.is_string()
+            && let Some(s) = self.get_string()
+        {
+            s.trim().is_empty()
+        } else {
+            false
+        }
+    }
+}
+
+pub(crate) fn height_without_tail_whitespace<CT: CellType + DataType + std::fmt::Debug>(
+    data: &Range<CT>,
+) -> Option<usize> {
+    let height = data.height();
+    let width = data.width();
+    if height < 1 {
+        return Some(0);
+    }
+    if width < 1 {
+        return None;
+    }
+    (0..width)
+        .map(|col_idx| {
+            let mut row_idx = height - 1;
+            // Start at the bottom of the column and work upwards until we find a non-empty cell
+            while row_idx > 0
+                && data
+                    .get((row_idx, col_idx))
+                    .map(CellIsWhiteSpace::is_whitespace)
+                    .unwrap_or(true)
+            {
+                row_idx -= 1;
+            }
+            row_idx + 1
+        })
+        .max()
 }
 
 /// A container for a typed vector of values. Used to represent a column of data in an Excel sheet.
@@ -135,6 +195,12 @@ macro_rules! impl_series_variant {
         impl From<&[$type]> for FastExcelSeries {
             fn from(arr: &[$type]) -> Self {
                 Self::$variant(arr.into_iter().map(|it| Some(it.to_owned())).collect())
+            }
+        }
+
+        impl From<&[Option<$type>]> for FastExcelSeries {
+            fn from(arr: &[Option<$type>]) -> Self {
+                Self::$variant(arr.into_iter().map(ToOwned::to_owned).collect())
             }
         }
 
