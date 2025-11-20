@@ -21,7 +21,7 @@ fn test_skip_tail_rows_behavior(mut reader: ExcelReader) -> Result<()> {
         Some(
             NaiveDate::from_ymd_opt(2025, 11, 19)
                 .unwrap()
-                .and_hms_opt(14, 34, 02)
+                .and_hms_opt(14, 34, 2)
                 .unwrap(),
         ),
         Some(
@@ -33,7 +33,7 @@ fn test_skip_tail_rows_behavior(mut reader: ExcelReader) -> Result<()> {
         Some(
             NaiveDate::from_ymd_opt(2025, 11, 21)
                 .unwrap()
-                .and_hms_opt(15, 19, 06)
+                .and_hms_opt(15, 19, 6)
                 .unwrap(),
         ),
         None,
@@ -46,7 +46,7 @@ fn test_skip_tail_rows_behavior(mut reader: ExcelReader) -> Result<()> {
         Some(
             NaiveDate::from_ymd_opt(2025, 11, 23)
                 .unwrap()
-                .and_hms_opt(16, 04, 10)
+                .and_hms_opt(16, 4, 10)
                 .unwrap(),
         ),
         None,
