@@ -9,6 +9,7 @@ use pyo3::pyclass;
 
 use crate::{
     FastExcelColumn, LoadSheetOrTableOptions,
+    data::height_without_tail_whitespace,
     error::FastExcelResult,
     types::{
         dtype::DTypes,
@@ -37,6 +38,7 @@ pub struct ExcelTable {
     height: Option<usize>,
     total_height: Option<usize>,
     width: Option<usize>,
+    limit: usize,
 }
 
 impl ExcelTable {
@@ -71,7 +73,10 @@ impl ExcelTable {
             height: None,
             total_height: None,
             width: None,
+            // Will be replaced
+            limit: 0,
         };
+        excel_table.limit = excel_table.compute_limit();
 
         let row_limit = get_schema_sample_rows(
             excel_table.opts.schema_sample_rows,
@@ -133,16 +138,23 @@ impl ExcelTable {
         self.header.offset() + self.pagination.offset()
     }
 
-    pub fn limit(&self) -> usize {
-        let upper_bound = self.data().height();
+    fn compute_limit(&self) -> usize {
+        let upper_bound = if self.opts.skip_whitespace_tail_rows {
+            height_without_tail_whitespace(self.data()).unwrap_or_else(|| self.data().height())
+        } else {
+            self.data().height()
+        };
         if let Some(n_rows) = self.pagination.n_rows() {
             let limit = self.offset() + n_rows;
             if limit < upper_bound {
                 return limit;
             }
         }
-
         upper_bound
+    }
+
+    pub fn limit(&self) -> usize {
+        self.limit
     }
 
     pub fn selected_columns(&self) -> Vec<ColumnInfo> {

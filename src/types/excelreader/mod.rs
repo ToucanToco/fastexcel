@@ -120,6 +120,7 @@ pub struct DefinedName {
 }
 
 /// Options for loading a sheet or table.
+#[non_exhaustive]
 #[derive(Debug)]
 pub struct LoadSheetOrTableOptions {
     /// The index of the row containing the column labels. If `None`, the provided headers are used.
@@ -139,6 +140,8 @@ pub struct LoadSheetOrTableOptions {
     pub selected_columns: SelectedColumns,
     /// Override the inferred data types.
     pub dtypes: Option<DTypes>,
+    /// Skip rows at the end of the sheet/table containing only whitespace and null values.
+    pub skip_whitespace_tail_rows: bool,
 }
 
 impl LoadSheetOrTableOptions {
@@ -170,6 +173,7 @@ impl LoadSheetOrTableOptions {
             dtype_coercion: Default::default(),
             selected_columns: Default::default(),
             dtypes: Default::default(),
+            skip_whitespace_tail_rows: Default::default(),
         }
     }
 
@@ -185,6 +189,7 @@ impl LoadSheetOrTableOptions {
             dtype_coercion: Default::default(),
             selected_columns: Default::default(),
             dtypes: Default::default(),
+            skip_whitespace_tail_rows: Default::default(),
         }
     }
 
@@ -233,6 +238,11 @@ impl LoadSheetOrTableOptions {
 
     pub fn with_dtypes(mut self, dtypes: DTypes) -> Self {
         self.dtypes = Some(dtypes);
+        self
+    }
+
+    pub fn skip_whitespace_tail_rows(mut self, skip_whitespace_tail_rows: bool) -> Self {
+        self.skip_whitespace_tail_rows = skip_whitespace_tail_rows;
         self
     }
 }

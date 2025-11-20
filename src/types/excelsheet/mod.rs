@@ -491,6 +491,7 @@ pub struct ExcelSheet {
     height: Option<usize>,
     total_height: Option<usize>,
     width: Option<usize>,
+    limit: usize,
     opts: LoadSheetOrTableOptions,
     selected_columns: Vec<ColumnInfo>,
     available_columns: AvailableColumns,
@@ -531,10 +532,13 @@ impl ExcelSheet {
             height: None,
             total_height: None,
             width: None,
+            // Will be replaced
+            limit: 0,
             available_columns: AvailableColumns::Pending,
             // Empty vec as It'll be replaced
             selected_columns: Vec::with_capacity(0),
         };
+        sheet.limit = sheet.compute_limit();
 
         // Finalizing column info (figure out dtypes for every column)
         let row_limit = sheet.schema_sample_rows();
@@ -582,16 +586,23 @@ impl ExcelSheet {
         self.available_columns.as_loaded()
     }
 
-    pub(crate) fn limit(&self) -> usize {
-        let upper_bound = self.data.height();
+    fn compute_limit(&self) -> usize {
+        let upper_bound = if self.opts.skip_whitespace_tail_rows {
+            self.data.height_without_tail_whitespace()
+        } else {
+            self.data.height()
+        };
         if let Some(n_rows) = self.pagination.n_rows {
             let limit = self.offset() + n_rows;
             if limit < upper_bound {
                 return limit;
             }
         }
-
         upper_bound
+    }
+
+    pub(crate) fn limit(&self) -> usize {
+        self.limit
     }
 
     pub(crate) fn schema_sample_rows(&self) -> usize {

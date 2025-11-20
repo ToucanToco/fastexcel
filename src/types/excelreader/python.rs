@@ -202,6 +202,7 @@ impl ExcelReader {
         use_columns = None,
         dtypes = None,
         eager = false,
+        skip_whitespace_tail_rows = false,
     ))]
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn py_load_sheet<'py>(
@@ -216,6 +217,7 @@ impl ExcelReader {
         use_columns: Option<&Bound<'py, PyAny>>,
         dtypes: Option<DTypes>,
         eager: bool,
+        skip_whitespace_tail_rows: bool,
         py: Python<'py>,
     ) -> PyResult<Bound<'py, PyAny>> {
         // Cannot use NonZeroUsize in the parameters, as it is not supported by pyo3
@@ -237,6 +239,7 @@ impl ExcelReader {
             dtype_coercion,
             selected_columns,
             dtypes,
+            skip_whitespace_tail_rows,
         };
 
         self.build_sheet(idx_or_name, opts, eager, py)
@@ -254,6 +257,7 @@ impl ExcelReader {
         use_columns = None,
         dtypes = None,
         eager = false,
+        skip_whitespace_tail_rows = false,
     ))]
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn py_load_table<'py>(
@@ -268,6 +272,7 @@ impl ExcelReader {
         use_columns: Option<&Bound<'py, PyAny>>,
         dtypes: Option<DTypes>,
         eager: bool,
+        skip_whitespace_tail_rows: bool,
         py: Python<'py>,
     ) -> PyResult<Bound<'py, PyAny>> {
         // Cannot use NonZeroUsize in the parameters, as it is not supported by pyo3
@@ -289,6 +294,7 @@ impl ExcelReader {
             dtype_coercion,
             selected_columns,
             dtypes,
+            skip_whitespace_tail_rows,
         };
 
         self.build_table(&name.to_string(), opts, eager, py)
