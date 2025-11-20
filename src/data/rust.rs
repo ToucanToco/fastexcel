@@ -1,3 +1,5 @@
+use std::ops::Not;
+
 use calamine::{CellType, DataType, Range};
 use chrono::{NaiveDate, NaiveDateTime, TimeDelta};
 
@@ -47,13 +49,25 @@ pub(crate) fn create_string_vec<CT: CellType + DataType>(
     col: usize,
     offset: usize,
     limit: usize,
+    whitespace_as_null: bool,
 ) -> Vec<Option<String>> {
-    (offset..limit)
-        .map(|row| {
-            data.get((row, col))
-                .and_then(cell_extractors::extract_string)
-        })
-        .collect()
+    if whitespace_as_null {
+        (offset..limit)
+            .map(|row| {
+                data.get((row, col))
+                    .and_then(cell_extractors::extract_string)
+                    // Only return the string if it contains non-whitespace characters
+                    .and_then(|s| s.trim().is_empty().not().then_some(s))
+            })
+            .collect()
+    } else {
+        (offset..limit)
+            .map(|row| {
+                data.get((row, col))
+                    .and_then(cell_extractors::extract_string)
+            })
+            .collect()
+    }
 }
 
 pub(crate) fn create_date_vec<CT: CellType + DataType>(
