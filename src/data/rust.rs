@@ -57,7 +57,7 @@ pub(crate) fn create_string_vec<CT: CellType + DataType>(
                 data.get((row, col))
                     .and_then(cell_extractors::extract_string)
                     // Only return the string if it contains non-whitespace characters
-                    .and_then(|s| s.trim().is_empty().not().then_some(s))
+                    .filter(|s| s.trim().is_empty().not())
             })
             .collect()
     } else {

@@ -138,8 +138,7 @@ fn get_cell_dtype<DT: CellType + Debug + DataType>(
             || (whitespace_as_null
             && cell
                 .get_string()
-                .map(|s| s.trim().is_empty())
-                .unwrap_or(true))
+                .is_none_or(|s| s.trim().is_empty()))
         {
             Ok(DType::Null)
         } else {
