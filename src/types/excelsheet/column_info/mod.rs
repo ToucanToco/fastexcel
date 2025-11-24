@@ -452,7 +452,7 @@ pub(crate) fn finalize_column_info<D: CalamineDataProvider>(
 
 #[derive(Debug)]
 pub(crate) enum AvailableColumns {
-    Pending(SelectedColumns),
+    Pending,
     Loaded(Vec<ColumnInfo>),
 }
 
@@ -460,13 +460,11 @@ impl AvailableColumns {
     pub(crate) fn as_loaded(&self) -> FastExcelResult<&[ColumnInfo]> {
         match self {
             AvailableColumns::Loaded(column_infos) => Ok(column_infos),
-            AvailableColumns::Pending(selected_columns) => {
-                Err(FastExcelErrorKind::Internal(format!(
-                    "Expected available columns to be loaded, got {selected_columns:?}. \
+            AvailableColumns::Pending => Err(FastExcelErrorKind::Internal(format!(
+                "Expected available columns to be loaded, got {self:?}. \
                     This is a bug, please report it to the fastexcel repository"
-                ))
-                .into())
-            }
+            ))
+            .into()),
         }
     }
 }

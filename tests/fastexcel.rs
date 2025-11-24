@@ -443,11 +443,9 @@ fn test_header_row_and_skip_rows(
     let mut excel_reader = fastexcel::read_excel(path_for_fixture("no-header.xlsx"))
         .context("could not read excel file")?;
 
-    let opts = LoadSheetOrTableOptions {
-        header_row,
-        skip_rows,
-        ..LoadSheetOrTableOptions::new_for_sheet()
-    };
+    let mut opts = LoadSheetOrTableOptions::new_for_sheet();
+    opts.header_row = header_row;
+    opts.skip_rows = skip_rows;
     let sheet = excel_reader
         .load_sheet(0.into(), opts)
         .context("could not load sheet 0")?;
@@ -529,11 +527,10 @@ fn test_header_row_and_skip_rows_polars(
     let mut excel_reader = fastexcel::read_excel(path_for_fixture("no-header.xlsx"))
         .context("could not read excel file")?;
 
-    let opts = LoadSheetOrTableOptions {
-        header_row,
-        skip_rows,
-        ..LoadSheetOrTableOptions::new_for_sheet()
-    };
+    let mut opts = LoadSheetOrTableOptions::new_for_sheet();
+    opts.header_row = header_row;
+    opts.skip_rows = skip_rows;
+
     let sheet = excel_reader
         .load_sheet(0.into(), opts)
         .context("could not load sheet 0")?;
