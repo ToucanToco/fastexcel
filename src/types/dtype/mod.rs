@@ -121,6 +121,7 @@ fn get_cell_dtype<DT: CellType + Debug + DataType>(
     data: &Range<DT>,
     row: usize,
     col: usize,
+    whitespace_as_null: bool,
 ) -> FastExcelResult<DType> {
     let cell = data
         .get((row, col))
@@ -131,7 +132,14 @@ fn get_cell_dtype<DT: CellType + Debug + DataType>(
     } else if cell.is_float() {
         Ok(DType::Float)
     } else if cell.is_string() {
-        if NULL_STRING_VALUES.contains(&cell.get_string().unwrap()) {
+        if NULL_STRING_VALUES.contains(&cell.get_string().unwrap())
+        // If we want to consider whitespace as null and either the cell is empty or contains only
+        // whitespace, we return null
+            || (whitespace_as_null
+            && cell
+                .get_string()
+                .is_none_or(|s| s.trim().is_empty()))
+        {
             Ok(DType::Null)
         } else {
             Ok(DType::String)
@@ -220,9 +228,10 @@ pub(crate) fn get_dtype_for_column<DT: CellType + Debug + DataType>(
     end_row: usize,
     col: usize,
     dtype_coercion: &DTypeCoercion,
+    whitespace_as_null: bool,
 ) -> FastExcelResult<DType> {
     let mut column_types = (start_row..end_row)
-        .map(|row| get_cell_dtype(data, row, col))
+        .map(|row| get_cell_dtype(data, row, col, whitespace_as_null))
         .collect::<FastExcelResult<HashSet<_>>>()?;
 
     // All columns are nullable anyway so we're not taking Null into account here
@@ -352,7 +361,8 @@ mod tests {
         #[case] expected: DType,
     ) {
         assert_eq!(
-            get_dtype_for_column(&range, start_row, end_row, 0, &DTypeCoercion::Coerce).unwrap(),
+            get_dtype_for_column(&range, start_row, end_row, 0, &DTypeCoercion::Coerce, false)
+                .unwrap(),
             expected
         );
     }
@@ -375,7 +385,8 @@ mod tests {
         #[case] expected: DType,
     ) {
         assert_eq!(
-            get_dtype_for_column(&range, start_row, end_row, 0, &DTypeCoercion::Strict).unwrap(),
+            get_dtype_for_column(&range, start_row, end_row, 0, &DTypeCoercion::Strict, false)
+                .unwrap(),
             expected
         );
     }
@@ -400,7 +411,8 @@ mod tests {
         #[case] start_row: usize,
         #[case] end_row: usize,
     ) {
-        let result = get_dtype_for_column(&range, start_row, end_row, 0, &DTypeCoercion::Strict);
+        let result =
+            get_dtype_for_column(&range, start_row, end_row, 0, &DTypeCoercion::Strict, false);
         assert!(matches!(
             result.unwrap_err().kind,
             FastExcelErrorKind::UnsupportedColumnTypeCombination(_)

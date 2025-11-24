@@ -142,6 +142,8 @@ pub struct LoadSheetOrTableOptions {
     pub dtypes: Option<DTypes>,
     /// Skip rows at the end of the sheet/table containing only whitespace and null values.
     pub skip_whitespace_tail_rows: bool,
+    /// Consider cells containing only whitespace as null values.
+    pub whitespace_as_null: bool,
 }
 
 impl LoadSheetOrTableOptions {
@@ -174,6 +176,7 @@ impl LoadSheetOrTableOptions {
             selected_columns: Default::default(),
             dtypes: Default::default(),
             skip_whitespace_tail_rows: Default::default(),
+            whitespace_as_null: Default::default(),
         }
     }
 
@@ -190,6 +193,7 @@ impl LoadSheetOrTableOptions {
             selected_columns: Default::default(),
             dtypes: Default::default(),
             skip_whitespace_tail_rows: Default::default(),
+            whitespace_as_null: Default::default(),
         }
     }
 
@@ -243,6 +247,11 @@ impl LoadSheetOrTableOptions {
 
     pub fn skip_whitespace_tail_rows(mut self, skip_whitespace_tail_rows: bool) -> Self {
         self.skip_whitespace_tail_rows = skip_whitespace_tail_rows;
+        self
+    }
+
+    pub fn whitespace_as_null(mut self, whitespace_as_null: bool) -> Self {
+        self.whitespace_as_null = whitespace_as_null;
         self
     }
 }

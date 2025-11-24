@@ -28,13 +28,18 @@ impl ExcelReader {
 
     fn load_sheet_eager(
         data: &ExcelSheetData,
-        pagination: Pagination,
-        header: Header,
-        sample_rows: Option<usize>,
-        selected_columns: &SelectedColumns,
-        dtypes: Option<&DTypes>,
-        dtype_coercion: &DTypeCoercion,
+        opts: LoadSheetOrTableOptions,
     ) -> FastExcelResult<RecordBatch> {
+        let data_header_row = opts.data_header_row();
+        let pagination = match &data {
+            ExcelSheetData::Owned(range) => {
+                Pagination::try_new(opts.skip_rows, opts.n_rows, range)?
+            }
+            ExcelSheetData::Ref(range) => Pagination::try_new(opts.skip_rows, opts.n_rows, range)?,
+        };
+
+        let header = Header::new(data_header_row, opts.column_names);
+
         let offset = header.offset() + pagination.offset();
         let limit = {
             let upper_bound = data.height();
@@ -46,26 +51,38 @@ impl ExcelReader {
             }
         };
 
-        let sample_rows_limit = get_schema_sample_rows(sample_rows, offset, limit);
-        let available_columns_info = build_available_columns_info(data, selected_columns, &header)?;
-        let final_columns_info = selected_columns.select_columns(available_columns_info)?;
+        let sample_rows_limit = get_schema_sample_rows(opts.schema_sample_rows, offset, limit);
+        let available_columns_info =
+            build_available_columns_info(data, &opts.selected_columns, &header)?;
+        let final_columns_info = opts
+            .selected_columns
+            .select_columns(available_columns_info)?;
 
         let available_columns = finalize_column_info(
             final_columns_info,
             data,
             offset,
             sample_rows_limit,
-            dtypes,
-            dtype_coercion,
+            opts.dtypes.as_ref(),
+            &opts.dtype_coercion,
+            opts.whitespace_as_null,
         )?;
 
         match data {
-            ExcelSheetData::Owned(data) => {
-                record_batch_from_data_and_columns(&available_columns, data, offset, limit)
-            }
-            ExcelSheetData::Ref(data) => {
-                record_batch_from_data_and_columns(&available_columns, data, offset, limit)
-            }
+            ExcelSheetData::Owned(data) => record_batch_from_data_and_columns(
+                &available_columns,
+                data,
+                offset,
+                limit,
+                opts.whitespace_as_null,
+            ),
+            ExcelSheetData::Ref(data) => record_batch_from_data_and_columns(
+                &available_columns,
+                data,
+                offset,
+                limit,
+                opts.whitespace_as_null,
+            ),
         }
     }
 
@@ -77,7 +94,6 @@ impl ExcelReader {
         py: Python<'py>,
     ) -> PyResult<Bound<'py, PyAny>> {
         let calamine_header_row = opts.calamine_header_row();
-        let data_header_row = opts.data_header_row();
 
         let sheet_meta = self
             .find_sheet_meta(idx_or_name)
@@ -92,21 +108,8 @@ impl ExcelReader {
                         .worksheet_range_ref(&sheet_meta.name)
                 })
                 .into_pyresult()?;
-            let pagination =
-                Pagination::try_new(opts.skip_rows, opts.n_rows, &range).into_pyresult()?;
-            let header = Header::new(data_header_row, opts.column_names);
             let rb = py
-                .detach(|| {
-                    Self::load_sheet_eager(
-                        &range.into(),
-                        pagination,
-                        header,
-                        opts.schema_sample_rows,
-                        &opts.selected_columns,
-                        opts.dtypes.as_ref(),
-                        &opts.dtype_coercion,
-                    )
-                })
+                .detach(|| Self::load_sheet_eager(&range.into(), opts))
                 .into_pyresult()?;
 
             #[cfg(feature = "pyarrow")]
@@ -203,6 +206,7 @@ impl ExcelReader {
         dtypes = None,
         eager = false,
         skip_whitespace_tail_rows = false,
+        whitespace_as_null = false,
     ))]
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn py_load_sheet<'py>(
@@ -218,6 +222,7 @@ impl ExcelReader {
         dtypes: Option<DTypes>,
         eager: bool,
         skip_whitespace_tail_rows: bool,
+        whitespace_as_null: bool,
         py: Python<'py>,
     ) -> PyResult<Bound<'py, PyAny>> {
         // Cannot use NonZeroUsize in the parameters, as it is not supported by pyo3
@@ -240,6 +245,7 @@ impl ExcelReader {
             selected_columns,
             dtypes,
             skip_whitespace_tail_rows,
+            whitespace_as_null,
         };
 
         self.build_sheet(idx_or_name, opts, eager, py)
@@ -258,6 +264,7 @@ impl ExcelReader {
         dtypes = None,
         eager = false,
         skip_whitespace_tail_rows = false,
+        whitespace_as_null = false,
     ))]
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn py_load_table<'py>(
@@ -273,6 +280,7 @@ impl ExcelReader {
         dtypes: Option<DTypes>,
         eager: bool,
         skip_whitespace_tail_rows: bool,
+        whitespace_as_null: bool,
         py: Python<'py>,
     ) -> PyResult<Bound<'py, PyAny>> {
         // Cannot use NonZeroUsize in the parameters, as it is not supported by pyo3
@@ -295,6 +303,7 @@ impl ExcelReader {
             selected_columns,
             dtypes,
             skip_whitespace_tail_rows,
+            whitespace_as_null,
         };
 
         self.build_table(&name.to_string(), opts, eager, py)
