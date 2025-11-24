@@ -1,5 +1,5 @@
-use std::fmt::Debug;
 use std::sync::Arc;
+use std::{fmt::Debug, ops::Not};
 
 use arrow_array::{
     Array, ArrayRef, BooleanArray, Date32Array, DurationMillisecondArray, Float64Array, Int64Array,
@@ -114,6 +114,7 @@ mod with_error_impls {
         col: usize,
         offset: usize,
         limit: usize,
+        whitespace_as_null: bool,
     ) -> (Arc<dyn Array>, Vec<CellError>) {
         let mut cell_errors = vec![];
 
@@ -123,7 +124,13 @@ mod with_error_impls {
                     None
                 } else {
                     match cell_extractors::extract_string(cell) {
-                        Some(value) => Some(value),
+                        Some(value) => {
+                            if whitespace_as_null && value.trim().is_empty() {
+                                None
+                            } else {
+                                Some(value)
+                            }
+                        }
                         None => {
                             cell_errors.push(CellError {
                                 position: (row, col),
@@ -270,11 +277,21 @@ pub(crate) fn create_string_array<CT: CellType + DataType>(
     data: &Range<CT>,
     col: usize,
     row_iter: impl Iterator<Item = usize>,
+    whitespace_as_null: bool,
 ) -> Arc<dyn Array> {
-    Arc::new(StringArray::from_iter(row_iter.map(|row| {
-        data.get((row, col))
-            .and_then(cell_extractors::extract_string)
-    })))
+    Arc::new(if whitespace_as_null {
+        StringArray::from_iter(row_iter.map(|row| {
+            data.get((row, col))
+                .and_then(cell_extractors::extract_string)
+                // Only return the string if it contains non-whitespace characters
+                .filter(|s| s.trim().is_empty().not())
+        }))
+    } else {
+        StringArray::from_iter(row_iter.map(|row| {
+            data.get((row, col))
+                .and_then(cell_extractors::extract_string)
+        }))
+    })
 }
 
 pub(crate) fn create_date_array<CT: CellType + DataType>(
@@ -333,10 +350,34 @@ macro_rules! create_array_function_with_errors {
 create_array_function_with_errors!(create_boolean_array_with_errors);
 create_array_function_with_errors!(create_int_array_with_errors);
 create_array_function_with_errors!(create_float_array_with_errors);
-create_array_function_with_errors!(create_string_array_with_errors);
 create_array_function_with_errors!(create_date_array_with_errors);
 create_array_function_with_errors!(create_datetime_array_with_errors);
 create_array_function_with_errors!(create_duration_array_with_errors);
+
+pub(crate) fn create_string_array_with_errors(
+    data: &ExcelSheetData,
+    col: usize,
+    offset: usize,
+    limit: usize,
+    whitespace_as_null: bool,
+) -> (Arc<dyn Array>, Vec<CellError>) {
+    match data {
+        ExcelSheetData::Owned(range) => with_error_impls::create_string_array_with_errors(
+            range,
+            col,
+            offset,
+            limit,
+            whitespace_as_null,
+        ),
+        ExcelSheetData::Ref(range) => with_error_impls::create_string_array_with_errors(
+            range,
+            col,
+            offset,
+            limit,
+            whitespace_as_null,
+        ),
+    }
+}
 
 /// Converts a list of ColumnInfo to an arrow Schema
 pub(crate) fn selected_columns_to_schema(columns: &[ColumnInfo]) -> Schema {
@@ -378,10 +419,16 @@ pub(crate) fn record_batch_from_data_and_columns<CT: CellType + DataType>(
     data: &Range<CT>,
     offset: usize,
     limit: usize,
+    whitespace_as_null: bool,
 ) -> FastExcelResult<RecordBatch> {
     // Use RowSelector::Range for simple offset..limit case - no Vec allocation!
     let row_selector = RowSelector::Range(offset..limit);
-    record_batch_from_data_and_columns_with_row_selector(columns, data, &row_selector)
+    record_batch_from_data_and_columns_with_row_selector(
+        columns,
+        data,
+        &row_selector,
+        whitespace_as_null,
+    )
 }
 
 pub(crate) fn record_batch_from_data_and_columns_with_skip_rows<CT: CellType + DataType>(
@@ -390,16 +437,23 @@ pub(crate) fn record_batch_from_data_and_columns_with_skip_rows<CT: CellType + D
     skip_rows: &SkipRows,
     offset: usize,
     limit: usize,
+    whitespace_as_null: bool,
 ) -> FastExcelResult<RecordBatch> {
     // Generate row selector - ranges for simple cases, filtered Vec only when needed
     let row_selector = generate_row_selector(skip_rows, offset, limit)?;
-    record_batch_from_data_and_columns_with_row_selector(columns, data, &row_selector)
+    record_batch_from_data_and_columns_with_row_selector(
+        columns,
+        data,
+        &row_selector,
+        whitespace_as_null,
+    )
 }
 
 fn record_batch_from_data_and_columns_with_row_selector<CT: CellType + DataType>(
     columns: &[ColumnInfo],
     data: &Range<CT>,
     row_selector: &RowSelector,
+    whitespace_as_null: bool,
 ) -> FastExcelResult<RecordBatch> {
     let schema = selected_columns_to_schema(columns);
     let row_count = row_selector.len();
@@ -412,7 +466,9 @@ fn record_batch_from_data_and_columns_with_row_selector<CT: CellType + DataType>
                 DType::Null => Arc::new(NullArray::new(row_count)),
                 DType::Int => create_int_array(data, col_idx, row_selector.iter()),
                 DType::Float => create_float_array(data, col_idx, row_selector.iter()),
-                DType::String => create_string_array(data, col_idx, row_selector.iter()),
+                DType::String => {
+                    create_string_array(data, col_idx, row_selector.iter(), whitespace_as_null)
+                }
                 DType::Bool => create_boolean_array(data, col_idx, row_selector.iter()),
                 DType::DateTime => create_datetime_array(data, col_idx, row_selector.iter()),
                 DType::Date => create_date_array(data, col_idx, row_selector.iter()),
@@ -429,6 +485,7 @@ pub(crate) fn record_batch_from_data_and_columns_with_errors(
     data: &ExcelSheetData,
     offset: usize,
     limit: usize,
+    whitespace_as_null: bool,
 ) -> FastExcelResult<(RecordBatch, CellErrors)> {
     let schema = selected_columns_to_schema(columns);
 
@@ -442,7 +499,9 @@ pub(crate) fn record_batch_from_data_and_columns_with_errors(
             DType::Null => (Arc::new(NullArray::new(limit - offset)) as ArrayRef, vec![]),
             DType::Int => create_int_array_with_errors(data, col_idx, offset, limit),
             DType::Float => create_float_array_with_errors(data, col_idx, offset, limit),
-            DType::String => create_string_array_with_errors(data, col_idx, offset, limit),
+            DType::String => {
+                create_string_array_with_errors(data, col_idx, offset, limit, whitespace_as_null)
+            }
             DType::Bool => create_boolean_array_with_errors(data, col_idx, offset, limit),
             DType::DateTime => create_datetime_array_with_errors(data, col_idx, offset, limit),
             DType::Date => create_date_array_with_errors(data, col_idx, offset, limit),

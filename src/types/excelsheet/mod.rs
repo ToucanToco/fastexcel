@@ -549,6 +549,7 @@ impl ExcelSheet {
             row_limit,
             sheet.opts.dtypes.as_ref(),
             &sheet.opts.dtype_coercion,
+            sheet.opts.whitespace_as_null,
         )?;
 
         sheet.selected_columns = selected_columns;
@@ -571,6 +572,7 @@ impl ExcelSheet {
                     self.limit(),
                     self.opts.dtypes.as_ref(),
                     &self.opts.dtype_coercion,
+                    self.opts.whitespace_as_null,
                 )?;
                 AvailableColumns::Loaded(final_info)
             }
@@ -667,14 +669,23 @@ impl ExcelSheet {
             .map(|column_info| {
                 let offset = self.offset();
                 let limit = self.limit();
+                let whitespace_as_null = self.opts.whitespace_as_null;
 
                 match self.data() {
-                    ExcelSheetData::Owned(range) => {
-                        FastExcelColumn::try_from_column_info(column_info, range, offset, limit)
-                    }
-                    ExcelSheetData::Ref(range) => {
-                        FastExcelColumn::try_from_column_info(column_info, range, offset, limit)
-                    }
+                    ExcelSheetData::Owned(range) => FastExcelColumn::try_from_column_info(
+                        column_info,
+                        range,
+                        offset,
+                        limit,
+                        whitespace_as_null,
+                    ),
+                    ExcelSheetData::Ref(range) => FastExcelColumn::try_from_column_info(
+                        column_info,
+                        range,
+                        offset,
+                        limit,
+                        whitespace_as_null,
+                    ),
                 }
             })
             .collect()
