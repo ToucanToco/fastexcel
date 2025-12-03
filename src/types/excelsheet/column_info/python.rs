@@ -90,7 +90,7 @@ impl ColumnInfo {
 
     pub fn __repr__(&self) -> String {
         format!(
-            "ColumnInfo(name=\"{name}\", index={index}, absolute_index={absolute_index} dtype=\"{dtype}\", dtype_from=\"{dtype_from}\", column_name_from=\"{column_name_from}\" )",
+            "ColumnInfo(name=\"{name}\", index={index}, absolute_index={absolute_index}, dtype=\"{dtype}\", dtype_from=\"{dtype_from}\", column_name_from=\"{column_name_from}\" )",
             name = self.name,
             index = self.index,
             absolute_index = self.absolute_index,
