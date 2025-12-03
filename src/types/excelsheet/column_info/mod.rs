@@ -253,6 +253,7 @@ pub(crate) trait CalamineDataProvider {
         dtype_coercion: &DTypeCoercion,
         whitespace_as_null: bool,
     ) -> FastExcelResult<DType>;
+    fn start(&self) -> Option<(usize, usize)>;
 }
 
 impl CalamineDataProvider for ExcelSheetData<'_> {
@@ -273,6 +274,10 @@ impl CalamineDataProvider for ExcelSheetData<'_> {
         whitespace_as_null: bool,
     ) -> FastExcelResult<DType> {
         self.dtype_for_column(start_row, end_row, col, dtype_coercion, whitespace_as_null)
+    }
+
+    fn start(&self) -> Option<(usize, usize)> {
+        self.start()
     }
 }
 
@@ -301,6 +306,9 @@ impl CalamineDataProvider for calamine::Range<calamine::Data> {
             dtype_coercion,
             whitespace_as_null,
         )
+    }
+    fn start(&self) -> Option<(usize, usize)> {
+        self.start().map(|(r, c)| (r as usize, c as usize))
     }
 }
 
