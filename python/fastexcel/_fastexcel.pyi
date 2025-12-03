@@ -14,11 +14,20 @@ DTypeFrom = Literal["provided_for_all", "provided_by_index", "provided_by_name",
 SheetVisible = Literal["visible", "hidden", "veryhidden"]
 
 class ColumnInfoNoDtype:
-    def __init__(self, *, name: str, index: int, column_name_from: ColumnNameFrom) -> None: ...
+    def __init__(
+        self,
+        *,
+        name: str,
+        index: int,
+        absolute_index: int,
+        column_name_from: ColumnNameFrom,
+    ) -> None: ...
     @property
     def name(self) -> str: ...
     @property
     def index(self) -> int: ...
+    @property
+    def absolute_index(self) -> int: ...
     @property
     def column_name_from(self) -> ColumnNameFrom: ...
 
@@ -28,6 +37,7 @@ class ColumnInfo:
         *,
         name: str,
         index: int,
+        absolute_index: int,
         column_name_from: ColumnNameFrom,
         dtype: DType,
         dtype_from: DTypeFrom,
@@ -36,6 +46,8 @@ class ColumnInfo:
     def name(self) -> str: ...
     @property
     def index(self) -> int: ...
+    @property
+    def absolute_index(self) -> int: ...
     @property
     def dtype(self) -> DType: ...
     @property

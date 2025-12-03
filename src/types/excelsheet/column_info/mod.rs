@@ -105,6 +105,8 @@ pub struct ColumnInfo {
     pub name: String,
     /// The column's index
     pub index: usize,
+    /// The column's absolute index
+    pub absolute_index: usize,
     /// The column's data type
     pub dtype: DType,
     /// How the column name was determined
@@ -117,6 +119,7 @@ impl ColumnInfo {
     pub(crate) fn new(
         name: String,
         index: usize,
+        absolute_index: usize,
         column_name_from: ColumnNameFrom,
         dtype: DType,
         dtype_from: DTypeFrom,
@@ -124,6 +127,7 @@ impl ColumnInfo {
         Self {
             name,
             index,
+            absolute_index,
             dtype,
             column_name_from,
             dtype_from,
@@ -138,6 +142,7 @@ impl ColumnInfo {
 pub(crate) struct ColumnInfoNoDtype {
     name: String,
     index: usize,
+    absolute_index: usize,
     column_name_from: ColumnNameFrom,
 }
 
@@ -152,10 +157,16 @@ impl PartialEq<IdxOrName> for ColumnInfoNoDtype {
 }
 
 impl ColumnInfoNoDtype {
-    pub(super) fn new(name: String, index: usize, column_name_from: ColumnNameFrom) -> Self {
+    pub(super) fn new(
+        name: String,
+        index: usize,
+        absolute_index: usize,
+        column_name_from: ColumnNameFrom,
+    ) -> Self {
         Self {
             name,
             index,
+            absolute_index,
             column_name_from,
         }
     }
@@ -235,6 +246,7 @@ impl ColumnInfoNoDtype {
         Ok(ColumnInfo::new(
             self.name,
             self.index,
+            self.absolute_index,
             self.column_name_from,
             dtype,
             dtype_from,
@@ -318,12 +330,14 @@ fn column_info_from_header<D: CalamineDataProvider>(
     header: &Header,
 ) -> FastExcelResult<Vec<ColumnInfoNoDtype>> {
     let width = data.width();
+    let (_, col_off) = data.start().unwrap_or((0, 0));
     match header {
         Header::None => Ok((0..width)
             .map(|col_idx| {
                 ColumnInfoNoDtype::new(
                     format!("__UNNAMED__{col_idx}"),
                     col_idx,
+                    col_off + col_idx,
                     ColumnNameFrom::Generated,
                 )
             })
@@ -343,6 +357,7 @@ fn column_info_from_header<D: CalamineDataProvider>(
                         ColumnInfoNoDtype::new(
                             sanitized_col_name,
                             col_idx,
+                            col_off + col_idx,
                             ColumnNameFrom::LookedUp,
                         )
                     })
@@ -350,6 +365,7 @@ fn column_info_from_header<D: CalamineDataProvider>(
                         ColumnInfoNoDtype::new(
                             format!("__UNNAMED__{col_idx}"),
                             col_idx,
+                            col_off + col_idx,
                             ColumnNameFrom::Generated,
                         )
                     })
@@ -390,11 +406,13 @@ fn column_info_from_header<D: CalamineDataProvider>(
                             Some(provided_name) => ColumnInfoNoDtype::new(
                                 provided_name,
                                 col_idx,
+                                col_off + col_idx,
                                 ColumnNameFrom::Provided,
                             ),
                             None => ColumnInfoNoDtype::new(
                                 format!("__UNNAMED__{col_idx}"),
                                 col_idx,
+                                col_off + col_idx,
                                 ColumnNameFrom::Generated,
                             ),
                         }
@@ -406,12 +424,18 @@ fn column_info_from_header<D: CalamineDataProvider>(
                     .iter()
                     .enumerate()
                     .map(|(col_idx, name)| {
-                        ColumnInfoNoDtype::new(name.to_owned(), col_idx, ColumnNameFrom::Provided)
+                        ColumnInfoNoDtype::new(
+                            name.to_owned(),
+                            col_idx,
+                            col_off + col_idx,
+                            ColumnNameFrom::Provided,
+                        )
                     })
                     .chain((nameless_start_idx..width).map(|col_idx| {
                         ColumnInfoNoDtype::new(
                             format!("__UNNAMED__{col_idx}"),
                             col_idx,
+                            col_off + col_idx,
                             ColumnNameFrom::Generated,
                         )
                     }))
