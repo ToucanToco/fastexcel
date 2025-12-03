@@ -266,6 +266,7 @@ def test_one_dtype_for_all() -> None:
         fastexcel.ColumnInfo(
             name="Employee ID",
             index=0,
+            absolute_index=0,
             dtype="string",
             dtype_from="provided_for_all",
             column_name_from="looked_up",
@@ -273,6 +274,7 @@ def test_one_dtype_for_all() -> None:
         fastexcel.ColumnInfo(
             name="Employee Name",
             index=1,
+            absolute_index=1,
             dtype="string",
             dtype_from="provided_for_all",
             column_name_from="looked_up",
@@ -280,6 +282,7 @@ def test_one_dtype_for_all() -> None:
         fastexcel.ColumnInfo(
             name="Date",
             index=2,
+            absolute_index=2,
             dtype="string",
             dtype_from="provided_for_all",
             column_name_from="looked_up",
@@ -287,6 +290,7 @@ def test_one_dtype_for_all() -> None:
         fastexcel.ColumnInfo(
             name="Details",
             index=3,
+            absolute_index=3,
             dtype="string",
             dtype_from="provided_for_all",
             column_name_from="looked_up",
@@ -294,6 +298,7 @@ def test_one_dtype_for_all() -> None:
         fastexcel.ColumnInfo(
             name="Asset ID",
             index=4,
+            absolute_index=4,
             dtype="string",
             dtype_from="provided_for_all",
             column_name_from="looked_up",
@@ -301,6 +306,7 @@ def test_one_dtype_for_all() -> None:
         fastexcel.ColumnInfo(
             name="Mixed dates",
             index=5,
+            absolute_index=5,
             dtype="string",
             dtype_from="provided_for_all",
             column_name_from="looked_up",
@@ -308,6 +314,7 @@ def test_one_dtype_for_all() -> None:
         fastexcel.ColumnInfo(
             name="Mixed bools",
             index=6,
+            absolute_index=6,
             dtype="string",
             dtype_from="provided_for_all",
             column_name_from="looked_up",
@@ -342,6 +349,7 @@ def test_fallback_infer_dtypes(mocker: MockerFixture) -> None:
         fastexcel.ColumnInfo(
             name="id",
             index=0,
+            absolute_index=0,
             dtype="float",
             dtype_from="guessed",
             column_name_from="looked_up",
@@ -349,6 +357,7 @@ def test_fallback_infer_dtypes(mocker: MockerFixture) -> None:
         fastexcel.ColumnInfo(
             name="label",
             index=1,
+            absolute_index=1,
             dtype="string",
             dtype_from="guessed",
             column_name_from="looked_up",
@@ -517,6 +526,7 @@ def test_guess_dtypes_with_div0_error() -> None:
         fastexcel.ColumnInfo(
             name="dividend",
             index=0,
+            absolute_index=0,
             dtype="float",
             dtype_from="guessed",
             column_name_from="looked_up",
@@ -524,6 +534,7 @@ def test_guess_dtypes_with_div0_error() -> None:
         fastexcel.ColumnInfo(
             name="divisor",
             index=1,
+            absolute_index=1,
             dtype="float",
             dtype_from="guessed",
             column_name_from="looked_up",
@@ -531,6 +542,7 @@ def test_guess_dtypes_with_div0_error() -> None:
         fastexcel.ColumnInfo(
             name="quotient",
             index=2,
+            absolute_index=2,
             dtype="float",
             dtype_from="guessed",
             column_name_from="looked_up",
