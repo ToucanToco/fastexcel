@@ -51,6 +51,7 @@ fn test_load_table(mut reader: fastexcel::ExcelReader) -> Result<()> {
         fastexcel::ColumnInfo {
             name: "User Id".into(),
             index: 0,
+            absolute_index: 0,
             dtype: fastexcel::DType::Float,
             column_name_from: fastexcel::ColumnNameFrom::Provided,
             dtype_from: fastexcel::DTypeFrom::Guessed,
@@ -58,6 +59,7 @@ fn test_load_table(mut reader: fastexcel::ExcelReader) -> Result<()> {
         fastexcel::ColumnInfo {
             name: "FirstName".into(),
             index: 1,
+            absolute_index: 1,
             dtype: fastexcel::DType::String,
             column_name_from: fastexcel::ColumnNameFrom::Provided,
             dtype_from: fastexcel::DTypeFrom::Guessed,
@@ -65,6 +67,7 @@ fn test_load_table(mut reader: fastexcel::ExcelReader) -> Result<()> {
         fastexcel::ColumnInfo {
             name: "LastName".into(),
             index: 2,
+            absolute_index: 2,
             dtype: fastexcel::DType::String,
             column_name_from: fastexcel::ColumnNameFrom::Provided,
             dtype_from: fastexcel::DTypeFrom::Guessed,
@@ -72,6 +75,7 @@ fn test_load_table(mut reader: fastexcel::ExcelReader) -> Result<()> {
         fastexcel::ColumnInfo {
             name: "Date".into(),
             index: 3,
+            absolute_index: 3,
             dtype: fastexcel::DType::DateTime,
             column_name_from: fastexcel::ColumnNameFrom::Provided,
             dtype_from: fastexcel::DTypeFrom::Guessed,

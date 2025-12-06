@@ -86,6 +86,14 @@ impl ExcelSheetData<'_> {
             }
         }
     }
+
+    pub(crate) fn start(&self) -> Option<(usize, usize)> {
+        let start = match self {
+            ExcelSheetData::Owned(range) => range.start(),
+            ExcelSheetData::Ref(range) => range.start(),
+        };
+        start.map(|(r, c)| (r as usize, c as usize))
+    }
 }
 
 impl From<Range<CalData>> for ExcelSheetData<'_> {

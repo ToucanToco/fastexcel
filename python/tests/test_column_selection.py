@@ -23,10 +23,20 @@ def excel_reader_single_sheet() -> fastexcel.ExcelReader:
 def expected_column_info() -> list[fastexcel.ColumnInfo]:
     return [
         fastexcel.ColumnInfo(
-            name="Month", index=0, column_name_from="looked_up", dtype="float", dtype_from="guessed"
+            name="Month",
+            index=0,
+            absolute_index=0,
+            column_name_from="looked_up",
+            dtype="float",
+            dtype_from="guessed",
         ),
         fastexcel.ColumnInfo(
-            name="Year", index=1, column_name_from="looked_up", dtype="float", dtype_from="guessed"
+            name="Year",
+            index=1,
+            absolute_index=1,
+            column_name_from="looked_up",
+            dtype="float",
+            dtype_from="guessed",
         ),
     ]
 
@@ -117,27 +127,44 @@ def single_sheet_with_unnamed_columns_expected() -> dict[str, list[Any]]:
 def sheet_with_unnamed_columns_expected_column_info() -> list[fastexcel.ColumnInfo]:
     return [
         fastexcel.ColumnInfo(
-            name="col1", index=0, column_name_from="looked_up", dtype="float", dtype_from="guessed"
+            name="col1",
+            index=0,
+            absolute_index=0,
+            column_name_from="looked_up",
+            dtype="float",
+            dtype_from="guessed",
         ),
         fastexcel.ColumnInfo(
             name="__UNNAMED__1",
             index=1,
+            absolute_index=1,
             column_name_from="generated",
             dtype="float",
             dtype_from="guessed",
         ),
         fastexcel.ColumnInfo(
-            name="col3", index=2, column_name_from="looked_up", dtype="string", dtype_from="guessed"
+            name="col3",
+            index=2,
+            absolute_index=2,
+            column_name_from="looked_up",
+            dtype="string",
+            dtype_from="guessed",
         ),
         fastexcel.ColumnInfo(
             name="__UNNAMED__3",
             index=3,
+            absolute_index=3,
             column_name_from="generated",
             dtype="float",
             dtype_from="guessed",
         ),
         fastexcel.ColumnInfo(
-            name="col5", index=4, column_name_from="looked_up", dtype="string", dtype_from="guessed"
+            name="col5",
+            index=4,
+            absolute_index=4,
+            column_name_from="looked_up",
+            dtype="string",
+            dtype_from="guessed",
         ),
     ]
 
@@ -497,12 +524,14 @@ def test_use_columns_with_column_names() -> None:
             name="__UNNAMED__0",
             column_name_from="generated",
             index=0,
+            absolute_index=0,
             dtype="float",
             dtype_from="guessed",
         ),
         fastexcel.ColumnInfo(
             name="bools_renamed",
             index=1,
+            absolute_index=1,
             dtype="boolean",
             dtype_from="guessed",
             column_name_from="provided",
@@ -510,6 +539,7 @@ def test_use_columns_with_column_names() -> None:
         fastexcel.ColumnInfo(
             name="dates_renamed",
             index=2,
+            absolute_index=2,
             dtype="datetime",
             dtype_from="guessed",
             column_name_from="provided",
@@ -517,6 +547,7 @@ def test_use_columns_with_column_names() -> None:
         fastexcel.ColumnInfo(
             name="__UNNAMED__3",
             index=3,
+            absolute_index=3,
             dtype="float",
             dtype_from="guessed",
             column_name_from="generated",
