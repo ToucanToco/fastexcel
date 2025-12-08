@@ -18,6 +18,7 @@ impl ColumnInfo {
     ///
     /// - `name`: `str`. The name of the column
     /// - `index`: `int`. The index of the column. Must be >=0
+    /// - `absolute_index`: `int`. The absolute index of the column. Must be >=0
     /// - `column_name_from`: `fastexcel.ColumnNameFrom`. The origin of the column name
     /// - `dtype`: `fastexcel.DType`. The dtype of the column
     /// - `dtype_from`: `fastexcel.DTypeFrom`. The origin of the dtype for the column
@@ -25,6 +26,7 @@ impl ColumnInfo {
     pub(crate) fn py_new(
         name: String,
         index: usize,
+        absolute_index: usize,
         column_name_from: &str,
         dtype: &str,
         dtype_from: &str,
@@ -32,6 +34,7 @@ impl ColumnInfo {
         Ok(Self::new(
             name,
             index,
+            absolute_index,
             column_name_from.parse().into_pyresult()?,
             dtype.parse().into_pyresult()?,
             dtype_from.parse().into_pyresult()?,
@@ -54,6 +57,12 @@ impl ColumnInfo {
     /// `int`. The index of the column
     pub fn py_index(&self) -> usize {
         self.index
+    }
+
+    #[getter("absolute_index")]
+    /// `int`. The absolute index of the column
+    pub fn py_absolute_index(&self) -> usize {
+        self.absolute_index
     }
 
     /// `fastexcel.ColumnNameFrom`. How the name of the column was determined.
@@ -81,9 +90,10 @@ impl ColumnInfo {
 
     pub fn __repr__(&self) -> String {
         format!(
-            "ColumnInfo(name=\"{name}\", index={index}, dtype=\"{dtype}\", dtype_from=\"{dtype_from}\", column_name_from=\"{column_name_from}\" )",
+            "ColumnInfo(name=\"{name}\", index={index}, absolute_index={absolute_index}, dtype=\"{dtype}\", dtype_from=\"{dtype_from}\", column_name_from=\"{column_name_from}\" )",
             name = self.name,
             index = self.index,
+            absolute_index = self.absolute_index,
             dtype = self.dtype,
             dtype_from = self.dtype_from,
             column_name_from = self.column_name_from
@@ -107,5 +117,11 @@ impl ColumnInfoNoDtype {
     /// `int`. The index of the column
     pub fn py_index(&self) -> usize {
         self.index
+    }
+
+    #[getter("absolute_index")]
+    /// `int`. The absolute index of the column
+    pub fn py_absolute_index(&self) -> usize {
+        self.absolute_index
     }
 }

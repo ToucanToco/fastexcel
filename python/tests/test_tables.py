@@ -42,6 +42,7 @@ def test_load_table(path: str) -> None:
         fastexcel.ColumnInfo(
             name="User Id",
             index=0,
+            absolute_index=0,
             dtype="float",
             dtype_from="guessed",
             column_name_from="provided",
@@ -49,6 +50,7 @@ def test_load_table(path: str) -> None:
         fastexcel.ColumnInfo(
             name="FirstName",
             index=1,
+            absolute_index=1,
             dtype="string",
             dtype_from="guessed",
             column_name_from="provided",
@@ -56,6 +58,7 @@ def test_load_table(path: str) -> None:
         fastexcel.ColumnInfo(
             name="LastName",
             index=2,
+            absolute_index=2,
             dtype="string",
             dtype_from="guessed",
             column_name_from="provided",
@@ -63,6 +66,7 @@ def test_load_table(path: str) -> None:
         fastexcel.ColumnInfo(
             name="Date",
             index=3,
+            absolute_index=3,
             dtype="datetime",
             dtype_from="guessed",
             column_name_from="provided",
