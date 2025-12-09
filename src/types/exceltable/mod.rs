@@ -52,7 +52,7 @@ impl ExcelTable {
                 let mut table_columns: Vec<String> = table.columns().into();
                 // If there is a column selection, we need to convert all elements to column
                 // indices. This is required because we will be providing the header, and it
-                // required to use an index-based selection when custom column names are provided
+                // it is required to use an index-based selection when custom column names are provided
                 if let SelectedColumns::Selection(selected_columns) = &opts.selected_columns {
                     let selected_column_indices = selected_columns
                         .iter()
