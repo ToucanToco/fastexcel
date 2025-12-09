@@ -375,7 +375,7 @@ fn column_info_from_header<D: CalamineDataProvider>(
             if let SelectedColumns::Selection(column_selection) = selected_columns {
                 if column_selection.len() != names.len() {
                     return Err(FastExcelErrorKind::InvalidParameters(
-                        "column_names and use_columns must have the same length".to_string(),
+                        "column_names and use_columns must have the same length when a header is provided".to_string(),
                     )
                     .into());
                 }

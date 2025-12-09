@@ -8,9 +8,9 @@ use polars_core::frame::DataFrame;
 use pyo3::pyclass;
 
 use crate::{
-    FastExcelColumn, LoadSheetOrTableOptions,
+    FastExcelColumn, FastExcelErrorKind, IdxOrName, LoadSheetOrTableOptions, SelectedColumns,
     data::height_without_tail_whitespace,
-    error::FastExcelResult,
+    error::{ErrorContext, FastExcelResult},
     types::{
         dtype::DTypes,
         excelsheet::{
@@ -42,17 +42,66 @@ pub struct ExcelTable {
 }
 
 impl ExcelTable {
+    /// Builds a `Header` for a table. This might update the column selection, if provided
+    fn build_header_and_update_selection(
+        table: &Table<Data>,
+        mut opts: LoadSheetOrTableOptions,
+    ) -> FastExcelResult<(Header, LoadSheetOrTableOptions)> {
+        Ok(match (&opts.column_names, opts.header_row) {
+            (None, None) => {
+                let mut table_columns: Vec<String> = table.columns().into();
+                // If there is a column selection, we need to convert all elements to column
+                // indices. This is required because we will be providing the header, and it
+                // required to use an index-based selection when custom column names are provided
+                if let SelectedColumns::Selection(selected_columns) = &opts.selected_columns {
+                    let selected_column_indices = selected_columns
+                        .iter()
+                        .map(|idx_or_name| match idx_or_name {
+                            IdxOrName::Idx(idx) => Ok(*idx),
+                            IdxOrName::Name(name) => table_columns
+                                .iter()
+                                .enumerate()
+                                .find_map(|(idx, col_name)| {
+                                    (col_name.as_str() == name.as_str()).then_some(idx)
+                                })
+                                .ok_or_else(|| {
+                                    FastExcelErrorKind::ColumnNotFound(name.clone().into()).into()
+                                })
+                                .with_context(|| {
+                                    format!("available columns are: {table_columns:?}")
+                                }),
+                        })
+                        .collect::<FastExcelResult<Vec<usize>>>()?;
+
+                    table_columns = table_columns
+                        .into_iter()
+                        .enumerate()
+                        .filter_map(|(idx, col_name)| {
+                            selected_column_indices.contains(&idx).then_some(col_name)
+                        })
+                        .collect();
+
+                    opts = opts.selected_columns(SelectedColumns::Selection(
+                        selected_column_indices
+                            .into_iter()
+                            .map(Into::into)
+                            .collect(),
+                    ))
+                }
+                (Header::With(table_columns), opts)
+            }
+            (None, Some(row)) => (Header::At(row), opts),
+            (Some(column_names), _) => (Header::With(column_names.clone()), opts),
+        })
+    }
+
     pub(crate) fn try_new(
         table: Table<Data>,
         opts: LoadSheetOrTableOptions,
     ) -> FastExcelResult<Self> {
         let pagination = Pagination::try_new(opts.skip_rows.clone(), opts.n_rows, table.data())?;
 
-        let header = match (opts.column_names.clone(), opts.header_row) {
-            (None, None) => Header::With(table.columns().into()),
-            (None, Some(row)) => Header::At(row),
-            (Some(column_names), _) => Header::With(column_names),
-        };
+        let (header, opts) = Self::build_header_and_update_selection(&table, opts)?;
 
         let available_columns_info =
             build_available_columns_info(table.data(), &opts.selected_columns, &header)?;
