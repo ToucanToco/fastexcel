@@ -703,3 +703,157 @@ def test_use_columns_dtypes_eager_loading(
 
         assert pd_df.columns.to_list() == use_columns
         assert pl_df.columns == use_columns
+
+
+def test_use_columns_with_table() -> None:
+    excel_reader = fastexcel.read_excel(path_for_fixture("sheet-with-tables.xlsx"))
+
+    table = excel_reader.load_table("users", use_columns=["User Id", "FirstName"])
+
+    expected_available_columns = [
+        fastexcel.ColumnInfo(
+            name="User Id",
+            index=0,
+            absolute_index=0,
+            dtype="float",
+            column_name_from="provided",
+            dtype_from="guessed",
+        ),
+        fastexcel.ColumnInfo(
+            name="FirstName",
+            index=1,
+            absolute_index=1,
+            dtype="string",
+            column_name_from="provided",
+            dtype_from="guessed",
+        ),
+        fastexcel.ColumnInfo(
+            name="__UNNAMED__2",
+            index=2,
+            absolute_index=2,
+            dtype="string",
+            column_name_from="generated",
+            dtype_from="guessed",
+        ),
+        fastexcel.ColumnInfo(
+            name="__UNNAMED__3",
+            index=3,
+            absolute_index=3,
+            dtype="datetime",
+            column_name_from="generated",
+            dtype_from="guessed",
+        ),
+    ]
+
+    expected_selected_columns = [
+        fastexcel.ColumnInfo(
+            name="User Id",
+            index=0,
+            absolute_index=0,
+            dtype="float",
+            column_name_from="provided",
+            dtype_from="guessed",
+        ),
+        fastexcel.ColumnInfo(
+            name="FirstName",
+            index=1,
+            absolute_index=1,
+            dtype="string",
+            column_name_from="provided",
+            dtype_from="guessed",
+        ),
+    ]
+
+    assert table.available_columns() == expected_available_columns
+    assert table.selected_columns == expected_selected_columns
+
+    expected_pl_df = pl.DataFrame(
+        {"User Id": [1.0, 2.0, 5.0], "FirstName": ["Peter", "John", "Hans"]}
+    )
+    expected_pd_df = pd.DataFrame(
+        {"User Id": [1.0, 2.0, 5.0], "FirstName": ["Peter", "John", "Hans"]}
+    )
+
+    pl_df = table.to_polars()
+    pl_assert_frame_equal(pl_df, expected_pl_df)
+
+    pd_df = table.to_pandas()
+    pd_assert_frame_equal(pd_df, expected_pd_df)
+
+
+def test_use_columns_with_table_and_provided_columns() -> None:
+    excel_reader = fastexcel.read_excel(path_for_fixture("sheet-with-tables.xlsx"))
+
+    table = excel_reader.load_table(
+        "users", use_columns=[0, 2], column_names=["user_id", "last_name"]
+    )
+
+    expected_available_columns = [
+        fastexcel.ColumnInfo(
+            name="user_id",
+            index=0,
+            absolute_index=0,
+            dtype="float",
+            column_name_from="provided",
+            dtype_from="guessed",
+        ),
+        fastexcel.ColumnInfo(
+            name="__UNNAMED__1",
+            index=1,
+            absolute_index=1,
+            dtype="string",
+            column_name_from="generated",
+            dtype_from="guessed",
+        ),
+        fastexcel.ColumnInfo(
+            name="last_name",
+            index=2,
+            absolute_index=2,
+            dtype="string",
+            column_name_from="provided",
+            dtype_from="guessed",
+        ),
+        fastexcel.ColumnInfo(
+            name="__UNNAMED__3",
+            index=3,
+            absolute_index=3,
+            dtype="datetime",
+            column_name_from="generated",
+            dtype_from="guessed",
+        ),
+    ]
+
+    expected_selected_columns = [
+        fastexcel.ColumnInfo(
+            name="user_id",
+            index=0,
+            absolute_index=0,
+            dtype="float",
+            column_name_from="provided",
+            dtype_from="guessed",
+        ),
+        fastexcel.ColumnInfo(
+            name="last_name",
+            index=2,
+            absolute_index=2,
+            dtype="string",
+            column_name_from="provided",
+            dtype_from="guessed",
+        ),
+    ]
+
+    assert table.available_columns() == expected_available_columns
+    assert table.selected_columns == expected_selected_columns
+
+    expected_pl_df = pl.DataFrame(
+        {"user_id": [1.0, 2.0, 5.0], "last_name": ["Müller", "Meier", "Fricker"]}
+    )
+    expected_pd_df = pd.DataFrame(
+        {"user_id": [1.0, 2.0, 5.0], "last_name": ["Müller", "Meier", "Fricker"]}
+    )
+
+    pl_df = table.to_polars()
+    pl_assert_frame_equal(pl_df, expected_pl_df)
+
+    pd_df = table.to_pandas()
+    pd_assert_frame_equal(pd_df, expected_pd_df)
