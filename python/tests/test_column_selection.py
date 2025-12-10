@@ -857,3 +857,55 @@ def test_use_columns_with_table_and_provided_columns() -> None:
 
     pd_df = table.to_pandas()
     pd_assert_frame_equal(pd_df, expected_pd_df)
+
+
+def test_use_column_range_with_offset_without_table():
+    excel_reader = fastexcel.read_excel(path_for_fixture("sheet-and-table-with-offset.xlsx"))
+
+    sheet = excel_reader.load_sheet("without-table", use_columns="H:I", header_row=9)
+
+    expected_pl_df = pl.DataFrame(
+        {
+            "Column at H10": [1, 2, 3],
+            "Column at I10": [4, 5, 6],
+        }
+    )
+
+    expected_pd_df = pd.DataFrame(
+        {
+            "Column at H10": [1, 2, 3],
+            "Column at I10": [4, 5, 6],
+        }
+    )
+
+    pl_df = sheet.to_polars()
+    pl_assert_frame_equal(pl_df, expected_pl_df, check_dtypes=False)
+
+    pd_df = sheet.to_pandas()
+    pd_assert_frame_equal(pd_df, expected_pd_df, check_dtype=False)
+
+
+def test_use_column_range_with_offset_with_table():
+    excel_reader = fastexcel.read_excel(path_for_fixture("sheet-and-table-with-offset.xlsx"))
+
+    sheet = excel_reader.load_sheet("with-table", use_columns="D:E", header_row=4)
+
+    expected_pl_df = pl.DataFrame(
+        {
+            "Column at D5": [1, 2, 3, 4],
+            "Column at E5": [4, 5, 6, 8],
+        }
+    )
+
+    expected_pd_df = pd.DataFrame(
+        {
+            "Column at D5": [1, 2, 3, 4],
+            "Column at E5": [4, 5, 6, 8],
+        }
+    )
+
+    pl_df = sheet.to_polars()
+    pl_assert_frame_equal(pl_df, expected_pl_df, check_dtypes=False)
+
+    pd_df = sheet.to_pandas()
+    pd_assert_frame_equal(pd_df, expected_pd_df, check_dtype=False)

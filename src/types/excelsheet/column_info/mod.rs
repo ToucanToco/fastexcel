@@ -180,8 +180,8 @@ impl ColumnInfoNoDtype {
         &self.name
     }
 
-    pub(super) fn index(&self) -> usize {
-        self.index
+    pub(super) fn absolute_index(&self) -> usize {
+        self.absolute_index
     }
 
     fn dtype_info<D: CalamineDataProvider>(
