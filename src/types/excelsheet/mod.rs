@@ -183,7 +183,8 @@ impl SelectedColumns {
                         match selected_column {
                             IdxOrName::Idx(index) => available_columns
                                 .iter()
-                                .position(|col_info| &col_info.index() == index),
+                                // Sheets have absolute column names (A, B, C, ...)
+                                .position(|col_info| &col_info.absolute_index() == index),
                             IdxOrName::Name(name) => available_columns
                                 .iter()
                                 .position(|col_info| col_info.name() == name.as_str()),
