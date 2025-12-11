@@ -169,6 +169,33 @@ impl PartialEq for SelectedColumns {
     }
 }
 
+pub(crate) fn deferred_selection_to_concrete(
+    deferred_selection: &[DeferredColumnSelection],
+    max_col_index: usize,
+) -> Vec<IdxOrName> {
+    // First, resolve all deferred selections into concrete column indices
+    let mut resolved_indices = Vec::new();
+
+    for deferred in deferred_selection {
+        match deferred {
+            DeferredColumnSelection::Fixed(idx_or_name) => {
+                resolved_indices.push(idx_or_name.clone());
+            }
+            DeferredColumnSelection::OpenEndedRange(start_idx) => {
+                // Add all columns from start_idx to the end
+                resolved_indices.extend((*start_idx..=max_col_index).map(IdxOrName::Idx));
+            }
+            DeferredColumnSelection::FromBeginningRange(end_idx) => {
+                // Add all columns from 0 to end_idx (inclusive)
+                let actual_end = (*end_idx).min(max_col_index);
+                resolved_indices.extend((0..=actual_end).map(IdxOrName::Idx));
+            }
+        }
+    }
+
+    resolved_indices
+}
+
 impl SelectedColumns {
     pub(super) fn select_columns(
         &self,
@@ -238,30 +265,13 @@ impl SelectedColumns {
                     .collect()
             }),
             SelectedColumns::DeferredSelection(deferred_selection) => {
-                // First, resolve all deferred selections into concrete column indices
-                let mut resolved_indices = Vec::new();
-                let max_col_index = available_columns.len().saturating_sub(1);
+                let max_col_index = available_columns
+                    .last()
+                    .map_or(0, |col| col.absolute_index());
+                let concrete_selection = SelectedColumns::Selection(
+                    deferred_selection_to_concrete(deferred_selection, max_col_index),
+                );
 
-                for deferred in deferred_selection {
-                    match deferred {
-                        DeferredColumnSelection::Fixed(idx_or_name) => {
-                            resolved_indices.push(idx_or_name.clone());
-                        }
-                        DeferredColumnSelection::OpenEndedRange(start_idx) => {
-                            // Add all columns from start_idx to the end
-                            resolved_indices
-                                .extend((*start_idx..=max_col_index).map(IdxOrName::Idx));
-                        }
-                        DeferredColumnSelection::FromBeginningRange(end_idx) => {
-                            // Add all columns from 0 to end_idx (inclusive)
-                            let actual_end = (*end_idx).min(max_col_index);
-                            resolved_indices.extend((0..=actual_end).map(IdxOrName::Idx));
-                        }
-                    }
-                }
-
-                // Now use the same logic as Selection but with resolved indices
-                let concrete_selection = SelectedColumns::Selection(resolved_indices);
                 concrete_selection.select_columns(available_columns)
             }
         }
