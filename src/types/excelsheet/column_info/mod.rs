@@ -200,7 +200,7 @@ impl ColumnInfoNoDtype {
                     DTypes::Map(dtypes) => {
                         // if we have dtypes, look the dtype up by index, and fall back on a lookup by name
                         // (done in this order because copying an usize is cheaper than cloning a string)
-                        if let Some(dtype) = dtypes.get(&self.index.into()) {
+                        if let Some(dtype) = dtypes.get(&self.absolute_index().into()) {
                             Some((*dtype, DTypeFrom::ProvidedByIndex))
                         } else {
                             dtypes
@@ -394,8 +394,10 @@ fn column_info_from_header<D: CalamineDataProvider>(
 
                 Ok((0..width)
                     .map(|col_idx| {
-                        let provided_name_opt = if let Some(pos_in_names) =
-                            selected_indices.iter().position(|idx| idx == &col_idx)
+                        let absolute_col_idx = col_idx + col_off;
+                        let provided_name_opt = if let Some(pos_in_names) = selected_indices
+                            .iter()
+                            .position(|idx| *idx == absolute_col_idx)
                         {
                             names.get(pos_in_names).cloned()
                         } else {
