@@ -113,7 +113,7 @@ jobs:
           target: ${{ steps.target.outputs.target }}
 
       - name: Upload wheels
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: "wheels-${{ matrix.os }}-python-${{ matrix.python-version }}-${{ matrix.architecture }}"
           path: dist
@@ -130,7 +130,7 @@ jobs:
           command: sdist
           args: "-o dist"
       - name: upload sdist
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: sdist
           path: dist
