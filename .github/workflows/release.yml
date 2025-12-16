@@ -27,7 +27,7 @@ jobs:
         args: "--release -o dist -i python${{ matrix.python-version }}"
         target: ${{ matrix.architecture == 'aarch64' && 'aarch64-unknown-linux-gnu' || null }}
     - name: Upload wheels
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v6
       with:
         name: "wheels-linux-python-${{ matrix.python-version }}-${{ matrix.architecture }}"
         path: dist
@@ -51,7 +51,7 @@ jobs:
         args: "--release -o dist -i python${{ matrix.python-version }}"
         target: ${{ matrix.architecture == 'aarch64' && 'aarch64-apple-darwin' || 'x86_64-apple-darwin' }}
     - name: Upload wheels
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v6
       with:
         name: "wheels-macos-python-${{ matrix.python-version }}-${{ matrix.architecture }}"
         path: dist
@@ -74,7 +74,7 @@ jobs:
         command: build
         args: "--release -o dist -i python${{ matrix.python-version }}"
     - name: Upload wheels
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v6
       with:
         name: "wheels-windows-python-${{ matrix.python-version }}"
         path: dist
@@ -94,7 +94,7 @@ jobs:
           command: sdist
           args: "-o dist"
       - name: Upload sdist
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: sdist
           path: dist
