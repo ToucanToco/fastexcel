@@ -104,10 +104,10 @@ jobs:
             || (matrix.os == 'windows-latest' && (matrix.architecture == 'aarch64' && 'aarch64-pc-windows-msvc' || 'x86_64-pc-windows-msvc'))
           }}
           echo "target=$TARGET" >> $GITHUB_OUTPUT
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: ${{ matrix.python-version }}
+      # - name: Set up Python
+      #   uses: actions/setup-python@v6
+      #   with:
+      #     python-version: ${{ matrix.python-version }}
       - name: build (fast)
         uses: PyO3/maturin-action@v1
         with:
