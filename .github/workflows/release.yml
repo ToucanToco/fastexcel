@@ -115,28 +115,28 @@ jobs:
       id: auth
 
     - name: Download Linux wheels
-      uses: actions/download-artifact@v6
+      uses: actions/download-artifact@v7
       with:
         pattern: "wheels-linux-*"
         merge-multiple: true
         path: wheels-linux
 
     - name: Download MacOS wheels
-      uses: actions/download-artifact@v6
+      uses: actions/download-artifact@v7
       with:
         pattern: "wheels-macos-*"
         merge-multiple: true
         path: wheels-macos
 
     - name: Download Windows wheels
-      uses: actions/download-artifact@v6
+      uses: actions/download-artifact@v7
       with:
         pattern: "wheels-windows-*"
         merge-multiple: true
         path: wheels-windows
 
     - name: Download sdist
-      uses: actions/download-artifact@v6
+      uses: actions/download-artifact@v7
       with:
         name: "sdist"
         path: sdist
