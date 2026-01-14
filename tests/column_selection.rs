@@ -336,6 +336,76 @@ fn test_use_column_range_with_offset_with_table_and_specified_dtypes(
     Ok(())
 }
 
+/// This test ensures that index-based selection is correctly resolved when used with an offset
+/// table: the selected indices should be absolute, and it should be able to handle both index-based
+/// and name-based selection.
+#[rstest]
+fn test_use_column_names_with_offset_table_by_index_and_name(
+    mut reader_with_offset: fastexcel::ExcelReader,
+) -> Result<()> {
+    let selected_columns = SelectedColumns::Selection(vec![
+        IdxOrName::Name("Column at D5".to_string()),
+        IdxOrName::Idx(4),
+    ]);
+
+    let opts = LoadSheetOrTableOptions::new_for_table().selected_columns(selected_columns);
+
+    let table = reader_with_offset
+        .load_table("TableAtD5", opts)
+        .context("Failed to load table")?;
+
+    assert_eq!(table.name(), "TableAtD5");
+
+    let expected_selected_columns = vec![
+        fastexcel::ColumnInfo {
+            name: "Column at D5".to_owned(),
+            index: 0,
+            absolute_index: 3,
+            dtype: fastexcel::DType::Float,
+            column_name_from: fastexcel::ColumnNameFrom::Provided,
+            dtype_from: fastexcel::DTypeFrom::Guessed,
+        },
+        fastexcel::ColumnInfo {
+            name: "Column at E5".to_owned(),
+            index: 1,
+            absolute_index: 4,
+            dtype: fastexcel::DType::Float,
+            column_name_from: fastexcel::ColumnNameFrom::Provided,
+            dtype_from: fastexcel::DTypeFrom::Guessed,
+        },
+    ];
+
+    let selected_columns_info = table.selected_columns();
+    assert_eq!(selected_columns_info, expected_selected_columns);
+
+    let expected_columns = fe_columns!(
+        "Column at D5" => [1.0, 2.0, 3.0, 4.0],
+        "Column at E5" => [4.0, 5.0, 6.0, 8.0],
+    );
+
+    let table_columns = table
+        .to_columns()
+        .context("could not convert table to columns")?;
+    assert_eq!(table_columns, expected_columns);
+
+    #[cfg(feature = "polars")]
+    {
+        use polars_core::df;
+
+        let expected_df = df!(
+            "Column at D5" => [1.0, 2.0, 3.0, 4.0],
+            "Column at E5" => [4.0, 5.0, 6.0, 8.0],
+        )?;
+
+        let df = table
+            .to_polars()
+            .context("could not convert table to polars dataframe")?;
+        assert!(df.equals_missing(&expected_df))
+    }
+
+    Ok(())
+}
+
 #[rstest]
 fn test_use_column_range_with_offset_with_sheet_and_specified_dtypes(
     mut reader_with_offset: fastexcel::ExcelReader,

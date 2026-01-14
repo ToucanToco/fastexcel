@@ -56,7 +56,9 @@ impl ExcelTable {
                 IdxOrName::Name(name) => table_columns
                     .iter()
                     .enumerate()
-                    .find_map(|(idx, col_name)| (col_name.as_str() == name.as_str()).then_some(idx))
+                    .find_map(|(idx, col_name)| {
+                        (col_name.as_str() == name.as_str()).then_some(idx + column_offset)
+                    })
                     .ok_or_else(|| FastExcelErrorKind::ColumnNotFound(name.clone().into()).into())
                     .with_context(|| format!("available columns are: {table_columns:?}")),
             })
