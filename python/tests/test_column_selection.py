@@ -859,53 +859,249 @@ def test_use_columns_with_table_and_provided_columns() -> None:
     pd_assert_frame_equal(pd_df, expected_pd_df)
 
 
-def test_use_column_range_with_offset_without_table():
+def test_use_column_range_with_offset_without_table() -> None:
     excel_reader = fastexcel.read_excel(path_for_fixture("sheet-and-table-with-offset.xlsx"))
 
     sheet = excel_reader.load_sheet("without-table", use_columns="H:I", header_row=9)
 
     expected_pl_df = pl.DataFrame(
         {
-            "Column at H10": [1, 2, 3],
-            "Column at I10": [4, 5, 6],
+            "Column at H10": [1.0, 2.0, 3.0],
+            "Column at I10": [4.0, 5.0, 6.0],
         }
     )
 
     expected_pd_df = pd.DataFrame(
         {
-            "Column at H10": [1, 2, 3],
-            "Column at I10": [4, 5, 6],
+            "Column at H10": [1.0, 2.0, 3.0],
+            "Column at I10": [4.0, 5.0, 6.0],
         }
     )
 
     pl_df = sheet.to_polars()
-    pl_assert_frame_equal(pl_df, expected_pl_df, check_dtypes=False)
+    pl_assert_frame_equal(pl_df, expected_pl_df)
 
     pd_df = sheet.to_pandas()
-    pd_assert_frame_equal(pd_df, expected_pd_df, check_dtype=False)
+    pd_assert_frame_equal(pd_df, expected_pd_df)
 
 
-def test_use_column_range_with_offset_with_table():
+def test_use_column_range_with_offset_with_table() -> None:
     excel_reader = fastexcel.read_excel(path_for_fixture("sheet-and-table-with-offset.xlsx"))
 
     sheet = excel_reader.load_sheet("with-table", use_columns="D:E", header_row=4)
 
     expected_pl_df = pl.DataFrame(
         {
-            "Column at D5": [1, 2, 3, 4],
-            "Column at E5": [4, 5, 6, 8],
+            "Column at D5": [1.0, 2.0, 3.0, 4.0],
+            "Column at E5": [4.0, 5.0, 6.0, 8.0],
         }
     )
 
     expected_pd_df = pd.DataFrame(
         {
-            "Column at D5": [1, 2, 3, 4],
-            "Column at E5": [4, 5, 6, 8],
+            "Column at D5": [1.0, 2.0, 3.0, 4.0],
+            "Column at E5": [4.0, 5.0, 6.0, 8.0],
         }
     )
 
     pl_df = sheet.to_polars()
-    pl_assert_frame_equal(pl_df, expected_pl_df, check_dtypes=False)
+    pl_assert_frame_equal(pl_df, expected_pl_df)
 
     pd_df = sheet.to_pandas()
-    pd_assert_frame_equal(pd_df, expected_pd_df, check_dtype=False)
+    pd_assert_frame_equal(pd_df, expected_pd_df)
+
+
+def test_use_column_names_with_offset_table_by_index_and_name() -> None:
+    """Index-based selection should resolve correctly when used with an offset table.
+
+    The selected indices should be absolute, and it should be able to handle both index-based
+    and name-based selection.
+    """
+    excel_reader = fastexcel.read_excel(path_for_fixture("sheet-and-table-with-offset.xlsx"))
+
+    # Mix name-based and index-based selection
+    # "Column at D5" is at table index 0, absolute index 3
+    # Index 4 is absolute index for column E
+    table = excel_reader.load_table("TableAtD5", use_columns=["Column at D5", 4])  # type:ignore[arg-type]
+
+    expected_selected_columns = [
+        fastexcel.ColumnInfo(
+            name="Column at D5",
+            index=0,
+            absolute_index=3,
+            dtype="float",
+            column_name_from="provided",
+            dtype_from="guessed",
+        ),
+        fastexcel.ColumnInfo(
+            name="Column at E5",
+            index=1,
+            absolute_index=4,
+            dtype="float",
+            column_name_from="provided",
+            dtype_from="guessed",
+        ),
+    ]
+
+    assert table.selected_columns == expected_selected_columns
+
+    expected_pl_df = pl.DataFrame(
+        {
+            "Column at D5": [1.0, 2.0, 3.0, 4.0],
+            "Column at E5": [4.0, 5.0, 6.0, 8.0],
+        }
+    )
+    expected_pd_df = pd.DataFrame(
+        {
+            "Column at D5": [1.0, 2.0, 3.0, 4.0],
+            "Column at E5": [4.0, 5.0, 6.0, 8.0],
+        }
+    )
+
+    pl_df = table.to_polars()
+    pl_assert_frame_equal(pl_df, expected_pl_df)
+
+    pd_df = table.to_pandas()
+    pd_assert_frame_equal(pd_df, expected_pd_df)
+
+
+def test_use_column_range_with_offset_with_table_and_specified_dtypes() -> None:
+    excel_reader = fastexcel.read_excel(path_for_fixture("sheet-and-table-with-offset.xlsx"))
+
+    table_closed = excel_reader.load_table(
+        "TableAtD5", use_columns="D:E", dtypes={3: "int", "Column at E5": "string"}
+    )
+
+    table_open_ended = excel_reader.load_table(
+        "TableAtD5", use_columns="D:", dtypes={3: "int", "Column at E5": "string"}
+    )
+
+    expected_data = {
+        # Dtype should be int, looked up by index
+        "Column at D5": [1, 2, 3, 4],
+        # Dtype should be string, looked up by name
+        "Column at E5": ["4", "5", "6", "8"],
+    }
+    expected_column_info = [
+        fastexcel.ColumnInfo(
+            name="Column at D5",
+            index=0,
+            absolute_index=3,
+            dtype="int",
+            dtype_from="provided_by_index",
+            column_name_from="provided",
+        ),
+        fastexcel.ColumnInfo(
+            name="Column at E5",
+            index=1,
+            absolute_index=4,
+            dtype="string",
+            dtype_from="provided_by_name",
+            column_name_from="provided",
+        ),
+    ]
+
+    assert table_closed.selected_columns == expected_column_info
+    assert table_open_ended.selected_columns == expected_column_info
+
+    expected_pl_df = pl.DataFrame(expected_data)
+    expected_pd_df = pd.DataFrame(expected_data)
+
+    pl_df_closed = table_closed.to_polars()
+    pl_assert_frame_equal(pl_df_closed, expected_pl_df)
+
+    pl_df_open_ended = table_open_ended.to_polars()
+    pl_assert_frame_equal(pl_df_open_ended, expected_pl_df)
+
+    pd_df_closed = table_closed.to_pandas()
+    pd_assert_frame_equal(pd_df_closed, expected_pd_df)
+
+    pd_df_open_ended = table_open_ended.to_pandas()
+    pd_assert_frame_equal(pd_df_open_ended, expected_pd_df)
+
+
+def test_use_column_range_with_offset_with_sheet_and_specified_dtypes() -> None:
+    excel_reader = fastexcel.read_excel(path_for_fixture("sheet-and-table-with-offset.xlsx"))
+
+    sheet_closed = excel_reader.load_sheet(
+        "without-table",
+        use_columns="H:K",
+        header_row=9,
+        dtypes={7: "int", "Column at I10": "string"},
+    )
+
+    sheet_open_ended = excel_reader.load_sheet(
+        "without-table",
+        use_columns="H:",
+        header_row=9,
+        dtypes={7: "int", "Column at I10": "string"},
+    )
+
+    expected_data_polars = {
+        # Dtype should be int, looked up by index
+        "Column at H10": [1, 2, 3],
+        # Dtype should be string, looked up by name
+        "Column at I10": ["4", "5", "6"],
+        "__UNNAMED__2": pl.Series([None, None, None], dtype=pl.String),
+        "Column at K10": [7.0, 8.0, 9.0],
+    }
+    expected_data_pandas = {
+        # Dtype should be int, looked up by index
+        "Column at H10": [1, 2, 3],
+        # Dtype should be string, looked up by name
+        "Column at I10": ["4", "5", "6"],
+        "__UNNAMED__2": [None, None, None],
+        "Column at K10": [7.0, 8.0, 9.0],
+    }
+    expected_column_info = [
+        fastexcel.ColumnInfo(
+            name="Column at H10",
+            index=0,
+            absolute_index=7,
+            dtype="int",
+            dtype_from="provided_by_index",
+            column_name_from="looked_up",
+        ),
+        fastexcel.ColumnInfo(
+            name="Column at I10",
+            index=1,
+            absolute_index=8,
+            dtype="string",
+            dtype_from="provided_by_name",
+            column_name_from="looked_up",
+        ),
+        fastexcel.ColumnInfo(
+            name="__UNNAMED__2",
+            index=2,
+            absolute_index=9,
+            dtype="string",
+            dtype_from="guessed",
+            column_name_from="generated",
+        ),
+        fastexcel.ColumnInfo(
+            name="Column at K10",
+            index=3,
+            absolute_index=10,
+            dtype="float",
+            dtype_from="guessed",
+            column_name_from="looked_up",
+        ),
+    ]
+
+    assert sheet_closed.selected_columns == expected_column_info
+    assert sheet_open_ended.selected_columns == expected_column_info
+
+    expected_pl_df = pl.DataFrame(expected_data_polars)
+    expected_pd_df = pd.DataFrame(expected_data_pandas)
+
+    pl_df_closed = sheet_closed.to_polars()
+    pl_assert_frame_equal(pl_df_closed, expected_pl_df)
+
+    pl_df_open_ended = sheet_open_ended.to_polars()
+    pl_assert_frame_equal(pl_df_open_ended, expected_pl_df)
+
+    pd_df_closed = sheet_closed.to_pandas()
+    pd_assert_frame_equal(pd_df_closed, expected_pd_df)
+
+    pd_df_open_ended = sheet_open_ended.to_pandas()
+    pd_assert_frame_equal(pd_df_open_ended, expected_pd_df)
