@@ -30,7 +30,7 @@ arrow-array = { version = "^57", features = ["ffi"], optional = true }
 arrow-pyarrow = { version = "^57", optional = true }
 arrow-schema = { version = "^57", optional = true }
 calamine = { version = "^0.32.0", features = ["chrono"] }
-chrono = { version = "^0.4.42", default-features = false }
+chrono = { version = "^0.4.43", default-features = false }
 log = "^0.4"
 polars-core = { version = ">=0.50", default-features = false, features = [
     "dtype-date",
