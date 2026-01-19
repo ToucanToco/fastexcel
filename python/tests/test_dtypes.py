@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from datetime import date, datetime
 from typing import Any, Literal
 
@@ -10,7 +11,6 @@ import polars as pl
 import pytest
 from pandas.testing import assert_frame_equal as pd_assert_frame_equal
 from polars.testing import assert_frame_equal as pl_assert_frame_equal
-from pytest_mock import MockerFixture
 
 from .utils import path_for_fixture
 
@@ -323,27 +323,20 @@ def test_one_dtype_for_all() -> None:
     assert sheet.to_polars().dtypes == [pl.String] * 7
 
 
-def test_fallback_infer_dtypes(mocker: MockerFixture) -> None:
+def test_fallback_infer_dtypes(caplog: pytest.LogCaptureFixture) -> None:
     """it should fallback to string if it can't infer the dtype"""
-    import logging
-
-    logger_instance_mock = mocker.patch("logging.getLogger", autospec=True).return_value
 
     excel_reader = fastexcel.read_excel(path_for_fixture("infer-dtypes-fallback.xlsx"))
     sheet = excel_reader.load_sheet(0)
 
     # Ensure a warning message was logged to explain the fallback to string
-    logger_instance_mock.makeRecord.assert_called_once_with(
-        "fastexcel.types.dtype",
-        logging.WARNING,
-        mocker.ANY,
-        mocker.ANY,
-        "Could not determine dtype for column 1, falling back to string",
-        mocker.ANY,
-        mocker.ANY,
-        mocker.ANY,
-        mocker.ANY,
-    )
+    assert caplog.record_tuples == [
+        (
+            "fastexcel.types.dtype",
+            logging.WARNING,
+            "Could not determine dtype for column 1, falling back to string",
+        )
+    ]
 
     assert sheet.available_columns() == [
         fastexcel.ColumnInfo(
