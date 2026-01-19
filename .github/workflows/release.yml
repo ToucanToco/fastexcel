@@ -60,8 +60,8 @@ jobs:
     runs-on: windows-latest
     strategy:
       matrix:
-        # amd64 only for windows, as no arm64 runners are available
         python-version: ["3.10", "3.14t"]
+        architecture: [x86-64, aarch64]
     steps:
     - uses: actions/checkout@v6
     - uses: dtolnay/rust-toolchain@stable
@@ -73,10 +73,11 @@ jobs:
       with:
         command: build
         args: "--release -o dist -i python${{ matrix.python-version }}"
+        target: ${{ matrix.architecture == 'aarch64' && 'aarch64-pc-windows-msvc' || 'x86_64-pc-windows-msvc' }}
     - name: Upload wheels
       uses: actions/upload-artifact@v6
       with:
-        name: "wheels-windows-python-${{ matrix.python-version }}"
+        name: "wheels-windows-python-${{ matrix.python-version }}-${{ matrix.architecture }}"
         path: dist
 
   sdist:
