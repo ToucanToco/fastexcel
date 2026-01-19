@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from datetime import date, datetime
 from typing import Any, Literal
 
@@ -329,11 +330,13 @@ def test_fallback_infer_dtypes(caplog: pytest.LogCaptureFixture) -> None:
     sheet = excel_reader.load_sheet(0)
 
     # Ensure a warning message was logged to explain the fallback to string
-    assert len(caplog.records) == 1
-    record = caplog.records[0]
-    assert record.message == "Could not determine dtype for column 1, falling back to string"
-    assert record.name == "fastexcel.types.dtype"
-    assert record.levelname == "WARNING"
+    assert caplog.record_tuples == [
+        (
+            "fastexcel.types.dtype",
+            logging.WARNING,
+            "Could not determine dtype for column 1, falling back to string",
+        )
+    ]
 
     assert sheet.available_columns() == [
         fastexcel.ColumnInfo(
