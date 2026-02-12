@@ -12,7 +12,7 @@ import pytest
 from pandas.testing import assert_frame_equal as pd_assert_frame_equal
 from polars.testing import assert_frame_equal as pl_assert_frame_equal
 
-from .utils import path_for_fixture
+from .utils import get_expected_pandas_dtype, path_for_fixture
 
 
 @pytest.fixture
@@ -123,33 +123,30 @@ def test_sheet_with_mixed_dtypes_and_sample_rows(expected_data: dict[str, list[A
 
 @pytest.mark.parametrize("dtype_by_index", (True, False))
 @pytest.mark.parametrize(
-    "dtype,expected_data,expected_pd_dtype,expected_pl_dtype",
+    "dtype,expected_data,expected_pl_dtype",
     [
-        ("int", [123456, 44333, 44333, 87878, 87878], "int64", pl.Int64),
-        ("float", [123456.0, 44333.0, 44333.0, 87878.0, 87878.0], "float64", pl.Float64),
-        ("string", ["123456", "44333", "44333", "87878", "87878"], "object", pl.Utf8),
-        ("boolean", [True] * 5, "bool", pl.Boolean),
+        ("int", [123456, 44333, 44333, 87878, 87878], pl.Int64),
+        ("float", [123456.0, 44333.0, 44333.0, 87878.0, 87878.0], pl.Float64),
+        ("string", ["123456", "44333", "44333", "87878", "87878"], pl.Utf8),
+        ("boolean", [True] * 5, pl.Boolean),
         (
             "datetime",
             [datetime(2238, 1, 3)] + [datetime(2021, 5, 17)] * 2 + [datetime(2140, 8, 6)] * 2,
-            "datetime64[ms]",
             pl.Datetime,
         ),
         (
             "date",
             [date(2238, 1, 3)] + [date(2021, 5, 17)] * 2 + [date(2140, 8, 6)] * 2,
-            "object",
             pl.Date,
         ),
         #  conversion to duration not supported yet
-        ("duration", [pd.NaT] * 5, "timedelta64[ms]", pl.Duration),
+        ("duration", [pd.NaT] * 5, pl.Duration),
     ],
 )
 def test_sheet_with_mixed_dtypes_specify_dtypes(
     dtype_by_index: bool,
     dtype: fastexcel.DType,
     expected_data: list[Any],
-    expected_pd_dtype: str,
     expected_pl_dtype: pl.DataType,
 ) -> None:
     dtypes: fastexcel.DTypeMap = {0: dtype} if dtype_by_index else {"Employee ID": dtype}
@@ -158,6 +155,7 @@ def test_sheet_with_mixed_dtypes_specify_dtypes(
     assert sheet.specified_dtypes == dtypes
 
     pd_df = sheet.to_pandas()
+    expected_pd_dtype = get_expected_pandas_dtype(dtype)
     assert pd_df["Employee ID"].dtype == expected_pd_dtype
     assert pd_df["Employee ID"].to_list() == expected_data
 
@@ -167,21 +165,21 @@ def test_sheet_with_mixed_dtypes_specify_dtypes(
 
 
 @pytest.mark.parametrize(
-    "dtypes,expected,expected_pd_dtype,expected_pl_dtype",
+    "dtypes,expected,fastexcel_dtype,expected_pl_dtype",
     [
-        (None, datetime(2023, 7, 21), "datetime64[ms]", pl.Datetime),
-        ({"Date": "datetime"}, datetime(2023, 7, 21), "datetime64[ms]", pl.Datetime),
-        ({"Date": "date"}, date(2023, 7, 21), "object", pl.Date),
-        ({"Date": "string"}, "2023-07-21 00:00:00", "object", pl.Utf8),
-        ({2: "datetime"}, datetime(2023, 7, 21), "datetime64[ms]", pl.Datetime),
-        ({2: "date"}, date(2023, 7, 21), "object", pl.Date),
-        ({2: "string"}, "2023-07-21 00:00:00", "object", pl.Utf8),
+        (None, datetime(2023, 7, 21), "datetime", pl.Datetime),
+        ({"Date": "datetime"}, datetime(2023, 7, 21), "datetime", pl.Datetime),
+        ({"Date": "date"}, date(2023, 7, 21), "date", pl.Date),
+        ({"Date": "string"}, "2023-07-21 00:00:00", "string", pl.Utf8),
+        ({2: "datetime"}, datetime(2023, 7, 21), "datetime", pl.Datetime),
+        ({2: "date"}, date(2023, 7, 21), "date", pl.Date),
+        ({2: "string"}, "2023-07-21 00:00:00", "string", pl.Utf8),
     ],
 )
 def test_sheet_datetime_conversion(
     dtypes: fastexcel.DTypeMap | None,
     expected: Any,
-    expected_pd_dtype: str,
+    fastexcel_dtype: str,
     expected_pl_dtype: pl.DataType,
 ) -> None:
     excel_reader = fastexcel.read_excel(path_for_fixture("fixture-multi-dtypes-columns.xlsx"))
@@ -189,6 +187,7 @@ def test_sheet_datetime_conversion(
     sheet = excel_reader.load_sheet(0, dtypes=dtypes)
     assert sheet.specified_dtypes == dtypes
     pd_df = sheet.to_pandas()
+    expected_pd_dtype = get_expected_pandas_dtype(fastexcel_dtype)
     assert pd_df["Date"].dtype == expected_pd_dtype
     assert pd_df["Date"].to_list() == [expected] * 9
 
@@ -211,7 +210,8 @@ def test_dtype_coercion_behavior__coerce(
     rb = sheet_or_rb if eager else sheet_or_rb.to_arrow()
 
     pd_df = rb.to_pandas()
-    assert pd_df["Mixed dates"].dtype == "object"
+    expected_pd_dtype = get_expected_pandas_dtype("string")
+    assert pd_df["Mixed dates"].dtype == expected_pd_dtype
     assert pd_df["Mixed dates"].to_list() == ["2023-07-21 00:00:00"] * 6 + ["July 23rd"] * 3
 
     pl_df = pl.from_arrow(data=rb)
@@ -487,7 +487,12 @@ def test_to_arrow_with_errors(
     rb, cell_errors = excel_reader.load_sheet(0, dtypes={"Column": dtype}).to_arrow_with_errors()
 
     pd_df = rb.to_pandas()
-    assert pd_df["Column"].replace(np.nan, None).to_list() == expected_data
+    # For string columns in pandas 3, replace pd.NA with None for comparison
+    if dtype == "string":
+        column_values = pd_df["Column"].replace([np.nan, pd.NA], None).to_list()
+    else:
+        column_values = pd_df["Column"].replace(np.nan, None).to_list()
+    assert column_values == expected_data
 
     def item_to_polars(item: Any):
         if isinstance(item, pd.Timestamp):
