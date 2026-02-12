@@ -29,8 +29,8 @@ dynamic = ["version"]
 
 [project.optional-dependencies]
 pyarrow = ["pyarrow>=8.0.0"]
-pandas = ["pandas>=1.4.4", "pyarrow>=8.0.0"]
-polars = ["polars>=0.16.14"]
+pandas = ["pandas>=1.4.4,<3", "pyarrow>=8.0.0"]
+polars = ["polars>=1"]
 
 [dependency-groups]
 dev = ["maturin>=1.7.0,<2.0"]
@@ -49,7 +49,7 @@ linting = [
     { include-group = "dev" },
     "mypy>=1.11.2,<2",
     "pre-commit>=2.20.0,<5",
-    "ruff>=0.12,<0.15",
+    "ruff>=0.15",
 ]
 docs = [{ include-group = "dev" }, "pdoc"]
 all = [
