@@ -80,6 +80,11 @@ jobs:
           make install
           make test
 
+      - name: Test with pandas<3
+        run: |
+          uv pip install "pandas<3"
+          make test-python
+
   check-wheel-build:
     runs-on: ${{ matrix.os }}
     strategy:
