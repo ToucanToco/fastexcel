@@ -29,7 +29,7 @@ dynamic = ["version"]
 
 [project.optional-dependencies]
 pyarrow = ["pyarrow>=8.0.0"]
-pandas = ["pandas>=1.4.4,<3", "pyarrow>=8.0.0"]
+pandas = ["pandas>=1.4.4", "pyarrow>=8.0.0"]
 polars = ["polars>=1"]
 
 [dependency-groups]

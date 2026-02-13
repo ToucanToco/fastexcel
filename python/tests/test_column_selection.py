@@ -5,6 +5,7 @@ import re
 from typing import Any
 
 import fastexcel
+import numpy as np
 import pandas as pd
 import polars as pl
 import pytest
@@ -1045,12 +1046,16 @@ def test_use_column_range_with_offset_with_sheet_and_specified_dtypes() -> None:
         "__UNNAMED__2": pl.Series([None, None, None], dtype=pl.String),
         "Column at K10": [7.0, 8.0, 9.0],
     }
+    # In pandas 3, string columns use nan instead of None for missing values
+    pd_version = tuple(int(x) for x in pd.__version__.split(".")[:2])
+    na_value = np.nan if pd_version >= (3, 0) else None
+
     expected_data_pandas = {
         # Dtype should be int, looked up by index
         "Column at H10": [1, 2, 3],
         # Dtype should be string, looked up by name
         "Column at I10": ["4", "5", "6"],
-        "__UNNAMED__2": [None, None, None],
+        "__UNNAMED__2": [na_value, na_value, na_value],
         "Column at K10": [7.0, 8.0, 9.0],
     }
     expected_column_info = [
@@ -1101,7 +1106,7 @@ def test_use_column_range_with_offset_with_sheet_and_specified_dtypes() -> None:
     pl_assert_frame_equal(pl_df_open_ended, expected_pl_df)
 
     pd_df_closed = sheet_closed.to_pandas()
-    pd_assert_frame_equal(pd_df_closed, expected_pd_df)
+    pd_assert_frame_equal(pd_df_closed, expected_pd_df, check_dtype=False)
 
     pd_df_open_ended = sheet_open_ended.to_pandas()
-    pd_assert_frame_equal(pd_df_open_ended, expected_pd_df)
+    pd_assert_frame_equal(pd_df_open_ended, expected_pd_df, check_dtype=False)
