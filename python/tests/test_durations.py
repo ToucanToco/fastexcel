@@ -14,7 +14,7 @@ from polars.datatypes import Duration as PlDuration
 from polars.datatypes import Utf8 as PlUtf8
 from polars.testing import assert_frame_equal as pl_assert_frame_equal
 
-from .utils import path_for_fixture
+from .utils import get_expected_pandas_dtype, path_for_fixture
 
 
 def test_sheet_with_different_time_types() -> None:
@@ -25,13 +25,10 @@ def test_sheet_with_different_time_types() -> None:
     pl_df = sheet.to_polars()
 
     ## dtypes
-    assert pd_df.dtypes.to_dict() == {
-        # the dtype for a date is object
-        "date": np.dtype("object"),
-        "datestr": np.dtype("object"),
-        "time": np.dtype("timedelta64[ms]"),
-        "datetime": np.dtype("datetime64[ms]"),
-    }
+    assert pd_df["date"].dtype == np.dtype("object")
+    assert pd_df["datestr"].dtype == get_expected_pandas_dtype("string")
+    assert pd_df["time"].dtype == np.dtype("timedelta64[ms]")
+    assert pd_df["datetime"].dtype == np.dtype("datetime64[ms]")
     expected_pl_dtypes: dict[str, PolarsDataType] = {
         "date": PlDate(),
         "datestr": PlUtf8(),
