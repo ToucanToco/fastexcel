@@ -141,6 +141,16 @@ impl CellError {
         let (row, col) = self.position;
         (row - self.row_offset, col)
     }
+
+    pub fn __repr__(&self) -> String {
+        let (row, col) = self.position;
+        let (offset_row, offset_col) = self.offset_position();
+        format!(
+            "CellError(position=({row}, {col}), offset_position=({offset_row}, {offset_col}), row_offset={row_offset}, detail={detail:?})",
+            row_offset = self.row_offset,
+            detail = &self.detail,
+        )
+    }
 }
 
 #[pyclass]
@@ -153,6 +163,11 @@ impl CellErrors {
     #[getter]
     pub fn errors<'p>(&'p self, _py: Python<'p>) -> Vec<CellError> {
         self.errors.clone()
+    }
+
+    pub fn __repr__(&self) -> String {
+        let errors_repr: Vec<String> = self.errors.iter().map(|e| e.__repr__()).collect();
+        format!("CellErrors(errors=[{}])", errors_repr.join(", "))
     }
 }
 

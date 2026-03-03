@@ -6,6 +6,16 @@ import pytest
 from .utils import path_for_fixture
 
 
+def test_cell_error_repr() -> None:
+    excel_reader = fastexcel.read_excel(path_for_fixture("fixture-type-errors.xlsx"))
+    _, cell_errors = excel_reader.load_sheet(0, dtypes={"Column": "int"}).to_arrow_with_errors()
+    assert cell_errors is not None
+    assert (
+        repr(cell_errors.errors[0])
+        == """CellError(position=(2, 0), offset_position=(1, 0), row_offset=1, detail="Expected int but got 'String(\\"foo\\")'")"""  # noqa: E501
+    )
+
+
 def test_read_excel_bad_type() -> None:
     expected_message = "source must be a string or bytes"
     with pytest.raises(fastexcel.InvalidParametersError, match=expected_message):
