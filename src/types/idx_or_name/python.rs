@@ -1,5 +1,5 @@
 use pyo3::{
-    Bound, FromPyObject, IntoPyObject, IntoPyObjectExt, PyAny, PyResult, Python,
+    Borrowed, Bound, FromPyObject, IntoPyObject, IntoPyObjectExt, PyAny, PyErr, Python,
     types::PyAnyMethods,
 };
 
@@ -25,9 +25,10 @@ impl TryFrom<&Bound<'_, PyAny>> for IdxOrName {
     }
 }
 
-impl FromPyObject<'_> for IdxOrName {
-    fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<Self> {
-        ob.try_into().into_pyresult()
+impl<'a, 'py> FromPyObject<'a, 'py> for IdxOrName {
+    type Error = PyErr;
+    fn extract(ob: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
+        (&*ob).try_into().into_pyresult()
     }
 }
 

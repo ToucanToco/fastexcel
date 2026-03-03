@@ -99,7 +99,7 @@ impl FromStr for DTypeFrom {
 // to specify them via docstrings
 /// Metadata about a single column in a sheet.
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "python", pyclass(name = "ColumnInfo"))]
+#[cfg_attr(feature = "python", pyclass(name = "ColumnInfo", skip_from_py_object))]
 pub struct ColumnInfo {
     /// The column's name
     pub name: String,
@@ -138,7 +138,10 @@ impl ColumnInfo {
 /// This class provides information about a single column in a sheet, without associated type
 /// information
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "python", pyclass(name = "ColumnInfoNoDtype"))]
+#[cfg_attr(
+    feature = "python",
+    pyclass(name = "ColumnInfoNoDtype", skip_from_py_object)
+)]
 pub(crate) struct ColumnInfoNoDtype {
     name: String,
     index: usize,

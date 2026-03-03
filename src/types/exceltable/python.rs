@@ -2,12 +2,12 @@ use std::sync::Arc;
 
 use arrow_array::{RecordBatch, StructArray};
 use arrow_schema::Field;
+#[cfg(feature = "pyarrow")]
+use pyo3::PyAny;
 use pyo3::{
-    Bound, PyResult, pymethods,
+    Bound, PyResult, Python, pymethods,
     types::{PyCapsule, PyTuple},
 };
-#[cfg(feature = "pyarrow")]
-use pyo3::{PyAny, Python};
 use pyo3_arrow::ffi::{to_array_pycapsules, to_schema_pycapsule};
 
 use crate::{
