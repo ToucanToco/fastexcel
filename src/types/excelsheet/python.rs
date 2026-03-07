@@ -2,10 +2,9 @@ use std::{collections::HashSet, sync::Arc};
 
 use arrow_array::{RecordBatch, StructArray};
 use arrow_schema::Field;
-#[cfg(feature = "pyarrow")]
-use pyo3::PyResult;
 use pyo3::{
-    Bound, FromPyObject, IntoPyObject, Py, PyAny, Python, pyclass, pymethods,
+    Borrowed, Bound, FromPyObject, IntoPyObject, Py, PyAny, PyErr, PyResult, Python, pyclass,
+    pymethods,
     types::{PyAnyMethods, PyCapsule, PyList, PyListMethods, PyString, PyTuple},
 };
 use pyo3_arrow::ffi::{to_array_pycapsules, to_schema_pycapsule};
@@ -56,7 +55,7 @@ impl TryFrom<Option<&Bound<'_, PyAny>>> for SelectedColumns {
                 // py_any_opt being None
                 if let Ok(py_str) = py_any.extract::<String>() {
                     py_str.parse()
-                } else if let Ok(py_list) = py_any.downcast::<PyList>() {
+                } else if let Ok(py_list) = py_any.cast::<PyList>() {
                     py_list.try_into()
                 } else if let Ok(py_function) = py_any.extract::<Py<PyAny>>() {
                     Ok(Self::DynamicSelection(py_function))
@@ -122,7 +121,7 @@ impl SkipRows {
 }
 
 #[derive(Debug, Clone)]
-#[pyclass]
+#[pyclass(skip_from_py_object)]
 pub(crate) struct CellError {
     /// `(int, int)`. The original row and column of the error
     #[pyo3(get)]
@@ -172,8 +171,9 @@ impl CellErrors {
     }
 }
 
-impl FromPyObject<'_> for SkipRows {
-    fn extract_bound(obj: &Bound<'_, PyAny>) -> PyResult<Self> {
+impl<'a, 'py> FromPyObject<'a, 'py> for SkipRows {
+    type Error = PyErr;
+    fn extract(obj: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
         // Handle None case
         if obj.is_none() {
             return Ok(SkipRows::SkipEmptyRowsAtBeginning);
@@ -192,7 +192,7 @@ impl FromPyObject<'_> for SkipRows {
 
         // Check if it's callable
         if obj.hasattr("__call__").unwrap_or(false) {
-            return Ok(SkipRows::Callable(Arc::new(obj.clone().into())));
+            return Ok(SkipRows::Callable(Arc::new(obj.to_owned().into())));
         }
 
         Err(FastExcelErrorKind::InvalidParameters(
