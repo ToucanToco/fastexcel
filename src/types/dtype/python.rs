@@ -1,8 +1,5 @@
 use arrow_schema::{DataType as ArrowDataType, TimeUnit};
-use pyo3::{
-    Bound, FromPyObject, IntoPyObject, PyAny, PyResult, Python,
-    types::{PyAnyMethods, PyString},
-};
+use pyo3::{Borrowed, Bound, FromPyObject, IntoPyObject, PyAny, PyErr, Python, types::PyString};
 
 use crate::{
     error::{FastExcelErrorKind, py_errors::IntoPyResult},
@@ -33,8 +30,9 @@ impl<'py> IntoPyObject<'py> for &DType {
     }
 }
 
-impl FromPyObject<'_> for DType {
-    fn extract_bound(py_dtype: &Bound<'_, PyAny>) -> PyResult<Self> {
+impl<'a, 'py> FromPyObject<'a, 'py> for DType {
+    type Error = PyErr;
+    fn extract(py_dtype: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
         if let Ok(dtype_pystr) = py_dtype.extract::<String>() {
             dtype_pystr.parse()
         } else {
@@ -47,8 +45,9 @@ impl FromPyObject<'_> for DType {
     }
 }
 
-impl FromPyObject<'_> for DTypes {
-    fn extract_bound(py_dtypes: &Bound<'_, PyAny>) -> PyResult<Self> {
+impl<'a, 'py> FromPyObject<'a, 'py> for DTypes {
+    type Error = PyErr;
+    fn extract(py_dtypes: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
         if let Ok(py_dtypes_str) = py_dtypes.extract::<String>() {
             py_dtypes_str.parse()
         } else {
@@ -73,8 +72,9 @@ impl From<&DType> for ArrowDataType {
     }
 }
 
-impl FromPyObject<'_> for DTypeCoercion {
-    fn extract_bound(py_dtype_coercion: &Bound<'_, PyAny>) -> PyResult<Self> {
+impl<'a, 'py> FromPyObject<'a, 'py> for DTypeCoercion {
+    type Error = PyErr;
+    fn extract(py_dtype_coercion: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
         if let Ok(dtype_coercion_pystr) = py_dtype_coercion.extract::<String>() {
             dtype_coercion_pystr.parse()
         } else {

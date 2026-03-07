@@ -26,9 +26,9 @@ name = "fastexcel"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-arrow-array = { version = "^57", features = ["ffi"], optional = true }
-arrow-pyarrow = { version = "^57", optional = true }
-arrow-schema = { version = "^57", optional = true }
+arrow-array = { version = "^58", features = ["ffi"], optional = true }
+arrow-pyarrow = { version = "^58", optional = true }
+arrow-schema = { version = "^58", optional = true }
 calamine = { version = "^0.33.0", features = ["chrono"] }
 chrono = { version = "^0.4.43", default-features = false }
 log = "^0.4"
@@ -37,8 +37,8 @@ polars-core = { version = ">=0.50", default-features = false, features = [
     "dtype-datetime",
     "dtype-duration",
 ], optional = true }
-pyo3 = { version = "^0.26", features = ["abi3-py310"], optional = true }
-pyo3-arrow = { version = "^0.14", default-features = false, optional = true }
+pyo3 = { version = "^0.28", features = ["abi3-py310"], optional = true }
+pyo3-arrow = { version = "^0.17", default-features = false, optional = true }
 pyo3-log = { version = "^0.13.3", optional = true }
 
 [dev-dependencies]
