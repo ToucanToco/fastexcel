@@ -66,11 +66,8 @@ jobs:
           - "ubuntu-24.04-arm"
           - "macos-14"
           - "windows-latest"
-          - "windows-11-arm"
-        exclude:
-          # Python ARM builds for windows are only available from Python 3.11
-          - os: windows-11-arm
-            python-version: 3.10
+          # windows-11-arm excluded: pyarrow is not available for Windows ARM64
+          # https://github.com/apache/arrow/issues/47195
     steps:
       - uses: actions/checkout@v6
       - name: Set up Python
