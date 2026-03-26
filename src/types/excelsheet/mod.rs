@@ -705,7 +705,7 @@ impl ExcelSheet {
     #[cfg(feature = "polars")]
     pub fn to_polars(&self) -> FastExcelResult<DataFrame> {
         let pl_columns = self.to_columns()?.into_iter().map(Into::into).collect();
-        DataFrame::new(pl_columns).map_err(|err| {
+        DataFrame::new_infer_height(pl_columns).map_err(|err| {
             FastExcelErrorKind::Internal(format!("could not create DataFrame: {err:?}")).into()
         })
     }
