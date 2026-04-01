@@ -4,34 +4,84 @@ on:
   push:
     branches:
       - main
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version_tag:
+        description: 'Tag to build docs for (e.g. v0.18.0). Checks out the tag before building.'
+        required: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
         with:
-          # Fetch all branches
           fetch-depth: 0
+
+      - name: Checkout tag (workflow_dispatch)
+        if: github.event_name == 'workflow_dispatch'
+        run: git checkout "refs/tags/${{ github.event.inputs.version_tag }}"
+
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
           python-version: "3.11"
+
       - name: Set up rust toolchain
         uses: dtolnay/rust-toolchain@stable
+
       - name: install uv
         uses: astral-sh/setup-uv@v7
-      - run: |
+
+      - name: Determine version
+        id: version
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "version=${{ github.event.inputs.version_tag }}" >> "$GITHUB_OUTPUT"
+            echo "is_stable=true" >> "$GITHUB_OUTPUT"
+          elif [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            echo "version=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+            echo "is_stable=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=latest" >> "$GITHUB_OUTPUT"
+            echo "is_stable=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build docs
+        run: |
+          make install
+          VERSION=${{ steps.version.outputs.version }} make doc-versioned
+
+      - name: Deploy to gh-pages
+        run: |
           git config user.name github-actions
           git config user.email github-actions@github.com
 
-          # Sync
-          git checkout gh-pages
-          git merge -m 'Merge main' main
+          # Stash built docs
+          cp -r docs/${{ steps.version.outputs.version }} /tmp/docs-build
 
-          # Install dependencies and build docs
-          make install
-          make doc
+          # Switch to gh-pages (create if it doesn't exist)
+          git checkout gh-pages || git checkout --orphan gh-pages
+
+          # Ensure docs directory exists
+          mkdir -p docs
+
+          # Place versioned docs
+          rm -rf docs/${{ steps.version.outputs.version }}
+          mv /tmp/docs-build docs/${{ steps.version.outputs.version }}
+
+          # Update versions.json and root redirect
+          STABLE_FLAG=""
+          if [[ "${{ steps.version.outputs.is_stable }}" == "true" ]]; then
+            STABLE_FLAG="--stable"
+          fi
+          ./scripts/update_versions.py \
+            --version "${{ steps.version.outputs.version }}" \
+            --docs-dir docs \
+            $STABLE_FLAG
 
           git add -f docs
-          git commit -m "Re-generated documentation" --allow-empty
+          git commit -m "Update docs (${{ steps.version.outputs.version }})" --allow-empty
           git push origin gh-pages

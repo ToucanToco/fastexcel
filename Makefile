@@ -93,12 +93,18 @@ test: test-rust test-python
 
 .PHONY: doc-serve  ## Serve documentation with live reload
 doc-serve: build-dev
-	uv run pdoc python/fastexcel
+	uv run pdoc --template-directory doc-templates python/fastexcel
 
 .PHONY: doc  ## Build documentation
 doc: build-dev
-	uv run pdoc -o docs python/fastexcel
+	uv run pdoc --template-directory doc-templates -o docs/latest python/fastexcel
+	./scripts/update_versions.py --version latest --docs-dir docs
 	cargo doc --no-deps --lib -p fastexcel --features polars
+
+.PHONY: doc-versioned  ## Build versioned documentation (CI usage: VERSION=v0.19.0 make doc-versioned)
+doc-versioned: build-dev
+	uv run pdoc --template-directory doc-templates -o docs/$(VERSION) python/fastexcel
+	./scripts/update_versions.py --version $(VERSION) --docs-dir docs $(if $(filter v%,$(VERSION)),--stable,)
 
 .PHONY: all  ## Run the standard set of checks performed in CI
 all: format build-dev lint test
