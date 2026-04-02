@@ -63,10 +63,8 @@ jobs:
           cp -r docs/${{ steps.version.outputs.version }} /tmp/docs-build
 
           # Switch to gh-pages (create if it doesn't exist)
-          git checkout gh-pages || git checkout --orphan gh-pages
-
-          # Ensure docs directory exists
-          mkdir -p docs
+          git checkout gh-pages
+          git merge -m 'Merge main' main
 
           # Place versioned docs
           rm -rf docs/${{ steps.version.outputs.version }}
