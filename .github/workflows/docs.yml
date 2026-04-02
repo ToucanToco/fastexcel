@@ -11,6 +11,10 @@ on:
       version_tag:
         description: 'Tag to build docs for (e.g. v0.18.0). Checks out the tag before building.'
         required: true
+      mark_as_stable:
+        description: 'Mark this version as the stable default (updates root redirect)'
+        type: boolean
+        default: false
 
 jobs:
   build:
@@ -40,7 +44,7 @@ jobs:
         run: |
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             echo "version=${{ github.event.inputs.version_tag }}" >> "$GITHUB_OUTPUT"
-            echo "is_stable=true" >> "$GITHUB_OUTPUT"
+            echo "is_stable=${{ github.event.inputs.mark_as_stable }}" >> "$GITHUB_OUTPUT"
           elif [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
             echo "version=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
             echo "is_stable=true" >> "$GITHUB_OUTPUT"

@@ -103,6 +103,7 @@ doc: build-dev
 
 .PHONY: doc-versioned  ## Build versioned documentation (CI usage: VERSION=v0.19.0 make doc-versioned)
 doc-versioned: build-dev
+	@test -n "$(VERSION)" || (echo "ERROR: VERSION is not set. Usage: VERSION=v0.19.0 make doc-versioned" && exit 1)
 	uv run pdoc --template-directory doc-templates -o docs/$(VERSION) python/fastexcel
 	./scripts/update_versions.py --version $(VERSION) --docs-dir docs $(if $(filter v%,$(VERSION)),--stable,)
 

@@ -32,6 +32,9 @@ def sort_versions(versions: list[dict]) -> list[dict]:
 
 
 def update_versions(docs_dir: Path, version: str, *, stable: bool) -> None:
+    if not re.fullmatch(r"latest|v\d+(\.\d+)*", version):
+        raise ValueError(f"Invalid version '{version}': must be 'latest' or match 'v<semver>' (e.g. v0.19.0)")
+
     versions_file = docs_dir / "versions.json"
 
     if versions_file.exists():

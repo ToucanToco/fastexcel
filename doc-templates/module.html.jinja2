@@ -36,7 +36,7 @@
                 select.innerHTML = '';
                 versions.forEach(function(v) {
                     var opt = document.createElement('option');
-                    opt.value = baseUrl + v.path + pagePath;
+                    opt.value = baseUrl + v.path + pagePath + window.location.hash;
                     opt.textContent = v.label;
                     if (v.path === currentVersion) opt.selected = true;
                     select.appendChild(opt);
