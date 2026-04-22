@@ -21,7 +21,11 @@
                 break;
             }
         }
-        if (!currentVersion) return;
+        if (!currentVersion) {
+            var switcher = document.getElementById('version-switcher');
+            if (switcher) switcher.style.display = 'none';
+            return;
+        }
 
         // Build base URL (everything before the version segment)
         var idx = window.location.pathname.indexOf(currentVersion);
@@ -47,7 +51,10 @@
             })
             .catch(function() {
                 var select = document.getElementById('version-select');
-                select.innerHTML = '<option>' + (currentVersion || 'unknown') + '</option>';
+                var opt = document.createElement('option');
+                select.innerHTML = '';
+                opt.textContent = currentVersion || 'unknown';
+                select.appendChild(opt);
             });
     })();
     </script>
