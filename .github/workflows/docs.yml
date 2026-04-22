@@ -26,7 +26,9 @@ jobs:
 
       - name: Checkout tag (workflow_dispatch)
         if: github.event_name == 'workflow_dispatch'
-        run: git checkout "refs/tags/${{ github.event.inputs.version_tag }}"
+        env:
+          VERSION_TAG: ${{ github.event.inputs.version_tag }}
+        run: git checkout "refs/tags/$VERSION_TAG"
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -41,10 +43,13 @@ jobs:
 
       - name: Determine version
         id: version
+        env:
+          INPUT_VERSION_TAG: ${{ github.event.inputs.version_tag }}
+          INPUT_MARK_AS_STABLE: ${{ github.event.inputs.mark_as_stable }}
         run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            echo "version=${{ github.event.inputs.version_tag }}" >> "$GITHUB_OUTPUT"
-            echo "is_stable=${{ github.event.inputs.mark_as_stable }}" >> "$GITHUB_OUTPUT"
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            echo "version=$INPUT_VERSION_TAG" >> "$GITHUB_OUTPUT"
+            echo "is_stable=$INPUT_MARK_AS_STABLE" >> "$GITHUB_OUTPUT"
           elif [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
             echo "version=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
             echo "is_stable=true" >> "$GITHUB_OUTPUT"
@@ -54,36 +59,41 @@ jobs:
           fi
 
       - name: Build docs
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
           make install
-          VERSION=${{ steps.version.outputs.version }} make doc-versioned
+          make doc-versioned
 
       - name: Deploy to gh-pages
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          IS_STABLE: ${{ steps.version.outputs.is_stable }}
         run: |
           git config user.name github-actions
           git config user.email github-actions@github.com
 
           # Stash built docs
-          cp -r docs/${{ steps.version.outputs.version }} /tmp/docs-build
+          cp -r "docs/$VERSION" /tmp/docs-build
 
-          # Switch to gh-pages (create if it doesn't exist)
+          # Switch to gh-pages (gh-pages exists)
           git checkout gh-pages
           git merge -m 'Merge main' main
 
           # Place versioned docs
-          rm -rf docs/${{ steps.version.outputs.version }}
-          mv /tmp/docs-build docs/${{ steps.version.outputs.version }}
+          rm -rf "docs/$VERSION"
+          mv /tmp/docs-build "docs/$VERSION"
 
           # Update versions.json and root redirect
           STABLE_FLAG=""
-          if [[ "${{ steps.version.outputs.is_stable }}" == "true" ]]; then
+          if [[ "$IS_STABLE" == "true" ]]; then
             STABLE_FLAG="--stable"
           fi
           ./scripts/update_versions.py \
-            --version "${{ steps.version.outputs.version }}" \
+            --version "$VERSION" \
             --docs-dir docs \
             $STABLE_FLAG
 
           git add -f docs
-          git commit -m "Update docs (${{ steps.version.outputs.version }})" --allow-empty
+          git commit -m "Update docs ($VERSION)" --allow-empty
           git push origin gh-pages
