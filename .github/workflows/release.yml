@@ -68,9 +68,11 @@ jobs:
           - os: windows-11-arm
             python-version: "3.11"
             architecture: aarch64
-          - os: windows-11-arm
-            python-version: "3.14t"
-            architecture: aarch64
+          # TODO: re-enable once setup-python supports windows-11-arm + python 3.14t
+          # (setup-python is currently broken with that combination)
+          # - os: windows-11-arm
+          #   python-version: "3.14t"
+          #   architecture: aarch64
     steps:
     - uses: actions/checkout@v6
     - uses: dtolnay/rust-toolchain@stable
