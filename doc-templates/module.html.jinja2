@@ -1,0 +1,61 @@
+{% extends "default/module.html.jinja2" %}
+{% block nav_title %}
+    {{ super() }}
+    <div id="version-switcher" style="padding: 0.5rem 1.5rem 0.5rem 0;">
+        <label for="version-select" style="font-size: 0.85rem; font-weight: bold;">Version</label>
+        <select id="version-select"
+                style="display: block; width: 100%; margin-top: 0.25rem; padding: 0.25rem 0.4rem;
+                       font-size: 0.85rem; border-radius: 4px; border: 1px solid var(--accent2);
+                       background: var(--bg); color: var(--text);">
+            <option>loading...</option>
+        </select>
+    </div>
+    <script>
+    (function() {
+        var parts = window.location.pathname.replace(/\/+$/, '').split('/');
+        // Find the version segment: first path part that looks like a version or "latest"
+        var currentVersion = '';
+        for (var i = 1; i < parts.length; i++) {
+            if (parts[i] === 'latest' || /^v\d/.test(parts[i])) {
+                currentVersion = parts[i];
+                break;
+            }
+        }
+        if (!currentVersion) {
+            var switcher = document.getElementById('version-switcher');
+            if (switcher) switcher.style.display = 'none';
+            return;
+        }
+
+        // Build base URL (everything before the version segment)
+        var idx = window.location.pathname.indexOf(currentVersion);
+        var baseUrl = window.location.pathname.substring(0, idx);
+        // Get the page path after the version segment
+        var pagePath = window.location.pathname.substring(idx + currentVersion.length);
+
+        fetch(baseUrl + 'versions.json')
+            .then(function(r) { return r.json(); })
+            .then(function(versions) {
+                var select = document.getElementById('version-select');
+                select.innerHTML = '';
+                versions.forEach(function(v) {
+                    var opt = document.createElement('option');
+                    opt.value = baseUrl + v.path + pagePath + window.location.search + window.location.hash;
+                    opt.textContent = v.label;
+                    if (v.path === currentVersion) opt.selected = true;
+                    select.appendChild(opt);
+                });
+                select.onchange = function() {
+                    if (this.value) window.location.href = this.value;
+                };
+            })
+            .catch(function() {
+                var select = document.getElementById('version-select');
+                var opt = document.createElement('option');
+                select.innerHTML = '';
+                opt.textContent = currentVersion || 'unknown';
+                select.appendChild(opt);
+            });
+    })();
+    </script>
+{% endblock %}
