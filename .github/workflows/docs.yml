@@ -78,7 +78,7 @@ jobs:
 
           # Switch to gh-pages (gh-pages exists)
           git checkout gh-pages
-          git merge -m 'Merge main' main
+          git merge -m 'Merge main' origin/main
 
           # Place versioned docs
           rm -rf "docs/$VERSION"
