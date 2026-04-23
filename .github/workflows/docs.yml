@@ -4,34 +4,96 @@ on:
   push:
     branches:
       - main
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version_tag:
+        description: 'Tag to build docs for (e.g. v0.18.0). Checks out the tag before building.'
+        required: true
+      mark_as_stable:
+        description: 'Mark this version as the stable default (updates root redirect)'
+        type: boolean
+        default: false
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
         with:
-          # Fetch all branches
           fetch-depth: 0
+
+      - name: Checkout tag (workflow_dispatch)
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          VERSION_TAG: ${{ github.event.inputs.version_tag }}
+        run: git checkout "refs/tags/$VERSION_TAG"
+
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
           python-version: "3.11"
+
       - name: Set up rust toolchain
         uses: dtolnay/rust-toolchain@stable
+
       - name: install uv
         uses: astral-sh/setup-uv@v7
-      - run: |
+
+      - name: Determine version
+        id: version
+        env:
+          INPUT_VERSION_TAG: ${{ github.event.inputs.version_tag }}
+          INPUT_MARK_AS_STABLE: ${{ github.event.inputs.mark_as_stable }}
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            echo "version=$INPUT_VERSION_TAG" >> "$GITHUB_OUTPUT"
+            echo "is_stable=$INPUT_MARK_AS_STABLE" >> "$GITHUB_OUTPUT"
+          elif [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            echo "version=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+            echo "is_stable=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=latest" >> "$GITHUB_OUTPUT"
+            echo "is_stable=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build docs
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          make install
+          make doc-versioned
+
+      - name: Deploy to gh-pages
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          IS_STABLE: ${{ steps.version.outputs.is_stable }}
+        run: |
           git config user.name github-actions
           git config user.email github-actions@github.com
 
-          # Sync
+          # Stash built docs
+          cp -r "docs/$VERSION" /tmp/docs-build
+
+          # Switch to gh-pages (gh-pages exists)
           git checkout gh-pages
           git merge -m 'Merge main' main
 
-          # Install dependencies and build docs
-          make install
-          make doc
+          # Place versioned docs
+          rm -rf "docs/$VERSION"
+          mv /tmp/docs-build "docs/$VERSION"
+
+          # Update versions.json and root redirect
+          STABLE_FLAG=""
+          if [[ "$IS_STABLE" == "true" ]]; then
+            STABLE_FLAG="--stable"
+          fi
+          ./scripts/update_versions.py \
+            --version "$VERSION" \
+            --docs-dir docs \
+            $STABLE_FLAG
 
           git add -f docs
-          git commit -m "Re-generated documentation" --allow-empty
+          git commit -m "Update docs ($VERSION)" --allow-empty
           git push origin gh-pages
