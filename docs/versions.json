@@ -1,5 +1,10 @@
 [
   {
+    "label": "v0.20.0 (stable)",
+    "path": "v0.20.0",
+    "stable": true
+  },
+  {
     "label": "latest (main)",
     "path": "latest",
     "stable": false
