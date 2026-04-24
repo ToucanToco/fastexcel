@@ -1,8 +1,13 @@
 [
   {
-    "label": "v0.20.0 (stable)",
-    "path": "v0.20.0",
+    "label": "v0.20.1 (stable)",
+    "path": "v0.20.1",
     "stable": true
+  },
+  {
+    "label": "v0.20.0",
+    "path": "v0.20.0",
+    "stable": false
   },
   {
     "label": "latest (main)",
