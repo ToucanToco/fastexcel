@@ -40,6 +40,7 @@ build-wheel:
 lint-python:
 	uv run ruff check $(sources)
 	uv run ruff format --check $(sources)
+	uv run ty check $(sources)
 	uv run mypy $(sources)
 
 .PHONY: lint-rust  ## Lint rust source files
