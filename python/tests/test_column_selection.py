@@ -621,7 +621,7 @@ def test_use_columns_with_bad_callable() -> None:
         fastexcel.InvalidParametersError,
         match=re.escape("`use_columns` callable could not be called (TypeError: "),
     ):
-        excel_reader.load_sheet(
+        excel_reader.load_sheet(  # ty: ignore[no-matching-overload]
             2,
             use_columns=lambda: True,  # type: ignore
         )
@@ -629,7 +629,7 @@ def test_use_columns_with_bad_callable() -> None:
     with pytest.raises(
         fastexcel.InvalidParametersError, match="`use_columns` callable should return a boolean"
     ):
-        excel_reader.load_sheet(
+        excel_reader.load_sheet(  # ty: ignore[no-matching-overload]
             2,
             use_columns=lambda _: 42,  # type: ignore
         )
@@ -923,7 +923,7 @@ def test_use_column_names_with_offset_table_by_index_and_name() -> None:
     # Mix name-based and index-based selection
     # "Column at D5" is at table index 0, absolute index 3
     # Index 4 is absolute index for column E
-    table = excel_reader.load_table("TableAtD5", use_columns=["Column at D5", 4])  # type:ignore[arg-type]
+    table = excel_reader.load_table("TableAtD5", use_columns=["Column at D5", 4])  # type:ignore[arg-type] # ty: ignore[no-matching-overload]
 
     expected_selected_columns = [
         fastexcel.ColumnInfo(
