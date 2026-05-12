@@ -205,7 +205,7 @@ def test_dtype_coercion_behavior__coerce(
 
     kwargs = {"dtype_coercion": dtype_coercion} if dtype_coercion else {}
     sheet_or_rb = (
-        excel_reader.load_sheet(0, eager=eager, **kwargs)  # type:ignore[call-overload]
+        excel_reader.load_sheet(0, eager=eager, **kwargs)  # type:ignore[call-overload] # ty: ignore[no-matching-overload]
     )
     rb = sheet_or_rb if eager else sheet_or_rb.to_arrow()
 

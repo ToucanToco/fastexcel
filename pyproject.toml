@@ -50,6 +50,7 @@ linting = [
     "mypy>=2,<3",
     "pre-commit>=2.20.0,<5",
     "ruff>=0.15",
+    "ty>=0.0.35",
 ]
 docs = [{ include-group = "dev" }, "pdoc"]
 all = [
@@ -95,3 +96,7 @@ select = ["E", "F", "I", "Q", "FA102", "UP"]
 # command is needed to build
 package = false
 required-version = '>=0.8.4'
+
+[tool.ty.analysis]
+# This makes ty use ty: ignore over type: ignore, which is more convenient when running along with mypy
+respect-type-ignore-comments = false
