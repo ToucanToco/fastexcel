@@ -47,7 +47,7 @@ testing = [
 ]
 linting = [
     { include-group = "dev" },
-    "mypy>=1.11.2,<2",
+    "mypy>=2,<3",
     "pre-commit>=2.20.0,<5",
     "ruff>=0.15",
 ]
