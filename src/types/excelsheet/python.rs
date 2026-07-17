@@ -148,7 +148,7 @@ impl CellError {
         format!(
             "CellError(position=({row}, {col}), offset_position=({offset_row}, {offset_col}), row_offset={row_offset}, detail={detail:?})",
             row_offset = self.row_offset,
-            detail = &self.detail,
+            detail = self.detail,
         )
     }
 }
