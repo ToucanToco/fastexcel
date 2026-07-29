@@ -180,7 +180,7 @@ impl ExcelReader {
 #[pymethods]
 impl ExcelReader {
     pub fn __repr__(&self) -> String {
-        format!("ExcelReader<{}>", &self.source)
+        format!("ExcelReader<{}>", self.source)
     }
 
     #[pyo3(name = "table_names", signature = (sheet_name = None))]
@@ -336,7 +336,7 @@ impl DefinedName {
     pub fn __repr__(&self) -> String {
         format!(
             "DefinedName<{name} ({formula})>",
-            name = &self.name,
+            name = self.name,
             formula = self
                 .formula
                 .get(..10)
