@@ -94,13 +94,13 @@ impl Pagination {
     ) -> FastExcelResult<Self> {
         let max_height = range.height();
         // Only validate for simple skip_rows case
-        if let SkipRows::Simple(skip_count) = &skip_rows {
-            if max_height < *skip_count {
-                return Err(FastExcelErrorKind::InvalidParameters(format!(
-                    "Too many rows skipped. Max height is {max_height}"
-                ))
-                .into());
-            }
+        if let SkipRows::Simple(skip_count) = &skip_rows
+            && max_height < *skip_count
+        {
+            return Err(FastExcelErrorKind::InvalidParameters(format!(
+                "Too many rows skipped. Max height is {max_height}"
+            ))
+            .into());
         }
         Ok(Self { skip_rows, n_rows })
     }
