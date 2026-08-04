@@ -37,8 +37,8 @@ polars-core = { version = ">=0.53", features = [
     "dtype-datetime",
     "dtype-duration",
 ], optional = true }
-pyo3 = { version = "^0.28", features = ["abi3-py310"], optional = true }
-pyo3-arrow = { version = "^0.18", default-features = false, optional = true }
+pyo3 = { version = "^0.29", features = ["abi3-py310"], optional = true }
+pyo3-arrow = { version = "^0.19", default-features = false, optional = true }
 pyo3-log = { version = "^0.13.3", optional = true }
 
 [dev-dependencies]
