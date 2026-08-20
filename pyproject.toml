@@ -41,7 +41,7 @@ testing = [
     "pytest-mock>=3.1",
     "pyarrow>=8.0.0",
     "pandas>=1.4.4",
-    "polars>=0.16.14",
+    "polars>=1",
     "openpyxl>=3.1.2,<4",
     "xlrd>=2.0.1,<3",
 ]
