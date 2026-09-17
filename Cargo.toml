@@ -44,7 +44,7 @@ pyo3-log = { version = "^0.13.3", optional = true }
 [dev-dependencies]
 anyhow = "1.0.102"
 pretty_assertions = { version = "^1.4.1", features = ["unstable"] }
-rstest = { version = "^0.26.1", default-features = false }
+rstest = { version = "^0.27.0", default-features = false }
 
 # NOTE: This is a hack to bypass pyo3 limitations when testing:
 # https://pyo3.rs/v0.22.3/faq.html#i-cant-run-cargo-test-or-i-cant-build-in-a-cargo-workspace-im-having-linker-issues-like-symbol-not-found-or-undefined-reference-to-_pyexc_systemerror
