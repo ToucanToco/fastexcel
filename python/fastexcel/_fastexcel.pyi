@@ -2,10 +2,13 @@ from __future__ import annotations
 
 import typing
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Final, Literal
 
 if TYPE_CHECKING:
     import pyarrow as pa
+
+DEFAULT_DUPLICATE_COLUMN_SEPARATOR: Final[str]
+DEFAULT_UNNAMED_COLUMN_PREFIX: Final[str]
 
 DType = Literal["null", "int", "float", "string", "boolean", "datetime", "date", "duration"]
 DTypeMap = dict[str | int, DType]
@@ -217,6 +220,8 @@ class _ExcelReader:
         eager: Literal[False] = ...,
         skip_whitespace_tail_rows: bool = False,
         whitespace_as_null: bool = False,
+        duplicate_column_separator: str = ...,
+        unnamed_column_prefix: str = ...,
     ) -> _ExcelSheet: ...
     @typing.overload
     def load_sheet(
@@ -238,6 +243,8 @@ class _ExcelReader:
         eager: Literal[True] = ...,
         skip_whitespace_tail_rows: bool = False,
         whitespace_as_null: bool = False,
+        duplicate_column_separator: str = ...,
+        unnamed_column_prefix: str = ...,
     ) -> pa.RecordBatch: ...
     @typing.overload
     def load_sheet(
@@ -259,6 +266,8 @@ class _ExcelReader:
         eager: bool = False,
         skip_whitespace_tail_rows: bool = False,
         whitespace_as_null: bool = False,
+        duplicate_column_separator: str = ...,
+        unnamed_column_prefix: str = ...,
     ) -> pa.RecordBatch: ...
     @typing.overload
     def load_table(
@@ -280,6 +289,8 @@ class _ExcelReader:
         eager: Literal[False] = ...,
         skip_whitespace_tail_rows: bool = False,
         whitespace_as_null: bool = False,
+        duplicate_column_separator: str = ...,
+        unnamed_column_prefix: str = ...,
     ) -> _ExcelTable: ...
     @typing.overload
     def load_table(
@@ -301,6 +312,8 @@ class _ExcelReader:
         eager: Literal[True] = ...,
         skip_whitespace_tail_rows: bool = False,
         whitespace_as_null: bool = False,
+        duplicate_column_separator: str = ...,
+        unnamed_column_prefix: str = ...,
     ) -> pa.RecordBatch: ...
     @property
     def sheet_names(self) -> list[str]: ...
