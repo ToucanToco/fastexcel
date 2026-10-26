@@ -519,8 +519,7 @@ impl ExcelSheet {
         opts: LoadSheetOrTableOptions,
     ) -> FastExcelResult<Self> {
         let header = Header::new(opts.data_header_row(), opts.column_names.clone());
-        let available_columns_info =
-            build_available_columns_info(&data, &opts.selected_columns, &header)?;
+        let available_columns_info = build_available_columns_info(&data, &opts, &header)?;
         let selected_columns_info = opts
             .selected_columns
             .select_columns(available_columns_info)?;
@@ -571,11 +570,8 @@ impl ExcelSheet {
     fn ensure_available_columns_loaded(&mut self) -> FastExcelResult<()> {
         let available_columns = match &self.available_columns {
             AvailableColumns::Pending => {
-                let available_columns_info = build_available_columns_info(
-                    &self.data,
-                    &self.opts.selected_columns,
-                    &self.header,
-                )?;
+                let available_columns_info =
+                    build_available_columns_info(&self.data, &self.opts, &self.header)?;
                 let final_info = finalize_column_info(
                     available_columns_info,
                     self.data(),
