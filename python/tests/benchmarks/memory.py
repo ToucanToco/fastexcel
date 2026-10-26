@@ -1,10 +1,10 @@
 import argparse
-from enum import Enum
+from enum import StrEnum
 
 from .readers import fastexcel_read, pyxl_read, xlrd_read
 
 
-class Engine(str, Enum):
+class Engine(StrEnum):
     FASTEXCEL = "fastexcel"
     XLRD = "xlrd"
     OPENPYXL = "pyxl"
