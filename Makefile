@@ -113,7 +113,7 @@ all: format build-dev lint test
 
 .PHONY: benchmarks  ## Run benchmarks
 benchmarks: build-wheel
-	uv run pytest ./python/tests/benchmarks/speed.py
+	uv run pytest --import-mode=importlib ./python/tests/benchmarks/speed.py
 
 .PHONY: clean  ## Clear local caches and build artifacts
 clean:
