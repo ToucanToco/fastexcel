@@ -1,5 +1,6 @@
 from fastexcel import read_excel
 from openpyxl import load_workbook
+from wolfxl import load_workbook as wolfxl_load_workbook
 from xlrd import open_workbook
 
 
@@ -9,6 +10,14 @@ def pyxl_read(test_file_path: str):
         rows = ws.iter_rows()
         rows = ws.values
         for row in rows:
+            for _ in row:
+                pass
+
+
+def wolfxl_read(test_file_path: str):
+    wb = wolfxl_load_workbook(test_file_path, read_only=True, keep_links=False, data_only=True)
+    for ws in wb:
+        for row in ws.values:
             for _ in row:
                 pass
 

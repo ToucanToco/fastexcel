@@ -52,6 +52,7 @@ linting = [
     "ruff>=0.15",
     "ty>=0.0.35",
 ]
+benchmarks = ["wolfxl>=2.0.23,<3"]
 docs = [{ include-group = "dev" }, "pdoc"]
 all = [
     { include-group = "testing" },

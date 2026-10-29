@@ -1,10 +1,10 @@
 """
-Compare read performance with fastexcel, xlrd and different openpyxl options
+Compare read performance with fastexcel, xlrd, wolfxl and different openpyxl options
 """
 
 import pytest
 
-from .readers import fastexcel_read, pyxl_read, xlrd_read
+from .readers import fastexcel_read, pyxl_read, wolfxl_read, xlrd_read
 
 
 @pytest.fixture
@@ -27,6 +27,11 @@ def test_pyxl(benchmark, plain_data_xlsx):
     benchmark(pyxl_read, plain_data_xlsx)
 
 
+@pytest.mark.benchmark(group="xlsx")
+def test_wolfxl(benchmark, plain_data_xlsx):
+    benchmark(wolfxl_read, plain_data_xlsx)
+
+
 @pytest.mark.benchmark(group="xls")
 def test_xlrd(benchmark, plain_data_xls):
     benchmark(xlrd_read, plain_data_xls)
@@ -45,6 +50,11 @@ def test_fastexcel_xlsx(benchmark, plain_data_xlsx):
 @pytest.mark.benchmark(group="xlsx")
 def test_pyxl_with_formulas(benchmark, formula_xlsx):
     benchmark(pyxl_read, formula_xlsx)
+
+
+@pytest.mark.benchmark(group="xlsx")
+def test_wolfxl_with_formulas(benchmark, formula_xlsx):
+    benchmark(wolfxl_read, formula_xlsx)
 
 
 @pytest.mark.benchmark(group="xlsx")
