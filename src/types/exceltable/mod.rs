@@ -133,8 +133,7 @@ impl ExcelTable {
 
         let (header, opts) = Self::build_header_and_update_selection(&table, opts)?;
 
-        let available_columns_info =
-            build_available_columns_info(table.data(), &opts.selected_columns, &header)?;
+        let available_columns_info = build_available_columns_info(table.data(), &opts, &header)?;
         let selected_columns_info = opts
             .selected_columns
             .select_columns(available_columns_info)?;
@@ -187,11 +186,8 @@ impl ExcelTable {
     fn ensure_available_columns_loaded(&mut self) -> FastExcelResult<()> {
         let available_columns = match &self.available_columns {
             AvailableColumns::Pending => {
-                let available_columns_info = build_available_columns_info(
-                    self.table.data(),
-                    &self.opts.selected_columns,
-                    &self.header,
-                )?;
+                let available_columns_info =
+                    build_available_columns_info(self.table.data(), &self.opts, &self.header)?;
                 let final_info = finalize_column_info(
                     available_columns_info,
                     self.data(),

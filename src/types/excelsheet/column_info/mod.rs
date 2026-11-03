@@ -12,6 +12,7 @@ use crate::{
     error::{ErrorContext, FastExcelError, FastExcelErrorKind, FastExcelResult},
     types::{
         dtype::{DType, DTypeCoercion, DTypes, get_dtype_for_column},
+        excelreader::LoadSheetOrTableOptions,
         idx_or_name::IdxOrName,
     },
 };
@@ -101,7 +102,7 @@ impl FromStr for DTypeFrom {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "python", pyclass(name = "ColumnInfo", skip_from_py_object))]
 pub struct ColumnInfo {
-    /// The column's name
+    /// The column's name, after renaming. See [`LoadSheetOrTableOptions`] for the naming rules.
     pub name: String,
     /// The column's index
     pub index: usize,
@@ -331,20 +332,20 @@ fn column_info_from_header<D: CalamineDataProvider>(
     data: &D,
     selected_columns: &SelectedColumns,
     header: &Header,
+    unnamed_column_prefix: &str,
 ) -> FastExcelResult<Vec<ColumnInfoNoDtype>> {
     let width = data.width();
     let (_, col_off) = data.start().unwrap_or((0, 0));
+    let unnamed = |col_idx: usize| {
+        ColumnInfoNoDtype::new(
+            format!("{unnamed_column_prefix}{col_idx}"),
+            col_idx,
+            col_off + col_idx,
+            ColumnNameFrom::Generated,
+        )
+    };
     match header {
-        Header::None => Ok((0..width)
-            .map(|col_idx| {
-                ColumnInfoNoDtype::new(
-                    format!("__UNNAMED__{col_idx}"),
-                    col_idx,
-                    col_off + col_idx,
-                    ColumnNameFrom::Generated,
-                )
-            })
-            .collect()),
+        Header::None => Ok((0..width).map(unnamed).collect()),
         Header::At(row_idx) => Ok((0..width)
             .map(|col_idx| {
                 data.get_as_string((*row_idx, col_idx))
@@ -364,14 +365,7 @@ fn column_info_from_header<D: CalamineDataProvider>(
                             ColumnNameFrom::LookedUp,
                         )
                     })
-                    .unwrap_or_else(|| {
-                        ColumnInfoNoDtype::new(
-                            format!("__UNNAMED__{col_idx}"),
-                            col_idx,
-                            col_off + col_idx,
-                            ColumnNameFrom::Generated,
-                        )
-                    })
+                    .unwrap_or_else(|| unnamed(col_idx))
             })
             .collect()),
         Header::With(names) => {
@@ -414,12 +408,7 @@ fn column_info_from_header<D: CalamineDataProvider>(
                                 col_off + col_idx,
                                 ColumnNameFrom::Provided,
                             ),
-                            None => ColumnInfoNoDtype::new(
-                                format!("__UNNAMED__{col_idx}"),
-                                col_idx,
-                                col_off + col_idx,
-                                ColumnNameFrom::Generated,
-                            ),
+                            None => unnamed(col_idx),
                         }
                     })
                     .collect())
@@ -436,14 +425,7 @@ fn column_info_from_header<D: CalamineDataProvider>(
                             ColumnNameFrom::Provided,
                         )
                     })
-                    .chain((nameless_start_idx..width).map(|col_idx| {
-                        ColumnInfoNoDtype::new(
-                            format!("__UNNAMED__{col_idx}"),
-                            col_idx,
-                            col_off + col_idx,
-                            ColumnNameFrom::Generated,
-                        )
-                    }))
+                    .chain((nameless_start_idx..width).map(unnamed))
                     .collect())
             }
         }
@@ -453,19 +435,31 @@ fn column_info_from_header<D: CalamineDataProvider>(
 /// Loads available columns and sets aliases in case of name conflicts
 pub(crate) fn build_available_columns_info<D: CalamineDataProvider>(
     data: &D,
-    selected_columns: &SelectedColumns,
+    opts: &LoadSheetOrTableOptions,
     header: &Header,
 ) -> FastExcelResult<Vec<ColumnInfoNoDtype>> {
-    column_info_from_header(data, selected_columns, header).map(set_aliases_for_columns_info)
+    column_info_from_header(
+        data,
+        &opts.selected_columns,
+        header,
+        &opts.unnamed_column_prefix,
+    )
+    .map(|columns_info| {
+        set_aliases_for_columns_info(columns_info, &opts.duplicate_column_separator)
+    })
 }
 
-fn set_aliases_for_columns_info(columns_info: Vec<ColumnInfoNoDtype>) -> Vec<ColumnInfoNoDtype> {
+fn set_aliases_for_columns_info(
+    columns_info: Vec<ColumnInfoNoDtype>,
+    separator: &str,
+) -> Vec<ColumnInfoNoDtype> {
     let mut aliased_column_names = Vec::with_capacity(columns_info.len());
     columns_info
         .into_iter()
         .map(|mut column_info_builder| {
             // Setting the right alias for every column
-            let alias = alias_for_name(column_info_builder.name(), &aliased_column_names);
+            let alias =
+                alias_for_name(column_info_builder.name(), separator, &aliased_column_names);
             if alias != column_info_builder.name() {
                 column_info_builder = column_info_builder.with_name(alias.clone());
             }
@@ -475,24 +469,24 @@ fn set_aliases_for_columns_info(columns_info: Vec<ColumnInfoNoDtype>) -> Vec<Col
         .collect()
 }
 
-fn alias_for_name(name: &str, existing_names: &[String]) -> String {
+fn alias_for_name(name: &str, separator: &str, existing_names: &[String]) -> String {
     #[inline]
-    fn rec(name: &str, existing_names: &[String], depth: usize) -> String {
+    fn rec(name: &str, separator: &str, existing_names: &[String], depth: usize) -> String {
         let alias = if depth == 0 {
             name.to_owned()
         } else {
-            format!("{name}_{depth}")
+            format!("{name}{separator}{depth}")
         };
         match existing_names
             .iter()
             .any(|existing_name| existing_name == &alias)
         {
-            true => rec(name, existing_names, depth + 1),
+            true => rec(name, separator, existing_names, depth + 1),
             false => alias,
         }
     }
 
-    rec(name, existing_names, 0)
+    rec(name, separator, existing_names, 0)
 }
 
 /// Turns `ColumnInfoNoDtype` into `ColumnInfo`. This will determine the right dtype when needed

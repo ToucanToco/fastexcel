@@ -21,6 +21,8 @@ except ImportError:
     _PYARROW_AVAILABLE = False
 
 from ._fastexcel import (
+    DEFAULT_DUPLICATE_COLUMN_SEPARATOR,
+    DEFAULT_UNNAMED_COLUMN_PREFIX,
     ArrowError,
     CalamineCellError,
     CalamineError,
@@ -305,6 +307,8 @@ class ExcelReader:
         eager: Literal[False] = ...,
         skip_whitespace_tail_rows: bool = False,
         whitespace_as_null: bool = False,
+        duplicate_column_separator: str = DEFAULT_DUPLICATE_COLUMN_SEPARATOR,
+        unnamed_column_prefix: str = DEFAULT_UNNAMED_COLUMN_PREFIX,
     ) -> ExcelSheet: ...
 
     @typing.overload
@@ -327,6 +331,8 @@ class ExcelReader:
         eager: Literal[True] = ...,
         skip_whitespace_tail_rows: bool = False,
         whitespace_as_null: bool = False,
+        duplicate_column_separator: str = DEFAULT_DUPLICATE_COLUMN_SEPARATOR,
+        unnamed_column_prefix: str = DEFAULT_UNNAMED_COLUMN_PREFIX,
     ) -> pa.RecordBatch: ...
 
     def load_sheet(
@@ -348,8 +354,23 @@ class ExcelReader:
         eager: bool = False,
         skip_whitespace_tail_rows: bool = False,
         whitespace_as_null: bool = False,
+        duplicate_column_separator: str = DEFAULT_DUPLICATE_COLUMN_SEPARATOR,
+        unnamed_column_prefix: str = DEFAULT_UNNAMED_COLUMN_PREFIX,
     ) -> ExcelSheet | pa.RecordBatch:
         """Loads a sheet by index or name.
+
+        Column naming:
+
+        - Unnamed columns (missing header cell, `header_row=None`, or not covered by
+          `column_names`) are named `{unnamed_column_prefix}{idx}`, where `idx` is the column's
+          position within the loaded data range, not its absolute index in the sheet.
+        - Duplicate names are renamed `{name}{duplicate_column_separator}{n}`, with `n` starting
+          at 1 and incremented until the name doesn't match any column to its left. For example,
+          `a, a, a_1` becomes `a, a_1, a_1_1`.
+        - Generated names and names given through `column_names` are deduplicated the same way.
+        - Column names in `use_columns` and in a by-name `dtypes` map refer to the final,
+          deduplicated names. Exception: for tables loaded with their own header (no `header_row`
+          and no `column_names`), names in `use_columns` refer to the table's header names.
 
         :param idx_or_name: The index (starting at 0) or the name of the sheet to load.
         :param header_row: The index of the row containing the column labels, default index is 0.
@@ -400,6 +421,10 @@ class ExcelReader:
         :param skip_whitespace_tail_rows: Skip rows at the end of the sheet
                                           containing only whitespace and null values.
         :param whitespace_as_null: Consider cells containing only whitespace as null values.
+        :param duplicate_column_separator: Separator between a duplicate column's name and its
+                                           counter. See "Column naming" above.
+        :param unnamed_column_prefix: Prefix of generated names for unnamed columns. See
+                                      "Column naming" above.
         """
         sheet_or_rb = self._reader.load_sheet(
             idx_or_name=idx_or_name,
@@ -414,6 +439,8 @@ class ExcelReader:
             eager=eager,
             skip_whitespace_tail_rows=skip_whitespace_tail_rows,
             whitespace_as_null=whitespace_as_null,
+            duplicate_column_separator=duplicate_column_separator,
+            unnamed_column_prefix=unnamed_column_prefix,
         )
         return sheet_or_rb if eager else ExcelSheet(sheet_or_rb)
 
@@ -457,6 +484,8 @@ class ExcelReader:
         eager: Literal[False] = ...,
         skip_whitespace_tail_rows: bool = False,
         whitespace_as_null: bool = False,
+        duplicate_column_separator: str = DEFAULT_DUPLICATE_COLUMN_SEPARATOR,
+        unnamed_column_prefix: str = DEFAULT_UNNAMED_COLUMN_PREFIX,
     ) -> ExcelTable: ...
 
     @typing.overload
@@ -479,6 +508,8 @@ class ExcelReader:
         eager: Literal[True] = ...,
         skip_whitespace_tail_rows: bool = False,
         whitespace_as_null: bool = False,
+        duplicate_column_separator: str = DEFAULT_DUPLICATE_COLUMN_SEPARATOR,
+        unnamed_column_prefix: str = DEFAULT_UNNAMED_COLUMN_PREFIX,
     ) -> pa.RecordBatch: ...
 
     def load_table(
@@ -500,6 +531,8 @@ class ExcelReader:
         eager: bool = False,
         skip_whitespace_tail_rows: bool = False,
         whitespace_as_null: bool = False,
+        duplicate_column_separator: str = DEFAULT_DUPLICATE_COLUMN_SEPARATOR,
+        unnamed_column_prefix: str = DEFAULT_UNNAMED_COLUMN_PREFIX,
     ) -> ExcelTable | pa.RecordBatch:
         """Loads a table by name.
 
@@ -547,6 +580,10 @@ class ExcelReader:
         :param skip_whitespace_tail_rows: Skip rows at the end of the table
                                           containing only whitespace and null values.
         :param whitespace_as_null: Consider cells containing only whitespace as null values.
+        :param duplicate_column_separator: Separator between a duplicate column's name and its
+                                           counter. See "Column naming" in `load_sheet`.
+        :param unnamed_column_prefix: Prefix of generated names for unnamed columns. See
+                                      "Column naming" in `load_sheet`.
         """
         if eager:
             return self._reader.load_table(
@@ -562,6 +599,8 @@ class ExcelReader:
                 eager=True,
                 skip_whitespace_tail_rows=skip_whitespace_tail_rows,
                 whitespace_as_null=whitespace_as_null,
+                duplicate_column_separator=duplicate_column_separator,
+                unnamed_column_prefix=unnamed_column_prefix,
             )
         else:
             return ExcelTable(
@@ -578,6 +617,8 @@ class ExcelReader:
                     eager=False,
                     skip_whitespace_tail_rows=skip_whitespace_tail_rows,
                     whitespace_as_null=whitespace_as_null,
+                    duplicate_column_separator=duplicate_column_separator,
+                    unnamed_column_prefix=unnamed_column_prefix,
                 )
             )
 
@@ -593,6 +634,8 @@ class ExcelReader:
         dtype_coercion: Literal["coerce", "strict"] = "coerce",
         use_columns: list[str] | list[int] | str | None = None,
         dtypes: DType | DTypeMap | None = None,
+        duplicate_column_separator: str = DEFAULT_DUPLICATE_COLUMN_SEPARATOR,
+        unnamed_column_prefix: str = DEFAULT_UNNAMED_COLUMN_PREFIX,
     ) -> pa.RecordBatch:
         """Loads a sheet eagerly by index or name.
 
@@ -614,6 +657,8 @@ class ExcelReader:
             use_columns=use_columns,
             dtypes=dtypes,
             eager=True,
+            duplicate_column_separator=duplicate_column_separator,
+            unnamed_column_prefix=unnamed_column_prefix,
         )
 
     def load_sheet_by_name(
@@ -632,6 +677,8 @@ class ExcelReader:
         | Callable[[ColumnInfoNoDtype], bool]
         | None = None,
         dtypes: DType | DTypeMap | None = None,
+        duplicate_column_separator: str = DEFAULT_DUPLICATE_COLUMN_SEPARATOR,
+        unnamed_column_prefix: str = DEFAULT_UNNAMED_COLUMN_PREFIX,
     ) -> ExcelSheet:
         """Loads a sheet by name.
 
@@ -647,6 +694,8 @@ class ExcelReader:
             dtype_coercion=dtype_coercion,
             use_columns=use_columns,
             dtypes=dtypes,
+            duplicate_column_separator=duplicate_column_separator,
+            unnamed_column_prefix=unnamed_column_prefix,
         )
 
     def load_sheet_by_idx(
@@ -665,6 +714,8 @@ class ExcelReader:
         | Callable[[ColumnInfoNoDtype], bool]
         | None = None,
         dtypes: DType | DTypeMap | None = None,
+        duplicate_column_separator: str = DEFAULT_DUPLICATE_COLUMN_SEPARATOR,
+        unnamed_column_prefix: str = DEFAULT_UNNAMED_COLUMN_PREFIX,
     ) -> ExcelSheet:
         """Loads a sheet by index.
 
@@ -680,6 +731,8 @@ class ExcelReader:
             dtype_coercion=dtype_coercion,
             use_columns=use_columns,
             dtypes=dtypes,
+            duplicate_column_separator=duplicate_column_separator,
+            unnamed_column_prefix=unnamed_column_prefix,
         )
 
     def __repr__(self) -> str:

@@ -1,7 +1,9 @@
 use arrow_array::RecordBatch;
 use pyo3::{Bound, IntoPyObjectExt, PyAny, PyResult, Python, pymethods, types::PyString};
 
-use super::{DefinedName, ExcelReader};
+use super::{
+    DEFAULT_DUPLICATE_COLUMN_SEPARATOR, DEFAULT_UNNAMED_COLUMN_PREFIX, DefinedName, ExcelReader,
+};
 
 use crate::{
     ExcelSheet,
@@ -33,12 +35,14 @@ impl ExcelReader {
         let data_header_row = opts.data_header_row();
         let pagination = match &data {
             ExcelSheetData::Owned(range) => {
-                Pagination::try_new(opts.skip_rows, opts.n_rows, range)?
+                Pagination::try_new(opts.skip_rows.clone(), opts.n_rows, range)?
             }
-            ExcelSheetData::Ref(range) => Pagination::try_new(opts.skip_rows, opts.n_rows, range)?,
+            ExcelSheetData::Ref(range) => {
+                Pagination::try_new(opts.skip_rows.clone(), opts.n_rows, range)?
+            }
         };
 
-        let header = Header::new(data_header_row, opts.column_names);
+        let header = Header::new(data_header_row, opts.column_names.clone());
 
         let offset = header.offset() + pagination.offset();
         let limit = {
@@ -52,8 +56,7 @@ impl ExcelReader {
         };
 
         let sample_rows_limit = get_schema_sample_rows(opts.schema_sample_rows, offset, limit);
-        let available_columns_info =
-            build_available_columns_info(data, &opts.selected_columns, &header)?;
+        let available_columns_info = build_available_columns_info(data, &opts, &header)?;
         let final_columns_info = opts
             .selected_columns
             .select_columns(available_columns_info)?;
@@ -207,6 +210,8 @@ impl ExcelReader {
         eager = false,
         skip_whitespace_tail_rows = false,
         whitespace_as_null = false,
+        duplicate_column_separator = DEFAULT_DUPLICATE_COLUMN_SEPARATOR.to_owned(),
+        unnamed_column_prefix = DEFAULT_UNNAMED_COLUMN_PREFIX.to_owned(),
     ))]
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn py_load_sheet<'py>(
@@ -223,6 +228,8 @@ impl ExcelReader {
         eager: bool,
         skip_whitespace_tail_rows: bool,
         whitespace_as_null: bool,
+        duplicate_column_separator: String,
+        unnamed_column_prefix: String,
         py: Python<'py>,
     ) -> PyResult<Bound<'py, PyAny>> {
         // Cannot use NonZeroUsize in the parameters, as it is not supported by pyo3
@@ -246,6 +253,8 @@ impl ExcelReader {
             dtypes,
             skip_whitespace_tail_rows,
             whitespace_as_null,
+            duplicate_column_separator,
+            unnamed_column_prefix,
         };
 
         self.build_sheet(idx_or_name, opts, eager, py)
@@ -265,6 +274,8 @@ impl ExcelReader {
         eager = false,
         skip_whitespace_tail_rows = false,
         whitespace_as_null = false,
+        duplicate_column_separator = DEFAULT_DUPLICATE_COLUMN_SEPARATOR.to_owned(),
+        unnamed_column_prefix = DEFAULT_UNNAMED_COLUMN_PREFIX.to_owned(),
     ))]
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn py_load_table<'py>(
@@ -281,6 +292,8 @@ impl ExcelReader {
         eager: bool,
         skip_whitespace_tail_rows: bool,
         whitespace_as_null: bool,
+        duplicate_column_separator: String,
+        unnamed_column_prefix: String,
         py: Python<'py>,
     ) -> PyResult<Bound<'py, PyAny>> {
         // Cannot use NonZeroUsize in the parameters, as it is not supported by pyo3
@@ -304,6 +317,8 @@ impl ExcelReader {
             dtypes,
             skip_whitespace_tail_rows,
             whitespace_as_null,
+            duplicate_column_separator,
+            unnamed_column_prefix,
         };
 
         self.build_table(&name.to_string(), opts, eager, py)
