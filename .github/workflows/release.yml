@@ -58,7 +58,7 @@ jobs:
         path: dist
 
   macos:
-    runs-on: macos-14
+    runs-on: macos-latest
     strategy:
       matrix:
         python-version: ["3.11", "3.14t", "3.15t"]
