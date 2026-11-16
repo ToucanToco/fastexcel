@@ -48,7 +48,8 @@ impl ColumnInfo {
     }
 
     #[getter("name")]
-    /// `str`. The name of the column
+    /// `str`. The name of the column, after renaming. See "Column naming" in
+    /// `ExcelReader.load_sheet`.
     pub fn py_name(&self) -> &str {
         &self.name
     }
@@ -108,7 +109,8 @@ impl ColumnInfo {
 #[pymethods]
 impl ColumnInfoNoDtype {
     #[getter("name")]
-    /// `str`. The name of the column
+    /// `str`. The name of the column, after renaming. See "Column naming" in
+    /// `ExcelReader.load_sheet`.
     pub fn py_name(&self) -> &str {
         &self.name
     }

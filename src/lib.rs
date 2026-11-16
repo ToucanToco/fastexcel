@@ -65,7 +65,10 @@ fn get_python_version() -> String {
 #[cfg(feature = "python")]
 #[pymodule(gil_used = false)]
 fn _fastexcel(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    use crate::types::excelsheet::column_info::{ColumnInfo, ColumnInfoNoDtype};
+    use crate::types::{
+        excelreader::{DEFAULT_DUPLICATE_COLUMN_SEPARATOR, DEFAULT_UNNAMED_COLUMN_PREFIX},
+        excelsheet::column_info::{ColumnInfo, ColumnInfoNoDtype},
+    };
 
     pyo3_log::init();
 
@@ -80,6 +83,14 @@ fn _fastexcel(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<ExcelReader>()?;
     m.add_class::<ExcelTable>()?;
     m.add("__version__", get_python_version())?;
+    m.add(
+        "DEFAULT_DUPLICATE_COLUMN_SEPARATOR",
+        DEFAULT_DUPLICATE_COLUMN_SEPARATOR,
+    )?;
+    m.add(
+        "DEFAULT_UNNAMED_COLUMN_PREFIX",
+        DEFAULT_UNNAMED_COLUMN_PREFIX,
+    )?;
 
     // errors
     [

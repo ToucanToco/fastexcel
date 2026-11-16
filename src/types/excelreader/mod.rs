@@ -120,6 +120,19 @@ pub struct DefinedName {
 }
 
 /// Options for loading a sheet or table.
+///
+/// # Column naming
+///
+/// - Unnamed columns (missing header cell, no header row, or not covered by `column_names`) are
+///   named `{unnamed_column_prefix}{idx}`, where `idx` is the column's position within the loaded
+///   data range, not its absolute index in the sheet.
+/// - Duplicate names are renamed `{name}{duplicate_column_separator}{n}`, with `n` starting at 1
+///   and incremented until the name doesn't match any column to its left. For example,
+///   `a, a, a_1` becomes `a, a_1, a_1_1`.
+/// - Generated names and names given through `column_names` are deduplicated the same way.
+/// - Column names in `selected_columns` and in a by-name `dtypes` map refer to the final,
+///   deduplicated names. Exception: for tables loaded with their own header (no `header_row` and
+///   no `column_names`), names in `selected_columns` refer to the table's header names.
 #[non_exhaustive]
 #[derive(Debug)]
 pub struct LoadSheetOrTableOptions {
@@ -144,7 +157,14 @@ pub struct LoadSheetOrTableOptions {
     pub skip_whitespace_tail_rows: bool,
     /// Consider cells containing only whitespace as null values.
     pub whitespace_as_null: bool,
+    /// Separator between a duplicate column's name and its counter. Defaults to `"_"`.
+    pub duplicate_column_separator: String,
+    /// Prefix of generated names for unnamed columns. Defaults to `"__UNNAMED__"`.
+    pub unnamed_column_prefix: String,
 }
+
+pub(crate) const DEFAULT_DUPLICATE_COLUMN_SEPARATOR: &str = "_";
+pub(crate) const DEFAULT_UNNAMED_COLUMN_PREFIX: &str = "__UNNAMED__";
 
 impl LoadSheetOrTableOptions {
     /// Returns a `calamine::HeaderRow`, indicating the first row of the range to be read. For us,
@@ -177,6 +197,8 @@ impl LoadSheetOrTableOptions {
             dtypes: Default::default(),
             skip_whitespace_tail_rows: Default::default(),
             whitespace_as_null: Default::default(),
+            duplicate_column_separator: DEFAULT_DUPLICATE_COLUMN_SEPARATOR.to_owned(),
+            unnamed_column_prefix: DEFAULT_UNNAMED_COLUMN_PREFIX.to_owned(),
         }
     }
 
@@ -194,6 +216,8 @@ impl LoadSheetOrTableOptions {
             dtypes: Default::default(),
             skip_whitespace_tail_rows: Default::default(),
             whitespace_as_null: Default::default(),
+            duplicate_column_separator: DEFAULT_DUPLICATE_COLUMN_SEPARATOR.to_owned(),
+            unnamed_column_prefix: DEFAULT_UNNAMED_COLUMN_PREFIX.to_owned(),
         }
     }
 
@@ -252,6 +276,18 @@ impl LoadSheetOrTableOptions {
 
     pub fn whitespace_as_null(mut self, whitespace_as_null: bool) -> Self {
         self.whitespace_as_null = whitespace_as_null;
+        self
+    }
+
+    /// Sets the separator used to deduplicate column names. May be empty.
+    pub fn duplicate_column_separator(mut self, separator: impl Into<String>) -> Self {
+        self.duplicate_column_separator = separator.into();
+        self
+    }
+
+    /// Sets the prefix of generated names for unnamed columns. May be empty.
+    pub fn unnamed_column_prefix(mut self, prefix: impl Into<String>) -> Self {
+        self.unnamed_column_prefix = prefix.into();
         self
     }
 }
