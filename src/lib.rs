@@ -17,8 +17,8 @@ use error::ErrorContext;
 pub use error::{FastExcelError, FastExcelErrorKind, FastExcelResult};
 pub use types::{
     ColumnInfo, ColumnNameFrom, DType, DTypeCoercion, DTypeFrom, DTypes, DefinedName, ExcelReader,
-    ExcelSheet, ExcelTable, IdxOrName, LoadSheetOrTableOptions, SelectedColumns, SheetVisible,
-    SkipRows,
+    ExcelSheet, ExcelTable, IdxOrName, LoadSheetOrTableOptions, PropertyDate, SelectedColumns,
+    SheetVisible, SkipRows, WorkbookProperties,
 };
 
 /// Reads an excel file and returns an object allowing to access its sheets, tables, and a bit of metadata.
@@ -74,6 +74,7 @@ fn _fastexcel(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<ColumnInfo>()?;
     m.add_class::<ColumnInfoNoDtype>()?;
     m.add_class::<DefinedName>()?;
+    m.add_class::<WorkbookProperties>()?;
     m.add_class::<CellError>()?;
     m.add_class::<CellErrors>()?;
     m.add_class::<ExcelSheet>()?;

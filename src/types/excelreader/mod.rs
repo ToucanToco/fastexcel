@@ -2,6 +2,7 @@
 mod python;
 
 use std::{
+    collections::BTreeMap,
     fs::File,
     io::{BufReader, Cursor},
 };
@@ -12,8 +13,9 @@ use calamine::{
 };
 #[cfg(feature = "python")]
 use calamine::{DataRef, ReaderRef};
+use chrono::{DateTime, Datelike, FixedOffset, NaiveDateTime};
 #[cfg(feature = "python")]
-use pyo3::pyclass;
+use pyo3::{IntoPyObject, pyclass};
 
 use crate::{
     ExcelSheet, ExcelTable,
@@ -70,6 +72,16 @@ impl ExcelSheets {
         Ok(defined_names)
     }
 
+    fn workbook_properties(&mut self) -> FastExcelResult<WorkbookProperties> {
+        match self {
+            Self::File(sheets) => sheets.workbook_properties(),
+            Self::Bytes(sheets) => sheets.workbook_properties(),
+        }
+        .map(WorkbookProperties::from)
+        .map_err(|err| FastExcelErrorKind::CalamineError(err).into())
+        .with_context(|| "Error while reading workbook properties")
+    }
+
     #[cfg(feature = "python")]
     fn supports_by_ref(&self) -> bool {
         matches!(
@@ -117,6 +129,88 @@ impl ExcelSheets {
 pub struct DefinedName {
     pub name: String,
     pub formula: String,
+}
+
+/// A date of a workbook document property.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "python", derive(IntoPyObject))]
+pub enum PropertyDate {
+    /// A date with a UTC offset, as stored by xlsx, xlsb and xls files.
+    Aware(DateTime<FixedOffset>),
+    /// A date without a UTC offset, as stored by ods files.
+    Naive(NaiveDateTime),
+}
+
+impl PropertyDate {
+    /// Parses a date such as "2024-01-15T08:30:00Z" or "2024-06-20T14:22:00.123456789".
+    /// Other formats, and years outside 1 to 9999, return `None`.
+    fn parse(value: &str) -> Option<Self> {
+        let value = value.trim();
+        let date = match DateTime::parse_from_rfc3339(value) {
+            Ok(date) => Self::Aware(date),
+            Err(_) => NaiveDateTime::parse_from_str(value, "%Y-%m-%dT%H:%M:%S%.f")
+                .ok()
+                .map(Self::Naive)?,
+        };
+        let year = match &date {
+            Self::Aware(date) => date.year(),
+            Self::Naive(date) => date.year(),
+        };
+        (1..=9999).contains(&year).then_some(date)
+    }
+}
+
+/// The document properties of a workbook, such as its creator, title and dates.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[cfg_attr(
+    feature = "python",
+    pyclass(name = "WorkbookProperties", get_all, eq, skip_from_py_object)
+)]
+pub struct WorkbookProperties {
+    pub creator: Option<String>,
+    pub last_modified_by: Option<String>,
+    pub created: Option<PropertyDate>,
+    pub modified: Option<PropertyDate>,
+    pub title: Option<String>,
+    pub subject: Option<String>,
+    pub description: Option<String>,
+    pub keywords: Option<String>,
+    pub category: Option<String>,
+    pub content_status: Option<String>,
+    pub revision: Option<String>,
+    pub version: Option<String>,
+    pub application: Option<String>,
+    pub app_version: Option<String>,
+    pub company: Option<String>,
+    pub template: Option<String>,
+    pub manager: Option<String>,
+    /// Custom properties, with their values as the text stored in the file.
+    pub custom_properties: BTreeMap<String, String>,
+}
+
+impl From<calamine::WorkbookProperties> for WorkbookProperties {
+    fn from(props: calamine::WorkbookProperties) -> Self {
+        Self {
+            creator: props.creator,
+            last_modified_by: props.last_modified_by,
+            created: props.created.as_deref().and_then(PropertyDate::parse),
+            modified: props.modified.as_deref().and_then(PropertyDate::parse),
+            title: props.title,
+            subject: props.subject,
+            description: props.description,
+            keywords: props.keywords,
+            category: props.category,
+            content_status: props.content_status,
+            revision: props.revision,
+            version: props.version,
+            application: props.application,
+            app_version: props.app_version,
+            company: props.company,
+            template: props.template,
+            manager: props.manager,
+            custom_properties: props.custom_properties.into_iter().collect(),
+        }
+    }
 }
 
 /// Options for loading a sheet or table.
@@ -349,6 +443,10 @@ impl ExcelReader {
 
     pub fn defined_names(&mut self) -> FastExcelResult<Vec<DefinedName>> {
         self.sheets.defined_names()
+    }
+
+    pub fn workbook_properties(&mut self) -> FastExcelResult<WorkbookProperties> {
+        self.sheets.workbook_properties()
     }
 }
 

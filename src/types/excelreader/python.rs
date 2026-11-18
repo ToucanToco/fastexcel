@@ -1,7 +1,10 @@
 use arrow_array::RecordBatch;
-use pyo3::{Bound, IntoPyObjectExt, PyAny, PyResult, Python, pymethods, types::PyString};
+use pyo3::{
+    Bound, IntoPyObject, IntoPyObjectExt, PyAny, PyResult, Python, pymethods,
+    types::{PyAnyMethods, PyString},
+};
 
-use super::{DefinedName, ExcelReader};
+use super::{DefinedName, ExcelReader, WorkbookProperties};
 
 use crate::{
     ExcelSheet,
@@ -193,6 +196,11 @@ impl ExcelReader {
         self.defined_names().into_pyresult()
     }
 
+    #[pyo3(name = "workbook_properties")]
+    pub(crate) fn py_workbook_properties(&mut self) -> PyResult<WorkbookProperties> {
+        self.workbook_properties().into_pyresult()
+    }
+
     #[pyo3(name = "load_sheet", signature = (
         idx_or_name,
         *,
@@ -348,5 +356,47 @@ impl DefinedName {
 
     pub fn __eq__(&self, other: &Self) -> bool {
         self == other
+    }
+}
+
+#[pymethods]
+impl WorkbookProperties {
+    pub fn __repr__(&self, py: Python<'_>) -> PyResult<String> {
+        let fields = [
+            ("creator", self.creator.clone().into_pyobject(py)?),
+            (
+                "last_modified_by",
+                self.last_modified_by.clone().into_pyobject(py)?,
+            ),
+            ("created", self.created.clone().into_pyobject(py)?),
+            ("modified", self.modified.clone().into_pyobject(py)?),
+            ("title", self.title.clone().into_pyobject(py)?),
+            ("subject", self.subject.clone().into_pyobject(py)?),
+            ("description", self.description.clone().into_pyobject(py)?),
+            ("keywords", self.keywords.clone().into_pyobject(py)?),
+            ("category", self.category.clone().into_pyobject(py)?),
+            (
+                "content_status",
+                self.content_status.clone().into_pyobject(py)?,
+            ),
+            ("revision", self.revision.clone().into_pyobject(py)?),
+            ("version", self.version.clone().into_pyobject(py)?),
+            ("application", self.application.clone().into_pyobject(py)?),
+            ("app_version", self.app_version.clone().into_pyobject(py)?),
+            ("company", self.company.clone().into_pyobject(py)?),
+            ("template", self.template.clone().into_pyobject(py)?),
+            ("manager", self.manager.clone().into_pyobject(py)?),
+        ];
+        let mut parts = Vec::new();
+        for (name, value) in fields {
+            if !value.is_none() {
+                parts.push(format!("{name}={}", value.repr()?));
+            }
+        }
+        if !self.custom_properties.is_empty() {
+            let custom = (&self.custom_properties).into_pyobject(py)?;
+            parts.push(format!("custom_properties={}", custom.repr()?));
+        }
+        Ok(format!("WorkbookProperties({})", parts.join(", ")))
     }
 }
