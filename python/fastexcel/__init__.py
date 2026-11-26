@@ -35,6 +35,7 @@ from ._fastexcel import (
     InvalidParametersError,
     SheetNotFoundError,
     UnsupportedColumnTypeCombinationError,
+    WorkbookProperties,
     __version__,
     _ExcelReader,
     _ExcelSheet,
@@ -437,6 +438,17 @@ class ExcelReader:
         """
         return self._reader.defined_names()
 
+    def workbook_properties(self) -> WorkbookProperties:
+        """The document properties of the workbook, such as its creator, title and dates.
+
+        Supported for xlsx, xlsb, xls and ods files. Properties missing from the file are
+        `None`. `created` and `modified` are timezone-aware when the file stores a UTC
+        offset (as xlsx, xlsb and xls files usually do) and naive otherwise (as in ods
+        files). A date stored without a time is read as midnight. Custom property values
+        are returned as the text stored in the file.
+        """
+        return self._reader.workbook_properties()
+
     @typing.overload
     def load_table(
         self,
@@ -716,6 +728,8 @@ __all__ = (
     "ColumnInfo",
     # Defined names
     "DefinedName",
+    # Workbook properties
+    "WorkbookProperties",
     # Parse error information
     "CellError",
     "CellErrors",

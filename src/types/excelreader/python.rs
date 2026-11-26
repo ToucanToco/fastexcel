@@ -1,7 +1,11 @@
 use arrow_array::RecordBatch;
-use pyo3::{Bound, IntoPyObjectExt, PyAny, PyResult, Python, pymethods, types::PyString};
+use chrono::Datelike;
+use pyo3::{
+    Bound, IntoPyObject, IntoPyObjectExt, PyAny, PyErr, PyResult, Python, pymethods,
+    types::{PyAnyMethods, PyString},
+};
 
-use super::{DefinedName, ExcelReader};
+use super::{DefinedName, ExcelReader, PropertyDate, WorkbookProperties};
 
 use crate::{
     ExcelSheet,
@@ -193,6 +197,11 @@ impl ExcelReader {
         self.defined_names().into_pyresult()
     }
 
+    #[pyo3(name = "workbook_properties")]
+    pub(crate) fn py_workbook_properties(&mut self) -> PyResult<WorkbookProperties> {
+        self.workbook_properties().into_pyresult()
+    }
+
     #[pyo3(name = "load_sheet", signature = (
         idx_or_name,
         *,
@@ -348,5 +357,65 @@ impl DefinedName {
 
     pub fn __eq__(&self, other: &Self) -> bool {
         self == other
+    }
+}
+
+impl<'py> IntoPyObject<'py> for PropertyDate {
+    type Target = PyAny;
+    type Output = Bound<'py, PyAny>;
+    type Error = PyErr;
+
+    /// Python's datetime only supports years 1 to 9999, so other dates convert to None.
+    fn into_pyobject(self, py: Python<'py>) -> PyResult<Self::Output> {
+        let year = match self {
+            Self::Aware(date) => date.year(),
+            Self::Naive(date) => date.year(),
+        };
+        if !(1..=9999).contains(&year) {
+            return Ok(py.None().into_bound(py));
+        }
+        match self {
+            Self::Aware(date) => date.into_bound_py_any(py),
+            Self::Naive(date) => date.into_bound_py_any(py),
+        }
+    }
+}
+
+#[pymethods]
+impl WorkbookProperties {
+    pub fn __repr__(&self, py: Python<'_>) -> PyResult<String> {
+        let fields = [
+            ("creator", (&self.creator).into_pyobject(py)?),
+            (
+                "last_modified_by",
+                (&self.last_modified_by).into_pyobject(py)?,
+            ),
+            ("created", self.created.into_pyobject(py)?),
+            ("modified", self.modified.into_pyobject(py)?),
+            ("title", (&self.title).into_pyobject(py)?),
+            ("subject", (&self.subject).into_pyobject(py)?),
+            ("description", (&self.description).into_pyobject(py)?),
+            ("keywords", (&self.keywords).into_pyobject(py)?),
+            ("category", (&self.category).into_pyobject(py)?),
+            ("content_status", (&self.content_status).into_pyobject(py)?),
+            ("revision", (&self.revision).into_pyobject(py)?),
+            ("version", (&self.version).into_pyobject(py)?),
+            ("application", (&self.application).into_pyobject(py)?),
+            ("app_version", (&self.app_version).into_pyobject(py)?),
+            ("company", (&self.company).into_pyobject(py)?),
+            ("template", (&self.template).into_pyobject(py)?),
+            ("manager", (&self.manager).into_pyobject(py)?),
+        ];
+        let mut parts = Vec::new();
+        for (name, value) in fields {
+            if !value.is_none() {
+                parts.push(format!("{name}={}", value.repr()?));
+            }
+        }
+        if !self.custom_properties.is_empty() {
+            let custom = (&self.custom_properties).into_pyobject(py)?;
+            parts.push(format!("custom_properties={}", custom.repr()?));
+        }
+        Ok(format!("WorkbookProperties({})", parts.join(", ")))
     }
 }

@@ -2,8 +2,10 @@
 mod python;
 
 use std::{
+    collections::BTreeMap,
     fs::File,
     io::{BufReader, Cursor},
+    str::FromStr,
 };
 
 use calamine::{
@@ -12,6 +14,7 @@ use calamine::{
 };
 #[cfg(feature = "python")]
 use calamine::{DataRef, ReaderRef};
+use chrono::{DateTime, FixedOffset, NaiveDate, NaiveDateTime, NaiveTime};
 #[cfg(feature = "python")]
 use pyo3::pyclass;
 
@@ -70,6 +73,16 @@ impl ExcelSheets {
         Ok(defined_names)
     }
 
+    fn workbook_properties(&mut self) -> FastExcelResult<WorkbookProperties> {
+        match self {
+            Self::File(sheets) => sheets.workbook_properties(),
+            Self::Bytes(sheets) => sheets.workbook_properties(),
+        }
+        .map(WorkbookProperties::from)
+        .map_err(|err| FastExcelErrorKind::CalamineError(err).into())
+        .with_context(|| "Error while reading workbook properties")
+    }
+
     #[cfg(feature = "python")]
     fn supports_by_ref(&self) -> bool {
         matches!(
@@ -117,6 +130,100 @@ impl ExcelSheets {
 pub struct DefinedName {
     pub name: String,
     pub formula: String,
+}
+
+/// A date of a workbook document property.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PropertyDate {
+    /// A date with a UTC offset, as stored by xlsx, xlsb and xls files.
+    Aware(DateTime<FixedOffset>),
+    /// A date without a UTC offset, as stored by ods files.
+    Naive(NaiveDateTime),
+}
+
+impl FromStr for PropertyDate {
+    type Err = chrono::ParseError;
+
+    /// Parses a date in one of the W3C-DTF forms that document properties use, such as
+    /// "2024-01-15T08:30:00Z", "2024-01-15T08:30+01:00", "2024-01-15" or "2024", or a date
+    /// without a UTC offset such as "2024-06-20T14:22:00.123456789". Dates without a time are
+    /// read as midnight on their first day.
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        let value = value.trim();
+        let error = match DateTime::parse_from_rfc3339(value) {
+            Ok(date) => return Ok(Self::Aware(date)),
+            Err(error) => error,
+        };
+        if let Ok(date) = DateTime::parse_from_str(value, "%Y-%m-%dT%H:%M%#z") {
+            return Ok(Self::Aware(date));
+        }
+        if let Ok(date) = NaiveDateTime::parse_from_str(value, "%Y-%m-%dT%H:%M:%S%.f") {
+            return Ok(Self::Naive(date));
+        }
+        // "YYYY-MM-DD", "YYYY-MM" and "YYYY".
+        [
+            value.to_owned(),
+            format!("{value}-01"),
+            format!("{value}-01-01"),
+        ]
+        .iter()
+        .find_map(|date| NaiveDate::parse_from_str(date, "%Y-%m-%d").ok())
+        .map(|date| Self::Naive(date.and_time(NaiveTime::MIN)))
+        .ok_or(error)
+    }
+}
+
+/// The document properties of a workbook, such as its creator, title and dates.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[cfg_attr(
+    feature = "python",
+    pyclass(name = "WorkbookProperties", get_all, eq, skip_from_py_object)
+)]
+pub struct WorkbookProperties {
+    pub creator: Option<String>,
+    pub last_modified_by: Option<String>,
+    pub created: Option<PropertyDate>,
+    pub modified: Option<PropertyDate>,
+    pub title: Option<String>,
+    pub subject: Option<String>,
+    pub description: Option<String>,
+    pub keywords: Option<String>,
+    pub category: Option<String>,
+    pub content_status: Option<String>,
+    pub revision: Option<String>,
+    pub version: Option<String>,
+    pub application: Option<String>,
+    pub app_version: Option<String>,
+    pub company: Option<String>,
+    pub template: Option<String>,
+    pub manager: Option<String>,
+    /// Custom properties, with their values as the text stored in the file.
+    pub custom_properties: BTreeMap<String, String>,
+}
+
+impl From<calamine::WorkbookProperties> for WorkbookProperties {
+    fn from(props: calamine::WorkbookProperties) -> Self {
+        Self {
+            creator: props.creator,
+            last_modified_by: props.last_modified_by,
+            created: props.created.and_then(|created| created.parse().ok()),
+            modified: props.modified.and_then(|modified| modified.parse().ok()),
+            title: props.title,
+            subject: props.subject,
+            description: props.description,
+            keywords: props.keywords,
+            category: props.category,
+            content_status: props.content_status,
+            revision: props.revision,
+            version: props.version,
+            application: props.application,
+            app_version: props.app_version,
+            company: props.company,
+            template: props.template,
+            manager: props.manager,
+            custom_properties: props.custom_properties.into_iter().collect(),
+        }
+    }
 }
 
 /// Options for loading a sheet or table.
@@ -350,6 +457,10 @@ impl ExcelReader {
     pub fn defined_names(&mut self) -> FastExcelResult<Vec<DefinedName>> {
         self.sheets.defined_names()
     }
+
+    pub fn workbook_properties(&mut self) -> FastExcelResult<WorkbookProperties> {
+        self.sheets.workbook_properties()
+    }
 }
 
 impl TryFrom<&[u8]> for ExcelReader {
@@ -367,5 +478,60 @@ impl TryFrom<&[u8]> for ExcelReader {
             #[cfg(feature = "python")]
             source: "bytes".to_owned(),
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use chrono::{DateTime, NaiveDate};
+    use pretty_assertions::assert_eq;
+    use rstest::rstest;
+
+    use super::PropertyDate;
+
+    fn aware(value: &str) -> PropertyDate {
+        PropertyDate::Aware(DateTime::parse_from_rfc3339(value).unwrap())
+    }
+
+    fn naive(year: i32, month: u32, day: u32, hour: u32, min: u32, sec: u32) -> PropertyDate {
+        let date = NaiveDate::from_ymd_opt(year, month, day).unwrap();
+        PropertyDate::Naive(date.and_hms_opt(hour, min, sec).unwrap())
+    }
+
+    #[rstest]
+    #[case("2024-01-15T08:30:00Z", aware("2024-01-15T08:30:00Z"))]
+    #[case("2024-01-15T08:30:00.25+01:00", aware("2024-01-15T08:30:00.25+01:00"))]
+    #[case(" 2024-01-15T08:30:00Z\n", aware("2024-01-15T08:30:00Z"))]
+    #[case("2024-01-15T08:30Z", aware("2024-01-15T08:30:00Z"))]
+    #[case("2024-01-15T08:30-05:00", aware("2024-01-15T08:30:00-05:00"))]
+    #[case("0000-01-01T00:00:00Z", aware("0000-01-01T00:00:00Z"))]
+    #[case("2024-06-20T14:22:00", naive(2024, 6, 20, 14, 22, 0))]
+    #[case("2024-01-15", naive(2024, 1, 15, 0, 0, 0))]
+    #[case("2024-01", naive(2024, 1, 1, 0, 0, 0))]
+    #[case("2024", naive(2024, 1, 1, 0, 0, 0))]
+    fn test_parse_property_date(#[case] value: &str, #[case] expected: PropertyDate) {
+        assert_eq!(value.parse::<PropertyDate>(), Ok(expected));
+    }
+
+    #[test]
+    fn test_parse_property_date_with_nanoseconds() {
+        let date = NaiveDate::from_ymd_opt(2024, 6, 20)
+            .unwrap()
+            .and_hms_nano_opt(14, 22, 0, 123_456_789)
+            .unwrap();
+        assert_eq!(
+            "2024-06-20T14:22:00.123456789".parse::<PropertyDate>(),
+            Ok(PropertyDate::Naive(date))
+        );
+    }
+
+    #[rstest]
+    #[case("")]
+    #[case("yesterday")]
+    #[case("2024-13")]
+    #[case("2024-01-15T08")]
+    #[case("15/01/2024")]
+    fn test_parse_property_date_invalid(#[case] value: &str) {
+        assert!(value.parse::<PropertyDate>().is_err());
     }
 }
