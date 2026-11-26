@@ -443,8 +443,9 @@ class ExcelReader:
 
         Supported for xlsx, xlsb, xls and ods files. Properties missing from the file are
         `None`. `created` and `modified` are timezone-aware when the file stores a UTC
-        offset (xlsx, xlsb, xls) and naive otherwise (ods). Custom property values are
-        returned as the text stored in the file.
+        offset (as xlsx, xlsb and xls files usually do) and naive otherwise (as in ods
+        files). A date stored without a time is read as midnight. Custom property values
+        are returned as the text stored in the file.
         """
         return self._reader.workbook_properties()
 

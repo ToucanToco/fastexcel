@@ -1,10 +1,11 @@
 use arrow_array::RecordBatch;
+use chrono::Datelike;
 use pyo3::{
-    Bound, IntoPyObject, IntoPyObjectExt, PyAny, PyResult, Python, pymethods,
+    Bound, IntoPyObject, IntoPyObjectExt, PyAny, PyErr, PyResult, Python, pymethods,
     types::{PyAnyMethods, PyString},
 };
 
-use super::{DefinedName, ExcelReader, WorkbookProperties};
+use super::{DefinedName, ExcelReader, PropertyDate, WorkbookProperties};
 
 use crate::{
     ExcelSheet,
@@ -359,33 +360,51 @@ impl DefinedName {
     }
 }
 
+impl<'py> IntoPyObject<'py> for PropertyDate {
+    type Target = PyAny;
+    type Output = Bound<'py, PyAny>;
+    type Error = PyErr;
+
+    /// Python's datetime only supports years 1 to 9999, so other dates convert to None.
+    fn into_pyobject(self, py: Python<'py>) -> PyResult<Self::Output> {
+        let year = match self {
+            Self::Aware(date) => date.year(),
+            Self::Naive(date) => date.year(),
+        };
+        if !(1..=9999).contains(&year) {
+            return Ok(py.None().into_bound(py));
+        }
+        match self {
+            Self::Aware(date) => date.into_bound_py_any(py),
+            Self::Naive(date) => date.into_bound_py_any(py),
+        }
+    }
+}
+
 #[pymethods]
 impl WorkbookProperties {
     pub fn __repr__(&self, py: Python<'_>) -> PyResult<String> {
         let fields = [
-            ("creator", self.creator.clone().into_pyobject(py)?),
+            ("creator", (&self.creator).into_pyobject(py)?),
             (
                 "last_modified_by",
-                self.last_modified_by.clone().into_pyobject(py)?,
+                (&self.last_modified_by).into_pyobject(py)?,
             ),
-            ("created", self.created.clone().into_pyobject(py)?),
-            ("modified", self.modified.clone().into_pyobject(py)?),
-            ("title", self.title.clone().into_pyobject(py)?),
-            ("subject", self.subject.clone().into_pyobject(py)?),
-            ("description", self.description.clone().into_pyobject(py)?),
-            ("keywords", self.keywords.clone().into_pyobject(py)?),
-            ("category", self.category.clone().into_pyobject(py)?),
-            (
-                "content_status",
-                self.content_status.clone().into_pyobject(py)?,
-            ),
-            ("revision", self.revision.clone().into_pyobject(py)?),
-            ("version", self.version.clone().into_pyobject(py)?),
-            ("application", self.application.clone().into_pyobject(py)?),
-            ("app_version", self.app_version.clone().into_pyobject(py)?),
-            ("company", self.company.clone().into_pyobject(py)?),
-            ("template", self.template.clone().into_pyobject(py)?),
-            ("manager", self.manager.clone().into_pyobject(py)?),
+            ("created", self.created.into_pyobject(py)?),
+            ("modified", self.modified.into_pyobject(py)?),
+            ("title", (&self.title).into_pyobject(py)?),
+            ("subject", (&self.subject).into_pyobject(py)?),
+            ("description", (&self.description).into_pyobject(py)?),
+            ("keywords", (&self.keywords).into_pyobject(py)?),
+            ("category", (&self.category).into_pyobject(py)?),
+            ("content_status", (&self.content_status).into_pyobject(py)?),
+            ("revision", (&self.revision).into_pyobject(py)?),
+            ("version", (&self.version).into_pyobject(py)?),
+            ("application", (&self.application).into_pyobject(py)?),
+            ("app_version", (&self.app_version).into_pyobject(py)?),
+            ("company", (&self.company).into_pyobject(py)?),
+            ("template", (&self.template).into_pyobject(py)?),
+            ("manager", (&self.manager).into_pyobject(py)?),
         ];
         let mut parts = Vec::new();
         for (name, value) in fields {
